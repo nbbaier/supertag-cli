@@ -13,7 +13,7 @@
 
 import { chromium, type BrowserContext } from 'playwright';
 import { parseArgs } from 'util';
-import { existsSync, mkdirSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, appendFileSync } from 'fs';
 import { join, basename } from 'path';
 import { homedir } from 'os';
 
@@ -329,13 +329,85 @@ async function performExport(options: ExportOptions): Promise<string | null> {
   }
 }
 
+/**
+ * Extract Firebase API token from browser context
+ * Firebase stores auth tokens in IndexedDB under firebaseLocalStorageDb
+ */
+async function extractFirebaseToken(page: any, verbose: boolean): Promise<string | null> {
+  try {
+    // Firebase stores tokens in IndexedDB - extract via page.evaluate
+    const token = await page.evaluate(async () => {
+      return new Promise((resolve) => {
+        const request = indexedDB.open('firebaseLocalStorageDb');
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction(['firebaseLocalStorage'], 'readonly');
+          const store = transaction.objectStore('firebaseLocalStorage');
+          const getAllRequest = store.getAll();
+
+          getAllRequest.onsuccess = () => {
+            const results = getAllRequest.result;
+            // Find the auth token entry
+            for (const entry of results) {
+              if (entry?.value?.stsTokenManager?.accessToken) {
+                resolve(entry.value.stsTokenManager.accessToken);
+                return;
+              }
+            }
+            resolve(null);
+          };
+          getAllRequest.onerror = () => resolve(null);
+        };
+        request.onerror = () => resolve(null);
+      });
+    });
+
+    if (token && verbose) {
+      logger.debug(`Extracted Firebase token (${token.length} chars)`);
+    }
+    return token;
+  } catch (error) {
+    if (verbose) logger.debug(`Failed to extract Firebase token: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Save Firebase token to .env file
+ */
+function saveTokenToEnv(token: string): void {
+  const envPath = join(process.cwd(), '.env');
+  const envVar = `FIREBASE_API_TOKEN=${token}`;
+
+  if (existsSync(envPath)) {
+    // Read existing .env
+    const content = readFileSync(envPath, 'utf-8');
+
+    // Check if FIREBASE_API_TOKEN already exists
+    if (content.includes('FIREBASE_API_TOKEN=')) {
+      // Replace existing token
+      const updated = content.replace(/FIREBASE_API_TOKEN=.*/g, envVar);
+      writeFileSync(envPath, updated);
+      logger.info('Updated FIREBASE_API_TOKEN in .env');
+    } else {
+      // Append token
+      appendFileSync(envPath, `\n${envVar}\n`);
+      logger.info('Added FIREBASE_API_TOKEN to .env');
+    }
+  } else {
+    // Create new .env file
+    writeFileSync(envPath, `${envVar}\n`);
+    logger.info('Created .env with FIREBASE_API_TOKEN');
+  }
+}
+
 async function interactiveLogin(): Promise<void> {
   logger.info('Opening Chromium for Tana login...');
   logger.info('');
   logger.info('IMPORTANT: This browser is dedicated for Tana automation.');
   logger.info('1. Log in to Tana (via Google or email)');
-  logger.info('2. Once you see the Tana workspace, close the browser');
-  logger.info('3. Your session will be saved for future automated exports');
+  logger.info('2. Once you see the Tana workspace, the token will be extracted');
+  logger.info('3. Close the browser when done');
   logger.info('');
 
   await ensureDirectories(DEFAULT_EXPORT_DIR);
@@ -362,12 +434,47 @@ async function interactiveLogin(): Promise<void> {
 
   await page.goto(TANA_APP_URL);
 
+  // Poll for successful login and extract token
+  let tokenExtracted = false;
+  const checkInterval = setInterval(async () => {
+    try {
+      // Check if we're logged in (workspace visible)
+      const isLoggedIn = await page.evaluate(() => {
+        return document.querySelector('[data-testid="workspace"]') !== null ||
+               document.querySelector('.workspace') !== null ||
+               !document.body.textContent?.includes('Sign in');
+      });
+
+      if (isLoggedIn && !tokenExtracted) {
+        // Wait a moment for tokens to be stored
+        await new Promise(r => setTimeout(r, 2000));
+
+        const token = await extractFirebaseToken(page, true);
+        if (token) {
+          saveTokenToEnv(token);
+          tokenExtracted = true;
+          logger.info('');
+          logger.info('✅ Firebase token extracted and saved to .env');
+          logger.info('You can now close the browser.');
+        }
+      }
+    } catch (e) {
+      // Page might be navigating, ignore errors
+    }
+  }, 3000);
+
   // Wait for user to close the browser
   await new Promise<void>((resolve) => {
-    context.on('close', () => resolve());
+    context.on('close', () => {
+      clearInterval(checkInterval);
+      resolve();
+    });
   });
 
   logger.info('Login session saved. You can now run exports automatically.');
+  if (tokenExtracted) {
+    logger.info('Firebase API token saved to .env file.');
+  }
 }
 
 // Main CLI
