@@ -1,0 +1,22 @@
+type Node = {
+  name: string;
+  description?: string;
+  supertags: [{
+    /* video */
+    id: '-iZ7Rsg93Q'
+  }];
+  children: [
+    {
+      /* Transcript */
+      type: 'field';
+      attributeId: 'QoIi0APx_znu';
+      children: Node[];
+    },
+    {
+      /* Summary */
+      type: 'field';
+      attributeId: 'u83MRVzdU58n';
+      children: Node[];
+    },
+  ];
+};

@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+bun.lock
+
+# Database files
+*.db
+*.db-*
+*.db.backup
+*.db.sequential
+
+# Large JSON exports
+sample_data/
+
+# Logs
+logs/*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Compiled binaries
+tana
+tana-daily
+supertag
+supertag-*
+export/tana-export
+export/supertag-export
+export/supertag-export-*
+
+# Build output
+dist/
+
+# Native libraries
+*.dylib
+
+# MCP server binaries
+supertag-mcp
+supertag-mcp-*
+
+# macOS
+.DS_Store

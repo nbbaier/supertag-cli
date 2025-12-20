@@ -1,0 +1,342 @@
+/**
+ * Schema Command
+ * Manage Tana schema registry (sync, list, show supertags)
+ *
+ * Supports multi-workspace configuration with per-workspace schema caches.
+ */
+
+import { join, dirname } from 'path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { SchemaRegistry } from '../schema';
+import {
+  DEFAULT_EXPORT_DIR,
+  TANA_CACHE_DIR,
+  SCHEMA_CACHE_FILE,
+  resolveWorkspace,
+  ensureWorkspaceDir,
+} from '../config/paths';
+import { getConfig } from '../config/manager';
+
+/**
+ * Schema command options
+ */
+export interface SchemaOptions {
+  exportPath?: string;
+  verbose?: boolean;
+  format?: 'table' | 'json' | 'names';
+  workspace?: string;
+}
+
+/**
+ * Get cached registry or create new one
+ * @param workspace - Optional workspace alias or nodeid
+ */
+export function getSchemaRegistry(workspace?: string): SchemaRegistry {
+  const config = getConfig().getConfig();
+  const ctx = resolveWorkspace(workspace, config);
+  const schemaPath = ctx.schemaPath;
+
+  if (existsSync(schemaPath)) {
+    const json = readFileSync(schemaPath, 'utf-8');
+    return SchemaRegistry.fromJSON(json);
+  }
+
+  // Try to auto-sync from latest export
+  const latestExport = findLatestExport(ctx.exportDir);
+  if (latestExport) {
+    return syncSchemaToPath(latestExport, schemaPath, false);
+  }
+
+  // Return empty registry
+  return new SchemaRegistry();
+}
+
+/**
+ * Find the latest Tana export file
+ */
+function findLatestExport(exportDir: string): string | null {
+  if (!existsSync(exportDir)) return null;
+
+  const files = Bun.spawnSync(['ls', '-t', exportDir]).stdout.toString().trim().split('\n');
+  const jsonFiles = files.filter(f => f.endsWith('.json'));
+
+  if (jsonFiles.length === 0) return null;
+
+  return join(exportDir, jsonFiles[0]);
+}
+
+/**
+ * Sync schema from Tana export to a specific cache path
+ * @param exportPath - Path to Tana export JSON
+ * @param schemaPath - Path to write schema cache
+ * @param verbose - Show verbose output
+ */
+export function syncSchemaToPath(exportPath: string, schemaPath: string, verbose: boolean): SchemaRegistry {
+  if (!existsSync(exportPath)) {
+    throw new Error(`Export file not found: ${exportPath}`);
+  }
+
+  if (verbose) {
+    console.error(`📥 Loading export from: ${exportPath}`);
+  }
+
+  const exportData = JSON.parse(readFileSync(exportPath, 'utf-8'));
+  const registry = new SchemaRegistry();
+  registry.loadFromExport(exportData);
+
+  // Cache the registry to workspace-specific path
+  const cacheDir = dirname(schemaPath);
+  if (!existsSync(cacheDir)) {
+    mkdirSync(cacheDir, { recursive: true });
+  }
+  writeFileSync(schemaPath, registry.toJSON());
+
+  const supertags = registry.listSupertags();
+  if (verbose) {
+    console.error(`✅ Loaded ${supertags.length} supertags`);
+    console.error(`📁 Cached to: ${schemaPath}`);
+  }
+
+  return registry;
+}
+
+/**
+ * Sync schema from Tana export (workspace-aware)
+ * @param exportPath - Path to Tana export JSON
+ * @param verbose - Show verbose output
+ * @param workspace - Optional workspace alias or nodeid
+ */
+export function syncSchema(exportPath: string, verbose: boolean, workspace?: string): SchemaRegistry {
+  const config = getConfig().getConfig();
+  const ctx = resolveWorkspace(workspace, config);
+  return syncSchemaToPath(exportPath, ctx.schemaPath, verbose);
+}
+
+/**
+ * Execute schema command
+ */
+export async function schemaCommand(
+  subcommand: string | undefined,
+  arg: string | undefined,
+  options: SchemaOptions,
+): Promise<void> {
+  switch (subcommand) {
+    case 'sync':
+      await syncCommand(arg, options);
+      break;
+    case 'list':
+      await listCommand(options);
+      break;
+    case 'show':
+      await showCommand(arg, options);
+      break;
+    case 'search':
+      await searchCommand(arg, options);
+      break;
+    default:
+      console.error('Usage: supertag schema <sync|list|show|search> [args]');
+      console.error('');
+      console.error('Subcommands:');
+      console.error('  sync [path]     Sync schema from Tana export');
+      console.error('  list            List all supertags');
+      console.error('  show <name>     Show supertag fields');
+      console.error('  search <query>  Search supertags by name');
+      console.error('');
+      console.error('Options:');
+      console.error('  --format <fmt>  Output format: table, json, names');
+      console.error('  --verbose       Verbose output');
+  }
+}
+
+/**
+ * Sync subcommand
+ */
+async function syncCommand(path: string | undefined, options: SchemaOptions): Promise<void> {
+  // Resolve workspace for export directory
+  const config = getConfig().getConfig();
+  const ctx = resolveWorkspace(options.workspace, config);
+
+  const exportPath = path || options.exportPath || findLatestExport(ctx.exportDir);
+
+  if (!exportPath) {
+    console.error('❌ No Tana export found. Please provide a path:');
+    console.error('   supertag schema sync /path/to/export.json');
+    console.error('');
+    console.error(`Or place exports in: ${ctx.exportDir}`);
+    if (options.workspace) {
+      console.error(`(workspace: ${options.workspace})`);
+    }
+    process.exit(1);
+  }
+
+  console.error(`🔄 Syncing schema from: ${exportPath}`);
+  if (options.workspace) {
+    console.error(`   Workspace: ${ctx.alias}`);
+  }
+  const registry = syncSchema(exportPath, options.verbose ?? false, options.workspace);
+  const supertags = registry.listSupertags();
+
+  console.log(`✅ Synced ${supertags.length} supertags to cache`);
+  console.log(`   Cache: ${ctx.schemaPath}`);
+
+  if (options.verbose) {
+    console.log('');
+    console.log('Top 10 supertags by name:');
+    supertags
+      .slice(0, 10)
+      .forEach(s => console.log(`  - ${s.name} (${s.fields.length} fields)`));
+  }
+}
+
+/**
+ * List subcommand
+ */
+async function listCommand(options: SchemaOptions): Promise<void> {
+  const registry = getSchemaRegistry(options.workspace);
+  const supertags = registry.listSupertags();
+
+  if (supertags.length === 0) {
+    console.error('No supertags found. Run "supertag schema sync" first.');
+    process.exit(1);
+  }
+
+  switch (options.format) {
+    case 'json':
+      console.log(JSON.stringify(supertags, null, 2));
+      break;
+    case 'names':
+      supertags.forEach(s => console.log(s.name));
+      break;
+    default:
+      console.log(`Found ${supertags.length} supertags:\n`);
+      // Sort by name and show with field count
+      supertags
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(s => {
+          const fieldCount = s.fields.length;
+          const fieldInfo = fieldCount > 0 ? ` (${fieldCount} fields)` : '';
+          console.log(`  ${s.name}${fieldInfo}`);
+        });
+  }
+}
+
+/**
+ * Show subcommand
+ */
+async function showCommand(name: string | undefined, options: SchemaOptions): Promise<void> {
+  if (!name) {
+    console.error('Usage: supertag schema show <supertag-name>');
+    process.exit(1);
+  }
+
+  const registry = getSchemaRegistry(options.workspace);
+  const supertag = registry.getSupertag(name);
+
+  if (!supertag) {
+    console.error(`❌ Supertag not found: ${name}`);
+    console.error('');
+    // Suggest similar names
+    const similar = registry.searchSupertags(name);
+    if (similar.length > 0) {
+      console.error('Did you mean:');
+      similar.slice(0, 5).forEach(s => console.error(`  - ${s.name}`));
+    }
+    process.exit(1);
+  }
+
+  if (options.format === 'json') {
+    console.log(JSON.stringify(supertag, null, 2));
+    return;
+  }
+
+  console.log(`Supertag: ${supertag.name}`);
+  console.log(`ID: ${supertag.id}`);
+  if (supertag.description) {
+    console.log(`Description: ${supertag.description}`);
+  }
+
+  // Show inheritance chain
+  if (supertag.extends && supertag.extends.length > 0) {
+    const parentNames = supertag.extends
+      .map(id => registry.getSupertagById(id)?.name || id)
+      .join(', ');
+    console.log(`Extends: ${parentNames}`);
+  }
+  console.log('');
+
+  // Get all fields including inherited ones
+  const allFields = registry.getFields(name);
+  const ownFieldIds = new Set(supertag.fields.map(f => f.attributeId));
+
+  if (allFields.length === 0) {
+    console.log('No fields defined.');
+    return;
+  }
+
+  // Show own fields first
+  if (supertag.fields.length > 0) {
+    console.log(`Own Fields (${supertag.fields.length}):`);
+    for (const field of supertag.fields) {
+      const typeInfo = field.dataType ? ` [${field.dataType}]` : '';
+      console.log(`  - ${field.name}${typeInfo}`);
+      console.log(`    ID: ${field.attributeId}`);
+      if (field.description) {
+        console.log(`    ${field.description}`);
+      }
+    }
+  }
+
+  // Show inherited fields
+  const inheritedFields = allFields.filter(f => !ownFieldIds.has(f.attributeId));
+  if (inheritedFields.length > 0) {
+    console.log('');
+    console.log(`Inherited Fields (${inheritedFields.length}):`);
+    for (const field of inheritedFields) {
+      const typeInfo = field.dataType ? ` [${field.dataType}]` : '';
+      console.log(`  - ${field.name}${typeInfo}`);
+      console.log(`    ID: ${field.attributeId}`);
+      if (field.description) {
+        console.log(`    ${field.description}`);
+      }
+    }
+  }
+
+  // Show CLI example with some fields
+  console.log('');
+  console.log('Example usage:');
+  const exampleFields = allFields.slice(0, 3);
+  const fieldArgs = exampleFields
+    .map(f => `--${f.normalizedName} "value"`)
+    .join(' ');
+  console.log(`  supertag create ${supertag.normalizedName} "Node name" ${fieldArgs}`);
+}
+
+/**
+ * Search subcommand
+ */
+async function searchCommand(query: string | undefined, options: SchemaOptions): Promise<void> {
+  if (!query) {
+    console.error('Usage: supertag schema search <query>');
+    process.exit(1);
+  }
+
+  const registry = getSchemaRegistry(options.workspace);
+  const matches = registry.searchSupertags(query);
+
+  if (matches.length === 0) {
+    console.log(`No supertags matching: ${query}`);
+    return;
+  }
+
+  if (options.format === 'json') {
+    console.log(JSON.stringify(matches, null, 2));
+    return;
+  }
+
+  console.log(`Found ${matches.length} matching supertags:\n`);
+  matches.forEach(s => {
+    const fieldCount = s.fields.length;
+    const fieldInfo = fieldCount > 0 ? ` (${fieldCount} fields)` : '';
+    console.log(`  ${s.name}${fieldInfo}`);
+  });
+}

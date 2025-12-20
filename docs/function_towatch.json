@@ -1,0 +1,16 @@
+type Node = {
+  name: string;
+  description?: string;
+  supertags: [{
+    /* towatch */
+    id: 'K0X94wwHfQ'
+  }];
+  children: [
+    {
+      /* ⚙️ Vault */
+      type: 'field';
+      attributeId: 'hjg_UYqw70ot';
+      children: Node[];
+    },
+  ];
+};

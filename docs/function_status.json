@@ -1,0 +1,35 @@
+type Node = {
+  name: string;
+  description?: string;
+  supertags: [{
+    /* Function | Status (Pro) */
+    id: 'cPzRYXdZzEHt'
+  }];
+  children: [
+    {
+      /* ⚙️ Status */
+      type: 'field';
+      attributeId: 'jDnCkR4gIUDx';
+      children: [{
+        dataType: 'reference';
+        id: 
+        | 'Pg_ubWBIaT14' /* Active */
+        | 'D1MwxUp9LVa_' /* Next Up */
+        | '8j7DIVO_CAl2' /* In Review */
+        | '_-_ybc29Fvrr' /* Later */
+        | 'b3o2A1niaFN_' /* Complete */
+        | 'Ja1VmVrptyXE' /* Cancelled */
+        | 'N3oLfaO0hlj3' /* Waiting */;
+      }];
+    },
+    {
+      /* Due date */
+      type: 'field';
+      attributeId: 'SYS_A61';
+      children: [{
+        dataType: 'date';
+        name: string;
+      }];
+    },
+  ];
+};

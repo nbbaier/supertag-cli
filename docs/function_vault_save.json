@@ -1,0 +1,16 @@
+type Node = {
+  name: string;
+  description?: string;
+  supertags: [{
+    /* Function | Vault Save */
+    id: 'L6NDbyp1VMQD'
+  }];
+  children: [
+    {
+      /* ⚙️ Vault */
+      type: 'field';
+      attributeId: 'hjg_UYqw70ot';
+      children: Node[];
+    },
+  ];
+};

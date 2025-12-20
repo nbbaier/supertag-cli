@@ -1,0 +1,52 @@
+{
+  "name": "tana",
+  "namespace": "tana",
+  "description": "Tana integration - format, post, create todos and research nodes",
+  "executable": "./src/index.ts",
+  "runtime": "bun",
+  "workingDirectory": "/Users/fischer/work/supertag-cli",
+  "commands": {
+    "format": {
+      "description": "Convert JSON input to Tana Paste format",
+      "method": "POST",
+      "parameters": {
+        "json": {
+          "type": "string",
+          "required": true,
+          "description": "JSON string to format"
+        }
+      },
+      "cliMapping": "format <<< '{{json}}'",
+      "outputFormat": "text",
+      "timeout": 5000
+    },
+    "todo": {
+      "description": "Create a todo in Tana",
+      "method": "POST",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "required": true,
+          "description": "Todo name"
+        },
+        "status": {
+          "type": "string",
+          "required": false,
+          "default": "active",
+          "description": "Todo status (active/done)"
+        }
+      },
+      "cliMapping": "todo '{{name}}' --status {{status}}",
+      "outputFormat": "text",
+      "timeout": 10000
+    },
+    "config-show": {
+      "description": "Show current Tana configuration",
+      "method": "GET",
+      "parameters": {},
+      "cliMapping": "config --show",
+      "outputFormat": "text",
+      "timeout": 5000
+    }
+  }
+}

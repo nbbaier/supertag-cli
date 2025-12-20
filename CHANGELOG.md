@@ -1,0 +1,644 @@
+# Changelog
+
+All notable changes to Supertag CLI are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.12.0] - 2025-12-20
+
+### Removed
+
+- **Time bombing trial system** - CLI no longer expires
+- **LemonSqueezy license integration** - All commands now free and unrestricted
+- **License activation/deactivation commands** - `supertag activate`, `supertag deactivate`, `supertag license status` removed
+- **License validation on CLI startup** - No more license checks before command execution
+
+### Changed
+
+- **All commands now execute without restrictions** - No license checks or trial expiry
+- **Simplified CLI startup** - No network calls for license validation
+- **Removed trial status from help text** - Clean help output without licensing information
+- **CLI is now fully open and unrestricted** - All features available to all users
+
+### Notes
+
+- Existing license files (`~/.local/share/supertag/license.json`) are no longer used but harmless if present
+- No action required for existing users - all features now available without activation
+
+## [0.11.5] - 2025-12-18
+
+### Changed
+
+- **Embedding Backend Migration** - Migrated from sqlite-vec to resona/LanceDB
+  - **Breaking**: Existing SQLite-based embeddings are no longer used
+  - Run `supertag embed generate` to create new LanceDB embeddings
+  - Cross-platform support: no more platform-specific SQLite extensions
+  - Embedding config now stored in `~/.config/supertag/config.json` instead of database
+  - Removed A/B testing commands (was only for provider comparison during development)
+
+### Removed
+
+- **sqlite-vec dependency** - No longer required
+- **@huggingface/transformers dependency** - No longer required
+- **Preload scripts** - No longer needed for SQLite extension loading
+- **embed ab-test commands** - Development-only feature removed
+
+### Migration Guide
+
+1. Update to latest version
+2. Run `supertag embed generate` to regenerate embeddings in LanceDB format
+3. Previous SQLite embeddings can be safely deleted from workspace databases
+
+---
+
+## [0.11.5] - 2025-12-14
+
+### Added
+
+- **Embeddings in Daily Pipeline** - `tana-daily` now generates embeddings after sync
+  - Full pipeline: export → sync → embed → cleanup
+  - New `--embed` flag to run embeddings only
+  - New `--no-embed` flag to skip embeddings
+  - Multi-workspace support with `--all` flag
+
+### Fixed
+
+- **Symlink Resolution** - `tana-daily` now properly resolves symlinks on macOS
+  - Script can be symlinked to `~/bin/` and still find export tools
+
+- **Sync Command** - Fixed sync to use main CLI with proper workspace support
+  - `--all` mode now correctly indexes all enabled workspaces
+
+---
+
+## [0.11.4] - 2025-12-13
+
+### Fixed
+
+- **Inline Reference Documentation** - Added important constraint: never end a node with an inline reference
+  - ✅ `"Meeting with <span data-inlineref-node=\"id\">John</span> today"`
+  - ❌ `"Meeting with <span data-inlineref-node=\"id\">John</span>"`
+
+---
+
+## [0.11.3] - 2025-12-13
+
+### Added
+
+- **Inline Reference Support** - Create inline references using Input API syntax
+  - Use `<span data-inlineref-node="NODE_ID">Display Text</span>` in node names or children
+  - Works in both node name and child node text
+
+- **CLI Children Option** - New `-c, --children` flag for `supertag create`
+  - Add child nodes: `--children "Child text"`
+  - Reference nodes: `--children '{"name": "Link", "id": "abc123"}'`
+  - Inline references: `--children "See <span data-inlineref-node=\"xyz\">Related</span>"`
+
+### Improved
+
+- **MCP Tool Documentation** - `tana_create` now documents correct reference formats
+  - Inline refs: `<span data-inlineref-node="ID">Text</span>`
+  - Child refs: `{"name": "...", "id": "..."}`
+  - Clearer guidance for AI assistants
+
+- **Embedding Cleanup** - Sync now cleans up embeddings for deleted/modified nodes
+
+- **sqlite-vec Fix** - Indexer now loads custom SQLite before database creation
+
+### Example
+
+```bash
+# Create todo with children and inline reference
+supertag create todo "Meeting with <span data-inlineref-node=\"abc123\">John</span>" \
+  --children "First subtask" \
+  --children '{"name": "Assigned to", "id": "person123"}'
+```
+
+---
+
+## [0.11.2] - 2025-12-13
+
+### Added
+
+#### Multi-Workspace Webhook Server
+- **New**: Webhook server now serves ALL enabled workspaces simultaneously
+- **New**: `/workspaces` endpoint lists available workspaces
+- **New**: All endpoints accept `workspace` parameter to target specific workspace
+- **New**: `/health` returns workspace list and default workspace info
+- **Improved**: Server startup shows all loaded workspaces
+- **Improved**: Graceful handling of missing databases (skipped with warning)
+
+### Usage
+
+Start server (serves all configured workspaces):
+```bash
+supertag server start --daemon
+```
+
+Query specific workspace:
+```bash
+# GET endpoints: use query param
+curl "http://localhost:3000/stats?workspace=work"
+
+# POST endpoints: include in body
+curl -X POST http://localhost:3000/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "meeting", "workspace": "personal"}'
+```
+
+---
+
+## [0.11.1] - 2025-12-13
+
+### Fixed
+
+#### Embedding Dimension Mismatch Bug
+- **Fixed**: Vector table now correctly recreated when configuring embeddings for first time with non-default dimensions
+- **Root Cause**: `setEmbeddingConfig()` only checked for dimension *changes*, not first-time setup
+- **Impact**: Models like `mxbai-embed-large` (1024d) now work correctly on fresh workspaces
+- **New**: Added `--fix` flag to `embed config` command for manual repair of affected databases
+
+### How to Fix Affected Workspaces
+
+If you configured embeddings before v0.11.1 and got dimension mismatch errors:
+
+```bash
+supertag embed config --fix -w <workspace>
+supertag embed generate -w <workspace>
+```
+
+---
+
+## [0.11.0] - 2025-12-13
+
+### Added
+
+#### Embeddings System with Semantic Search
+- **New**: Complete embeddings system for vector-based semantic search
+- **New**: Multiple embedding providers: Ollama (local), Transformers.js (lightweight)
+- **New**: sqlite-vec integration for vector storage and similarity search
+- **New**: `embed config` - Configure embedding provider and model
+- **New**: `embed generate` - Generate embeddings for nodes with content filtering
+- **New**: `embed search` - Semantic search with similarity scores
+- **New**: `embed stats` - Show embedding statistics
+- **New**: Content filtering (min length, exclude timestamps, system types)
+- **New**: Entities bypass min-length filter to preserve meaningful short nodes
+- **New**: AB testing infrastructure for provider comparison
+
+#### Entity Detection
+- **New**: Entity detection based on Tana developer insights (`props._flags`)
+- **New**: `isEntity()`, `isEntityById()`, `findNearestEntityAncestor()` functions
+- **New**: Entities are "interesting" nodes: tagged items, library items, "Create new" items
+- **New**: Fallback inference via supertags and library ownership
+
+#### Semantic Search MCP Tool
+- **New**: `tana_semantic_search` MCP tool for AI assistants
+- **New**: Natural language queries find conceptually similar content
+- **New**: Configurable similarity threshold (0-1)
+- **New**: Optional ancestor context for nested fragments
+- **New**: Entity detection in search results
+
+#### Database Improvements
+- **New**: Database retry utilities with exponential backoff for concurrent access
+- **New**: `withDbRetry()` and `withDbRetrySync()` for lock handling
+
+#### Test Suite Improvements
+- **New**: Separated fast (~10s) and slow (~110s) test suites
+- **New**: `bun run test` - Fast tests only
+- **New**: `bun run test:slow` - Slow integration tests
+- **New**: `bun run test:full` - Complete test suite
+- **New**: `bun run precommit` - Alias for full suite
+
+### Changed
+
+#### Workspace Discovery Refactoring
+- **Changed**: `supertag-export discover` now uses Tana's `appState.nodeSpace.openFiles` instead of network traffic capture
+- **Improved**: Much more reliable workspace discovery - finds all workspaces instantly after app initialization
+- **Changed**: Removed `sizeBytes` from discovered workspace data (not available in appState)
+- **Added**: `isRootFile` flag to identify user's primary workspace
+- **Changed**: Results now sorted with root workspace first, then by node count (largest first)
+- **Technical**: Uses `page.evaluate()` to query Tana's internal state directly in browser context
+
+---
+
+## [0.10.1] - 2025-12-12
+
+### Changed
+
+#### Centralized Version Management
+- **New**: Single source of truth for version in `package.json`
+- **New**: `src/version.ts` module exports VERSION constant
+- **Changed**: All CLIs, MCP server, and webhook server now import version from central module
+- **Fixed**: Version drift between tools (supertag-export was 0.8.0, now synced to 0.10.1)
+- **Impact**: Future version bumps only require changing `package.json`
+
+### Fixed
+
+#### supertag-export Symlink Resolution
+- **Fixed**: `supertag-export` now works when called via symlink from any directory
+- **Root Cause**: Wrapper script's `BASH_SOURCE[0]` returned symlink path instead of actual script location
+- **Fix**: Added symlink resolution loop to follow chain to real file location
+- **Impact**: `supertag-export` command now works from any working directory
+
+---
+
+## [0.10.0] - 2025-12-12
+
+### Added
+
+#### Search Result Filtering & Deduplication
+- **New**: Shared filtering module (`search-filter.ts`) used by CLI, MCP, and webhook server
+- **New**: Filter out reference-syntax text nodes (`[[Something]]` literal names) from search results
+- **New**: Deduplicate search results by name+tags, keeping highest similarity match
+- **New**: Nodes with same name but different tags preserved (e.g., "Animal #topic" vs "Animal #concept")
+- **New**: Over-fetch pattern (3x requested limit) ensures enough results after filtering/deduplication
+
+#### Entity Stats in filter-stats Command
+- `embed filter-stats` now shows entity detection statistics at the end
+- Shows breakdown: With override, Automatic (_flags), Tagged items, Library items
+- Indicates whether using native `_flags` or inferred detection
+
+#### Database Path in Stats
+- `embed stats` now displays the database path being queried
+
+### Changed
+
+#### Short Text Embedding Support
+- **Changed**: Lowered default `minLength` from 15 to 3 characters
+- **Reason**: Testing confirmed mxbai-embed-large produces semantically meaningful embeddings for short text:
+  - Animal-Mammal: 88.2% similarity (correctly high)
+  - John-Animal: 57.1% similarity (correctly low)
+- **Impact**: Names, concepts, and short terms now get embedded
+- **Note**: Very short noise (<3 chars like `*`, `..`) still filtered
+
+### Fixed
+
+#### Entity Detection Using _flags from Export
+- **Fixed**: Entity detection now correctly reads `props._flags` (with underscore prefix) from Tana exports
+- **Fixed**: Zod schema in `tana-dump.ts` now includes `_flags` and `_entityOverride` fields
+- **Fixed**: Added `.passthrough()` to PropsSchema to preserve additional underscore-prefixed props during parsing
+- **Root Cause**: Tana exports use `_flags` with underscore, not `flags`. Zod was stripping unknown fields.
+- **Impact**: ~13,735 entities now detected via `_flags=1` (previously only ~12k via tag/library inference)
+
+#### Content Filter Entities Bypass Length
+- **Fixed**: Entities now bypass the minLength content filter for embeddings
+- **Root Cause**: Short-named entities like "Animal #topic" (6 chars) were filtered out by default 15-char minimum
+- **Impact**: Entities + filters increased from 7,251 to 12,564 nodes eligible for embedding
+- **Logic**: `LENGTH(name) >= minLength OR is_entity` ensures meaningful short entities get embedded
+
+#### Embedding Schema Migration Safety
+- **Fixed**: `migrateEmbeddingSchema()` now checks if `embeddings` table exists before ALTER
+- **Fixed**: `getEmbeddingConfig()` now checks if `embedding_config` table exists before querying
+- **Root Cause**: Functions assumed tables exist, causing crashes on fresh databases
+- **Impact**: `embed stats` and `embed filter-stats` now work gracefully without embeddings configured
+
+---
+
+## [0.9.9] - 2025-12-12
+
+### Fixed
+
+#### Webhook Server Bug Fixes
+- **Fixed**: Webhook server routes not being registered due to async CORS plugin initialization race condition
+- **Fixed**: Search results Tana paste format - removed query from header to prevent Tana's field parser from breaking table view
+  - Before: `- Search Results: Pizza %%view:table%%` (colon confused Tana parser)
+  - After: `- Search Results %%view:table%%` (matches semantic search format)
+
+---
+
+## [0.9.8] - 2025-12-12
+
+### Fixed
+
+#### Semantic Search Improvements
+- **Fixed**: Semantic search now returns proper Tana Paste references using `[[Name^nodeID]]` syntax instead of creating duplicate nodes
+- **Fixed**: Semantic search now filters out nodes with `_TRASH` ancestors to reduce deleted node pollution
+- **Fixed**: Return actual workspace name in search results instead of hardcoded "default"
+- **Known Limitation**: Some deleted nodes may still appear in results because Tana's JSON export doesn't include comprehensive deletion metadata
+
+---
+
+## [0.9.7] - 2025-12-12
+
+### Changed
+
+#### Recommended Embedding Model: mxbai-embed-large
+- **Breaking**: Changed default/recommended embedding model from `nomic-embed-text` to `mxbai-embed-large`
+- A/B testing showed mxbai-embed-large significantly outperforms nomic-embed-text:
+  - 3x better differentiation of short text (15% collision rate vs 45%)
+  - More relevant search results with proper similarity scoring
+  - Higher dimensional embeddings (1024d vs 768d) capture more semantic nuance
+- **Note**: Changing models requires embedding regeneration (`supertag embed generate`)
+
+#### Database Lock Retry Logic
+- Added exponential backoff retry for database lock errors during embedding generation
+- Retries up to 5 times with delays: 100ms → 200ms → 400ms → 800ms → 1600ms
+- Includes jitter to prevent thundering herd on concurrent access
+- Improves reliability when running embedding generation alongside other database operations
+
+---
+
+## [0.9.6] - 2025-12-11
+
+### Added
+
+#### Contextualized Embeddings
+- Embeddings now include ancestor context for improved semantic search quality
+- Short text like person names now embedded with context: "Contact: Switch | Monika Stucki"
+- Schema updated with `ancestor_id` and `context_text` columns for traceability
+- New `buildContextualizedNode()` function uses `findMeaningfulAncestor()` for context resolution
+- Format options:
+  - Node with supertag: "Tag: NodeName"
+  - Node with tagged ancestor: "Tag: AncestorName | NodeName"
+  - Node without context: "NodeName"
+- **Note**: Requires embedding regeneration with `supertag embed generate`
+
+### Changed
+
+- MCP search tool now uses `engine.rawDb` instead of `engine.db` for ancestor resolution
+- Integration tests skip gracefully on database errors (schema migration needed)
+- Search results include ancestor context when available
+
+---
+
+## [0.9.5] - 2025-12-11
+
+### Added
+
+#### Multi-Workspace Embedding Support
+- All embed commands now support `-w, --workspace <alias>` flag
+- `embed generate --all-workspaces` processes all enabled workspaces sequentially
+- Automatic fallback to legacy database for read operations (search, stats)
+- Workspace name displayed in command output headers
+
+#### Improved Embedding Generation
+- Live progress reporting with ETA calculation during `embed generate`
+- Periodic WAL checkpoints every 100 embeddings for durability
+- Error sampling captures first 10 error messages for debugging
+- Rate calculation shows embeddings/second during processing
+
+### Changed
+
+#### Increased Default Minimum Length to 15 Characters
+- Default `--min-length` increased from 10 to 15 characters
+- Prevents embedding model collision on short text (person names, etc.)
+- Root cause: Ollama's nomic-embed-text returns identical vectors for different short texts (~10 chars)
+- Longer text produces semantically distinct embeddings
+- Use `--min-length 10` to restore previous behavior if needed
+
+### Fixed
+
+#### Embedding Vector Corruption Bug
+- Fixed Float32Array buffer reuse bug that caused identical vectors for different nodes
+- Root cause: `Buffer.from(embedding.buffer)` without byteOffset/byteLength
+- Fixed with `Buffer.from(embedding.buffer, embedding.byteOffset, embedding.byteLength)`
+- **Note**: Existing embeddings may be corrupted; regenerate with `supertag embed generate`
+
+---
+
+## [0.9.4] - 2025-12-11
+
+### Added
+
+#### MCP Semantic Search Tool
+- `tana_semantic_search` - New MCP tool for vector similarity search
+- Finds conceptually related content without exact keyword matches
+- Returns results ranked by similarity score (0-1)
+- Supports `minSimilarity` threshold filtering
+- Includes supertags on matched nodes
+- `includeContents` parameter for full node details (fields, children, tags)
+- `depth` parameter for child traversal (0-3) when includeContents is true
+- Improved sqlite-vec extension loading for MCP server context
+
+#### Smart Ancestor Resolution for All Search
+- Automatic detection of meaningful containing nodes (projects, meetings, people, etc.)
+- When a search matches a nested fragment, shows the nearest ancestor with a supertag
+- Includes path from ancestor to matched node for context
+- Works for both full-text search (`query search`, `tana_search`) and semantic search (`embed search`, `tana_semantic_search`)
+- Enabled by default; disable with `--no-ancestor` (CLI) or `includeAncestor: false` (MCP)
+- Example: searching for "meeting notes" shows the containing #meeting or #project
+
+#### Smart Content Filtering for Embeddings
+- Intelligent filtering reduces embedding workload by ~43% while preserving semantic value
+- Excludes system/structural nodes (tuple, metanode, viewDef, etc.) that have no search value
+- Filters short noise like "Mhm.", "Yes.", "*" (default: <10 characters)
+- Excludes timestamp artifacts from imports (1970-01-01...)
+- `supertag embed filter-stats` - New command showing filtering breakdown by docType
+
+#### New CLI Options for embed generate
+- `--min-length <n>` - Set minimum name length (default: 10)
+- `--include-all` - Bypass all content filters
+- `--include-timestamps` - Include timestamp-like nodes
+- `--include-system` - Include system docTypes
+- `-v, --verbose` - Show detailed filter information
+
+#### Rich Display for Semantic Search Results
+- `--show` flag displays full node contents (fields, children, tags) in search results
+- `--depth <n>` enables child traversal when using --show (default: 0)
+- `-a, --ancestor` / `--no-ancestor` - Enable/disable ancestor resolution (default: enabled)
+- Works with both table and JSON output formats
+- Reuses display logic from `show node` command for consistent output
+
+### Changed
+- `embed generate` now applies smart content filtering by default
+- `embed stats` now shows content filter statistics
+- MCP server now exposes 8 tools (added `tana_semantic_search`)
+- `query search` now shows ancestor context by default (use `--no-ancestor` to disable)
+- `tana_search` MCP tool now includes `includeAncestor` parameter (default: true)
+- Exported `getNodeContents`, `formatNodeOutput`, and related functions from show.ts for reuse
+- Exported `findMeaningfulAncestor` from ancestor-resolution.ts for reuse
+- Added `rawDb` getter to TanaQueryEngine for direct SQLite access
+
+---
+
+## [0.9.3] - 2025-12-11
+
+### Added
+
+#### Vector Embeddings for Semantic Search
+- New embedding subsystem with provider abstraction layer
+- Support for **Ollama** (local server) and **Transformers.js** (serverless local) embedding providers
+- `supertag embed config` - Configure embedding provider and model
+- `supertag embed generate` - Generate embeddings for indexed nodes
+- `supertag embed search <query>` - Semantic similarity search
+- `supertag embed stats` - Show embedding statistics and coverage
+- Uses sqlite-vec for efficient KNN vector search
+- Change detection via text hashing (skips unchanged nodes)
+- Batch processing with progress reporting
+
+#### Supported Embedding Models
+- **Ollama**: nomic-embed-text (768d), mxbai-embed-large (1024d), all-minilm (384d), bge-m3 (1024d)
+- **Transformers.js**: Xenova/all-MiniLM-L6-v2 (384d), Xenova/bge-small-en-v1.5 (384d), Xenova/bge-base-en-v1.5 (768d), and more
+
+### Technical Notes
+- Compiled binaries require the sqlite-vec native extension (`vec0.dylib`/`vec0.so`) placed alongside the binary
+- Cloud providers (Voyage AI, OpenAI) planned for future release
+
+---
+
+## [0.9.2] - 2025-12-11
+
+### Changed
+
+#### Documentation Improvements
+- Added `--quiet` flag to mcphost examples for cleaner output
+- Updated model comparison test results with Claude Code baseline
+- Documented date awareness differences between Claude Code and local LLMs
+- Added guidance for using datetime MCP with local LLMs
+
+---
+
+## [0.9.1] - 2025-12-11
+
+### Added
+
+#### Date Range Filtering for Queries
+- New date range options for query commands: `--created-after`, `--created-before`, `--updated-after`, `--updated-before`
+- Filter nodes by creation or update date (supports YYYY-MM-DD and ISO 8601 formats)
+- Applied to `search`, `nodes`, `tagged`, and `recent` commands
+- MCP tools `tana_search` and `tana_tagged` also support date range filtering
+- Useful for queries like "meetings in Q1 2024" or "todos created this week"
+
+---
+
+## [0.9.0] - 2025-12-10
+
+### Added
+
+#### MCP Server for AI Tool Integration
+- New `supertag-mcp` binary providing Model Context Protocol server
+- 7 MCP tools: `tana_search`, `tana_tagged`, `tana_stats`, `tana_supertags`, `tana_node`, `tana_create`, `tana_sync`
+- Support for ChatGPT Desktop, Cursor, VS Code Copilot, Claude Code, and Windsurf
+- Local execution with stdio JSON-RPC - no cloud, no network exposure
+- `tana_create` supports creating nodes with field values and child references
+- `tana_sync` enables triggering reindex or checking sync status from AI tools
+
+#### Reference Support in Node Creation
+- Added `children` parameter to `tana_create` for proper reference/link creation
+- Child nodes with `{name, id}` create clickable links to existing nodes
+- Documentation added warning that inline `[[text^nodeId]]` syntax doesn't work in node names
+
+### Fixed
+
+#### Export Format Compatibility
+- Handle new Tana export format where data is wrapped in `storeData` object
+- Graceful handling of both old and new export formats
+
+#### Configuration Namespace
+- Renamed config namespace from `~/.config/tana/` to `~/.config/supertag/`
+- Avoids conflicts with official Tana app's configuration
+
+---
+
+## [0.8.0] - 2025-12-08
+
+### Added
+
+#### Release Automation
+- New `release.sh` script for automated builds and releases
+- Vite build step for optimized bundles
+- `--push` option for automatic git tag pushing
+- External flags for Playwright in release builds
+
+#### Export Cleanup
+- `supertag sync cleanup` command to remove old export files
+- Configurable retention with `--keep N` option
+- `--dry-run` mode to preview deletions
+- Auto-cleanup option in config
+
+#### Depth Traversal
+- `supertag show node <id> -d <depth>` for traversing child nodes
+- JSON output support with `--json` flag
+- Improved export file handling
+
+### Changed
+
+- Config namespace renamed from `tana` to `supertag` for clarity
+- LaunchAgent renamed to `ch.invisible.supertag-daily`
+
+---
+
+## [0.7.0] - 2025-12-06
+
+### Added
+
+#### LemonSqueezy License System
+- License key activation with `supertag activate <key>`
+- Per-device activation with customizable device names
+- `supertag license status` to check license state
+- `supertag deactivate` to free up activation slots
+- 3-day grace period after expiration
+- Offline validation with periodic re-validation
+
+#### Cross-Platform Support
+- Platform-specific binaries for macOS (ARM/Intel), Linux x64, Windows x64
+- XDG Base Directory compliance for config paths
+- Portable log directory using XDG_STATE_HOME
+
+### Changed
+
+- Two-tool architecture: `supertag` (main CLI) + `supertag-export` (browser automation)
+- Auto-install Chromium browser on first `supertag-export` run
+
+---
+
+## [0.6.0] - 2025-12-04
+
+### Added
+
+#### Multi-Workspace Support
+- `supertag workspace add <id> --alias <name>` for managing multiple workspaces
+- `supertag workspace list` and `supertag workspace set-default`
+- Batch operations with `--all` flag (export, sync, cleanup)
+- Per-command workspace selection with `-w <alias>`
+- Automatic workspace discovery via `supertag-export discover --add`
+
+#### Unified CLI Architecture
+- Consolidated all tools into single `supertag` CLI
+- Case-sensitive supertag names
+- Multiple supertag support with comma-separated syntax
+- Unified create command with inheritance support
+
+### Changed
+
+- Major refactor to CLI-first architecture
+- Improved schema registry with field inheritance
+
+---
+
+## [0.5.0] - 2025-12-01
+
+### Added
+
+#### Export Automation
+- Browser-based export via Playwright
+- Session persistence (login once, export forever)
+- `supertag-export login` for initial authentication
+- `supertag-export run` for automated exports
+- Verbose mode showing authentication method used
+
+#### Query Engine
+- SQLite FTS5 full-text search
+- `supertag query search <term>` with relevance ranking
+- `supertag query tagged <supertag>` for filtering by tag
+- `supertag query stats` for database statistics
+- `supertag query top-tags` for supertag usage counts
+
+#### Write Capability
+- `supertag create <supertag> <name>` for node creation
+- Dynamic field support via `--field value` syntax
+- JSON input via stdin with `supertag post`
+- Tana Paste format output with `supertag format`
+
+#### Webhook Server
+- `supertag server start` with daemon mode
+- REST API endpoints for search, stats, tags, nodes, refs
+- Returns Tana Paste format for seamless integration
+
+### Performance
+- 107k nodes/second indexing
+- <50ms search latency
+- ~500MB database for 1M nodes

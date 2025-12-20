@@ -1,0 +1,40 @@
+type Node = {
+  name: string;
+  description?: string;
+  supertags: [{
+    /* research */
+    id: 'Eln_aVxnwfKL'
+  }];
+  children: [
+    {
+      /* topic */
+      type: 'field';
+      attributeId: 'IIOk2TLbr0EN';
+      children: Node[];
+    },
+    {
+      /* period */
+      type: 'field';
+      attributeId: 'ZMRYr8i0LrIt';
+      children: Node[];
+    },
+    {
+      /* date_range */
+      type: 'field';
+      attributeId: 'hU8WFL7FYzhj';
+      children: Node[];
+    },
+    {
+      /* article_count */
+      type: 'field';
+      attributeId: 'iNuADMRSzJ7b';
+      children: Node[];
+    },
+    {
+      /* generated */
+      type: 'field';
+      attributeId: 'IyD0Ie6oyGuM';
+      children: Node[];
+    },
+  ];
+};

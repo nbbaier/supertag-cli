@@ -1,0 +1,533 @@
+type Node = {
+  name: string;
+  description?: string;
+  supertags: [{
+    /* todo */
+    id: 'fbAkgDqs3k'
+  }];
+  children: [
+    {
+      /* Parent */
+      type: 'field';
+      attributeId: 'TIw94EJ5T-';
+      children: Node[];
+    },
+    {
+      /* Do Date */
+      type: 'field';
+      attributeId: 'qFXubn29lX';
+      children: [{
+        dataType: 'date';
+        name: string;
+      }];
+    },
+    {
+      /* ⚙️ Vault */
+      type: 'field';
+      attributeId: 'hjg_UYqw70ot';
+      children: Node[];
+    },
+    {
+      /* ⚙️ Focus */
+      type: 'field';
+      attributeId: 'k6q151wjIv5E';
+      children: [{
+        dataType: 'reference';
+        id:
+        | 'kn-Rrp5j8oEf' /* Work organisation */
+        | '5mrLejJyd6ih' /* Ich */
+        | 'Ld0u0QGs2tu-' /* Bike */
+        | 'UGHN_6wMQD' /* Dancing */
+        | '3YDv-o6UCvN7' /* Impro Theater */
+        | '505Yke2TuMxD' /* Drawing */
+        | 'RAFgAR6-ZUTp' /* Gaming */
+        | 'A6GGtALMZA1J' /* SACA */
+        | 'QehTNX8F6KP7' /* CYPHR */
+        | 'wXEPTTTp4LHo' /* Freunde */
+        | 'Gg3rZM7jH38n' /* CYPHR Customers */
+        | 'B9BprQ_6Nd9o' /* Switch */
+        | '_68n1tnaSpCr' /* Cognitive Decline */
+        | 'LAT8JYDLsziR' /* Animals */
+        | 'AaQS15ieM8k4' /* Self Care */
+        | 'p4B7YlN1DUPP' /* Encryption */
+        | 'NYJ1jvUo5Dnf' /* Deadline */
+        | 'Fn-HvklM4oWq' /* Learning */
+        | 'NU3QxVREyvVK' /* Umwelt */
+        | 'nf0VzfquYMeQ' /* Redesign */
+        | 'UAlaJOR34bqH' /* Foot Health */
+        | 'OCqQf0Y3MgKy' /* Kunstgeschichte */
+        | 'A2AHQ3fUIIDk' /* Leadership */
+        | 'H-nT-BNyJQJ6' /* GitHub Features */
+        | 'gDt8uc4gbPds' /* Parent */
+        | 'TPNKnWzmjm6X' /* NVIDIA GPU Support */
+        | 'R-guFtsxa22C' /* GitHub Code Review */
+        | 'skcphejb3o1R' /* ARM NEON */
+        | '6BfdUjF9u4At' /* CSOC */
+        | 'akBFTRhm1M7r' /* Secure Configuration of Enterprise Assets and Software */
+        | 'bCdedaLzLLwS' /* Negativity */
+        | 'XuKFj-XYc-SQ' /* Long Form Improv */
+        | 'ZalXP1uLbTuV' /* Code Management */
+        | 'TZAW9_pZXkpr' /* Service Provider Management */
+        | 's6y57UeEEbLW' /* Passive Income */
+        | 'DAoUqU25uUYs' /* Versicherung */
+        | 'qe8G2K2qEG-H' /* iPad */
+        | 'u7G6OvufitJ3' /* Update */
+        | 'MQjP99KsXn7K' /* New Year */
+        | 'GJcV2GXHdXbl' /* Improv Technique */
+        | 'XsdK_QvB02' /* Artificial Intelligence */
+        | 'gPo9ep-Cjqwq' /* Account Management */
+        | 'vRC_3g8xkxiU' /* iOS */
+        | 'mfM5fKJCwOy0' /* Political Asylum */
+        | 'Z03Nv264Mdvb' /* Block-in */
+        | 'fnOEzR60XbB7' /* Self-hosted content */
+        | 'QFF5q7AOcbcs' /* Strategy */
+        | 'BFTqkLvT8itY' /* Icons */
+        | 'BppdMwr4Mzxu' /* F16 Precision */
+        | 'epQm19hntCYm' /* Tana Input API */
+        | 'JP0jtzEz5VMS' /* Wazuh */
+        | '6JifvnDOpRNB' /* Investment Tips */
+        | 'z0TUHse3HPyi' /* GÉANT */
+        | 'PZqOREnT46Ba' /* OpenVINO Support */
+        | 'ZcgV9o5qUfL_' /* It seems like the text you provided is incomplete. Please provide the full text so I can extract the relevant topics for you. */
+        | 'wxD5w7Ua70cF' /* Body */
+        | '3QlKFa8QKkyP' /* Accuracy */
+        | '9W9YZMCXxde8' /* Printify */
+        | 'fvnToYwutxDp' /* New Features */
+        | '1ETSpeYxCy_5' /* Mastodon */
+        | '0YpFsWxj2FqD' /* NeuroParcours */
+        | 'vKIXhsvgt5qN' /* Personal Growth */
+        | 'vxZboVFX6cSC' /* Video */
+        | 'w39Puoteu5ZH' /* Threat Intelligence */
+        | 'CG4unlyHTBMg' /* Fear of rejection */
+        | 'V1hMiFxx8oCP' /* Etsy */
+        | 'WKUTiF6RfvTQ' /* CPU-only Inference */
+        | 'lFk1gQKQViQ_' /* Huberman Lab Podcast */
+        | 'OY92xHOgzvx7' /* Energizing the First Moment */
+        | 'kvFgJENzXmQi' /* Monitor Levels */
+        | 'iK6Zq4h8I6Rt' /* Team */
+        | 'jhSIM496WcRq' /* Application Software Security */
+        | 'YVCsE4G2ipcX' /* Data Protection */
+        | 'xy04L7GZavLf' /* Conflict */
+        | 'xqOTuAy4HUyB' /* Gem */
+        | 'WzgCjn9RHJ4W' /* Zone 2 */
+        | 'rFKdJdpohFDs' /* Website */
+        | 'BsszDxg2cqpe' /* C-style API */
+        | 'PymNhOJSWvxO' /* Gedicht */
+        | 'ypiyVFsU7duw' /* Improvisation */
+        | 'eVVA8qc2m-mi' /* Screen Recording */
+        | 'fHNl-rWYI2KN' /* Procreate */
+        | 'TydVqo8hIfG3' /* Bikepacking */
+        | 'ZJF-X1zmQG6j' /* Google SEO */
+        | '1idfuS8-tWuM' /* Workplace Inclusion */
+        | 'IuY5SIZMrS_R' /* Polymath */
+        | '64mVbUfbeSwl' /* Laufband */
+        | '5p-VYZYrOgpn' /* Automatic Speech Recognition */
+        | '3Z1LaJEgnpcC' /* Turing Machine */
+        | 'B25qDfsGucQ8' /* Digital Art */
+        | 'XsKU5uWSBhky' /* Art Resources */
+        | 'A5vTGGPA3oFV' /* Dev Environments */
+        | 'nFl192tXWayT' /* Gesundheit */
+        | 'FRt5UwLp5Cqo' /* Hiking */
+        | 'b29OUdh1iseO' /* Clothes */
+        | 'g3FwdaxfKuTg' /* Finance */
+        | '98ZbUadDoxBf' /* EDC */
+        | 'PMIHyfRAKUdG' /* DJI */
+        | 'PMzvSa7eowHt' /* Comprehensible Input */
+        | 'JyfD25b9aR0l' /* Review */
+        | '2-tsfEO8l755' /* Networking */
+        | '7xTiTKQEu-CQ' /* Privacy Protection */
+        | '9nwBE8wCZTOA' /* Ruby */
+        | 'TQgxsYn8djG5' /* Design */
+        | 'LVKnyxTeX6ej' /* DNS Security */
+        | 'MxqccmKmba80' /* Poem */
+        | 'AdUwSzNV6OYq' /* Productivity */
+        | '-vern-D2NHgA' /* High-Level Objectives */
+        | 'WbmleG3jqZkb' /* Machine Learning */
+        | 'qm1OSp_Pwbqg' /* Device Management */
+        | 'tPelyBa9qxYg' /* Laufbahnberatung */
+        | 'BxlYAS0j45i1' /* Individuality */
+        | 'iYtpPhE3_wcI' /* American Culture */
+        | 'N3V_dVIA6yLL' /* Red Death Redemption */
+        | 'nSyZ-OawTT1G' /* Movie */
+        | '7z0EA8NmSh9v' /* Use Cases */
+        | 'XdaHlgnAtxu1' /* C++ */
+        | 'b2vQA1i2Ax-f' /* Spanish */
+        | 'mMHt6NjbI9sH' /* Tana */
+        | 'QAKB88MRQmO2' /* IntelOwl */
+        | 'qx3zX0knT98r' /* Gesture Drawing */
+        | '_7fnhZ0CX3Bu' /* Scuol */
+        | 'e8dr3OvhQWnT' /* Bags */
+        | 'NM4WK1NbhLQq' /* GitHub Security */
+        | 'wUux7BYaCnNh' /* Privacy */
+        | 'AIIjRkgS181f' /* Projects and Key Results */
+        | '_uKBcOMcnQuv' /* CSS */
+        | 'CvFn9oNnA1wE' /* Mac OS */
+        | 'W41nkT2w1sYq' /* Health */
+        | 'givnfbWVLNMF' /* KCD:II */
+        | '5sm2n0eJj1Tu' /* Rant */
+        | '_WfvPBVJhk-I' /* Coaching */
+        | 'zFcxHMdcK85O' /* C/C++ */
+        | 'N7Ooy2tf2SgG' /* Rejection */
+        | '5z4S4twUZnvF' /* Languages */
+        | 'unR3lAUmwBpf' /* GROW Model */
+        | 'NeiIFce0uPvH' /* BSI CRM */
+        | 'A4NaNKmmg3HP' /* Project Management */
+        | 'HM-eTx82kLiy' /* Color */
+        | 'u9PgBsiWcX4w' /* Improv Scenes */
+        | 'dNK3TQ1dKiO2' /* Paperless */
+        | 'Of3aG7rxNmma' /* Powershell */
+        | 'UwmFVyks_UfV' /* Techniques */
+        | 'UsVhznixBXS8' /* OKRs */
+        | 'wThNXoEizn5U' /* Security Awareness and Skills Training */
+        | 'J4JsMrfaEnwT' /* Physiology */
+        | 'w-VzMlaQKA4i' /* Security Decisions */
+        | 'nct4yPdH1xra' /* Workforce */
+        | 'CmAdWGoD8rkX' /* Social Model of Disability */
+        | '12xHKmJwmX2V' /* Android */
+        | 'ZDUd9Pl1dLDB' /* Security */
+        | 'tzp_N4g7zqC3' /* Excel */
+        | 'BxL7UKkjm8Ts' /* Stoicism */
+        | 'JVW8fdvunJVn' /* The ReadME Project */
+        | 'mE-Ak2NLT6oy' /* Calisthenics */
+        | 'xozPrEq7ViGO' /* GitHub Sponsors */
+        | 'vh5a0Nd_M8sV' /* Indian */
+        | 'pjYvBmupmVqP' /* Debatten */
+        | 'HZT9u22JuyRo' /* Retirement */
+        | 'YXEV1tQ3J0ip' /* Testing */
+        | '9MA_9wx5ouKE' /* Applied Improvisation */
+        | 'RcszQDp4BZOB' /* Scene Initiation */
+        | '3tjIiaLOwcy2' /* Working Memory */
+        | 'OtXK2BJQeUBU' /* Network Infrastructure Management */
+        | '8BZC-5R4PD8s' /* ADHD */
+        | 'HAiRPqSTcWi-' /* VSX Intrinsics */
+        | '7qYYN-GURWiJ' /* Starting in the Middle */
+        | 'Ax6ekOtY3bVs' /* Consumption */
+        | 'eHnPdXsh_ltt' /* Glue */
+        | 'Gq-HfGE4ti' /* CSOC Team */
+        | '9tUKtsTf9_6L' /* Weight Loss */
+        | 'OHiAp-aFiC1_' /* Style */
+        | 'WCfDPGDSTfss' /* Stephen Bauman */
+        | 'yAlE-gFVBNDt' /* Mono and Stereo Outputs */
+        | 'h4CSOv9v9qfK' /* Audio Mixing */
+        | 'qfzDj-h7tF2z' /* Data Science */
+        | 'GNYRkws4Cmkb' /* Human Being */
+        | 'l30PkXVCJcEJ' /* JSON */
+        | '4EqcZkVzm33N' /* Quantization */
+        | 'gnQei0Jdfrpt' /* VLog */
+        | 'y-wK7lbp2EFK' /* Diversity */
+        | 'kP21cpa5oMrv' /* MISP */
+        | 'wkuklgAPYFoe' /* Automation */
+        | 'ZncI34d2V54U' /* Data Recovery */
+        | 'f1ONBe9TkaUO' /* Inventory and Control of Software Assets */
+        | 'HzYmHqrg9nRL' /* DaVinci Resolve */
+        | 'jXdVP1jo0b2l' /* Vegan */
+        | 'rCIWQhBSOkVr' /* Personal Computing */
+        | '4ooQXvKwt5VW' /* Time */
+        | '4e9fSThJkvGL' /* Prioritization */
+        | 'TRKMvigSXQIu' /* Threat Hunting */
+        | 'lfUeIna3CBZV' /* Color Grading */
+        | 'ElTsfkeWHQiJ' /* Drinking */
+        | 'ZAirOsboOJGn' /* OKRvolution */
+        | 'MQXdEbJ5h6PZ' /* Summary */
+        | 'KyGS4MMVr5Ph' /* Malware Defenses */
+        | 'yrbxzmBLKz1f' /* Blueprince */
+        | 'TvxkznB3F3Ai' /* The Shadow */
+        | 'EyjpkdzwAm1C' /* Challenges */
+        | 'Ge5EUxpKaU1c' /* Apple Silicon */
+        | 'qHNFxtML86' /* Tattoo */
+        | '0cUL26DhEzfj' /* Wokenenss */
+        | 'xhDstIc0XxZu' /* Head Challenge */
+        | 'vpKE3coCA5Z5' /* Lego */
+        | 'uOoMve8fp6ww' /* Hunting Queries */
+        | 'rTRNh9iJ1hcO' /* Key Points */
+        | 'nw50IZwwx_Vx' /* Monitor Setup */
+        | 'PKaz4U9Oeqg-' /* Journaling */
+        | 'dFg0PeCmx_pm' /* Selbstwert */
+        | 'r2ZmmGtrTuIG' /* Incident Response Management */
+        | 'EIDbE6Cf5jWa' /* Inventory and Control of Enterprise Assets */
+        | 'jFMT4W3l2I2c' /* FreeBSD */
+        | '3QmFH4DTI6mS' /* Book Collection */
+        | '4vyetcXaz-N1' /* Physical Devices */
+        | 'GFcrjIeeNAo1' /* Docker */
+        | '8T5esnnvA9yL' /* Rules */
+        | 'HZf3al4_Dxca' /* Updates */
+        | 'gt2w2EtoFk8F' /* Autism */
+        | 'BUvWg-e1P8QR' /* Philosophy */
+        | 'QqWIzLGfdbWu' /* Tango Dancers */
+        | 'Cl5iLLYBduqo' /* Models */
+        | 'zAZ8eKi22acH' /* Detection Engineering */
+        | 'mcu7JqR08cMJ' /* Topic */
+        | 'DOb8p8wWS0OL' /* Twitter */
+        | 't6Q32eAlumjY' /* GitHub Copilot */
+        | 'ooqb-xA4268y' /* WebAssembly */
+        | 'm8xXy2bm-QEC' /* GitHub Actions */
+        | '994jOV3HESH3' /* Giftedness */
+        | '_S0GAXKpL9lG' /* DJI Osmo */
+        | 'vhq3ZBDfqbWm' /* Journalistic Freedom */
+        | '-nuYiAeWoD8b' /* Resource */
+        | 'Dou83AwIYf_8' /* SwitchDay */
+        | 'cg4-CdhSKskt' /* Proko */
+        | 'mIqI2imkfJHe' /* Tutorial */
+        | 'G5SgMN7KYDll' /* Brain */
+        | 'V390URfbFdYR' /* GitHub Issues */
+        | 'jK88xqVUsMev' /* Raspberry Pi */
+        | 'N5xPYvHsdMUL' /* Tango */
+        | 'NTbS5pLiFc0f' /* Neujahr */
+        | 'emYxJ-zFlFeq' /* Media */
+        | 'vddqYeJRzehH' /* Personality */
+        | 'qyLi5YGfntE0' /* Switch Security */
+        | 'Xsn4JuuTzWgu' /* Audit Log Management */
+        | 'LrKg3xY5Mwhf' /* Fitness */
+        | 'AXBnGhfqo0rA' /* GitHub Pricing */
+        | 'TpBmp1z6ej4k' /* Sleep */
+        | '8jUXUtSdv__O' /* Amazon KDP */
+        | 'xnsw19HUvp7K' /* OpenAI */
+        | '00KYIXDp_xxL' /* AVX Intrinsics */
+        | '4J59VCzkI8mb' /* Collaboration */
+        | 'AUU7DbFojFiz' /* Software Development */
+        | '8toIYbG-5nTr' /* YouTube Tutorials */
+        | 'aktVFny1bBHm' /* Block Method */
+        | 'zDOYiQrUyZwg' /* JavaScript */
+        | 'nyZJAc2wjuSQ' /* Alter */
+        | 'Tfiw-5vGUz' /* LLM */
+        | 'kwNrVwtuFeHK' /* URL */
+        | 'HUa7cf4GTe6q' /* Starrheit */
+        | 'C1c7Sfv3FNub' /* Music */
+        | '9a_8CpbFabku' /* Head Drawing */
+        | '72SFwNuJuuD9' /* NAS */
+        | 'eRdGFGUK0g8t' /* Drawing Techniques */
+        | 'jmhbDMR31mcG' /* CLI Tools */
+        | '1L7CFowE2kqG' /* Belohnungen */
+        | 'FUi8Q2EY19C6' /* Kurzfilm */
+        | 'KOoK3crjfc_c' /* Portrait */
+        | 'IzgepRXmIgox' /* Access Control Management */
+        | '2xetFonVcszh' /* Training */
+        | '_ki4Hu9G2B6f' /* Resources */
+        | 'wGnFnl3eIVD1' /* Confusion */
+        | 'McbmlrOrMxgj' /* SANS Top 20 */
+        | '_uxI0gcGIEBF' /* Organisation */
+        | 'soEZtIkWZpin' /* Velo */
+        | 'hwpK7bgWLQpN' /* Security Implementation */
+        | 'nP2YhivJzRs4' /* Celebration */
+        | 'KNmfMT3rFTCK' /* Time Management */
+        | '6LU-DajlLVyu' /* 3D Construction */
+        | '7EclA0fv-pHM' /* Sleep Disorders */
+        | '0GoplQgpZAZY' /* Animation */
+        | 'X2NjduWuexRF' /* Links */
+        | 'lVrxMmwR6x0X' /* Circadian Rhythms */
+        | 'wEsitISgMN3c' /* Management Methoden */
+        | 'tAgTtwKkpRwV' /* Bauhaus */
+        | 'aDO2XKRfY05M' /* Drone */
+        | 'T6u58l9XPCLu' /* Penetration Testing */
+        | 'ag5slod69h4q' /* Clarity */
+        | 'kPqw_-wdi26_' /* Windows */
+        | 'c2IGV4hYHANJ' /* GFK */
+        | 'HjaaNyN0veRa' /* Homebrew */
+        | 'J8_uwtoXTI_m' /* SOC */
+        | 'Na34302UezlX' /* Creative Web */
+        | '2oD54pvUSJza' /* Detection Rules */
+        | 'i41z39X7hbAy' /* YouTube */
+        | 'amJ0efMmdoLJ' /* Mask */
+        | 'C4KuJi8M3dar' /* People */
+        | 'tltBxoqqnyJC' /* Texture */
+        | 'k0HAH1UeCz' /* API */
+        | 'gjE32qO3pt' /* Beer */
+        | 'nWuaEEMrfDNj' /* Art */
+        | 'F26GYAHGX0' /* Expertise */
+        | 'CAElh1jz_icb' /* Subjunctive */
+        | 'QPUIgzTQ5CO8' /* Relationships */
+        | 'zx77FmBOBkpw' /* Drawing */
+        | 'T1lvR5W0CLFr' /* Form */
+        | 'fBCsUnpHtqXh' /* Variable Lights */
+        | 'YhLnecjoDDwQ' /* Self-Employed */
+        | '-vOtRgmxQ4i9' /* MVC */
+        | '6IuKvdTRySbi' /* OBS */
+        | 'TzIItahIL57u' /* Ikigai */
+        | '9ZntQRo5RhNw' /* CISO */
+        | 'Xzu9-Pb37dFg' /* Accelerate Framework */
+        | 'lAD-utRJbBSP' /* Prompt */
+        | 'OqFhpiZX7d' /* AI */
+        | 'Ls8DN0-m43Y4' /* Andrew Loomis */
+        | 'WZgMblZrPjNC' /* Internet */
+        | 'CfI-lzSh8WSL' /* Shell */
+        | '6MkcFm2dmjd_' /* Cycling */
+        | '4FMOyz0ze6Qf' /* Apple Vision Pro */
+        | '6dyRXn3pTaUB' /* Apple Watch */
+        | 'fDWJQdZcM7II' /* GitHub Codespaces */
+        | 'fkA8Vjw4OJIV' /* Julian Assange */
+        | 'wqzKYbVg8UOT' /* IDE */
+        | 'iXcx_83X7Ypn' /* ArtStation */
+        | 'MiUkAE0Egp_n' /* Cybersecurity */
+        | 'GoP0V0VvVrJj' /* Nerven */
+        | 'HjjiEg6-l1oD' /* Technology */
+        | 'gn07vxIiWH5b' /* Carl Jung */
+        | 'PWiOEoV6ctkb' /* Agile Framework */
+        | 'DSnqac5Gx33O' /* Konsequenzen */
+        | 'xHKjNjHqIZUN' /* Budget */
+        | 'YGTdl9GU7ljE' /* Painting */
+        | 'n1csC7beYUOj' /* Opportunities */
+        | '_vggAanJuBoN' /* IDE */
+        | 'CPkU0xQ7zP7e' /* DMS */
+        | '_y__DEkNLhZ0' /* Wahoo Elemnt Roam */
+        | 'OmTlpUVUZzyK' /* Head */
+        | 'ZioW0eg5NGQv' /* Male Head Model */
+        | 'KWqUs33BBLpq' /* Selbsterkenntnis */
+        | 'qvzp6k2_nf9J' /* Continuous Vulnerability Management */
+        | 'On73Wgv48JvD' /* Silent Movies */
+        | 'XCBkuV5WfWkd' /* GitHub Packages */
+        | 'S1r9djRq1RrA' /* Handstand */
+        | 'QWeg9T2fQMMF' /* Prompt Engineering */
+        | 'b_CdhOG4ri16' /* Physiological Effects */
+        | 'F0m6LkaVi3Ro' /* Exercise */
+        | 'uH9hLxBk5QBi' /* Goal Setting */
+        | 'k-2iRND6vdhS' /* Technique */
+        | 'bQbjHDoLrMPC' /* Alcohol */
+        | 'NFr_mi0aBst2' /* Creativity */
+        | 'VOMO3odIImJD' /* Affirmations */
+        | 'FVB4rkQfw0b4' /* Decision Making */
+        | 'FKjQI1HQAW' /* Metaphors */
+        | 'JyTB6TpgrxKJ' /* Email and Web Browser Protections */
+        | 'GSdIpcaoFUEV' /* XP */
+        | 'VpjiYOvIFF4-' /* Memory Allocation */
+        | 'eG-MgYe0trch' /* Life Transformation */
+        | 'DrQreW9BHwJ3' /* Code */
+        | 'xAXvbC2joc4a' /* OKR */
+        | 'AOW-pQXhet1-' /* Emotion in Acting */
+        | 'VqA0COFd2FGL' /* Notes */
+        | 'SR-F_sVS5zX4' /* Drawing Exercises */
+        | 'fX80QkSk7Hzd' /* Neurodivergence */
+        | 'ckGEavDYA_Mh' /* Network Monitoring and Defense */
+        | 'b1y8rncnHziA' /* Auto GPT */
+        | 'zmVJoYUGtCSc' /* Purpose */
+        | 'Fm-WhUdZ8TeG' /* Zero Trust */
+        | 'MRL9szKTthTu' /* Fixed Boundaries */
+        | 'OcoBFvj0iynj' /* Buster Keaton */
+        | 'rTeJV8QW-ked' /* CIS Controls */
+        | 'O-bG5BvhJ2tB' /* QR Code */
+        | 'mHvBoV38rfYA' /* Intersectionality */
+        | 'lUABfhyr_RcF' /* Metal */
+        | 'ReK9Qw2e82H8' /* Programming */
+        | 'AVkjpeNMtOjL' /* Daily Routine */
+        | 'zpZFxCRXh3nY' /* Investment Challenges */
+        | 'nI4uC7Vk8xB7' /* Generation Z */
+        | 'iGFZx_hW7iXy' /* Business Ideas */
+        | 'TgxBPDE6M_KF' /* Computer Science */
+        | 'c56bOS0Ruw0q' /* Community Articles */
+        | '3VFOTWAj58La' /* GitHub */
+        | 'STAgdDT9EsOa' /* Renaissance Man */
+        | 'g1nowQfCj5jE' /* Privilege */
+        | 'ZlERfP7zOfDx' /* Alchemists.io */
+        | 'TwR_gyasZV0N' /* Notebook LM */
+        | 'Y983Z0ahORDw' /* Product Management */
+        | 'fNsAMlh_Yybu' /* StellarCyber */
+        | 'wP2mtowJRbmV' /* Inclusion */
+        | 'k-9e1rIBFteb' /* Projects */
+        | 'DX30tu8zQcE5' /* Open Source */
+        | 'F2L66hd14n0R' /* Watercolor Brushes */
+        | 's1_uFpgkIrVR' /* Core ML */
+        | 'FyrynJ-YpoGO' /* Package Management */
+        | '9r8Uk7WKzd6f' /* Diversification */
+        | 'QZUy-yecXtku' /* Improv */
+        | 'luxLzNrPF9qX' /* Overcoming rejection */
+        | 'ILj5JBQVmz_T' /* Gravelbike */
+        | '1aw5ZugbUMc3' /* Levels */
+        | 'IsbCZcKYgGcS' /* Hobbies */
+        | 'JfDpeU595cWW' /* Digital Distractions */
+        | 'JPghRhYPJRke' /* Autophagie */
+        | 'd678juk54QZq' /* Acting */
+        | 'DLA5OepvbFsh' /* Muscles */
+        | 'mvKD5y6O1aEb' /* Anatomy */
+        | 'DUeRQ0Mqr3Ni' /* GitHub Discussions */
+        | 'dluyXLKRg2kZ' /* F32 Precision */
+        | 'QKgfY6aP3yj_' /* Linux */
+        | '7tx7Izzu4ZgH' /* Neurodiversity */
+        | 'DfZJuAgzxlIo' /* Performance Consultants */
+        | 'tOWW-44RajxK' /* Classic Movies */
+        | 'pHQ90gfI61eP' /* Aristotle */
+        | 'D8yBYmqzFequ' /* Communication */
+        | 'tHq2cCC64kUF' /* Pricing Plans */
+        | 'XE6szn9R3mrx' /* Tiefe */
+        | 'mVEPjGOXeeHb' /* OpenCL GPU Support */
+        | '3G7gDlb0P_2b' /* Mistakes */
+        | 'aSnT96TCkf09' /* Workout */
+        | 'v2UVxrDsrkhn' /* OKR Einführung */
+        | '4XzfeHU_5buO' /* Behringer Flow 8 */
+        | 'M-uuXlKfbMuG' /* Motivation */
+        | '5d7dmCu3pQ-R' /* Sociocracy S3 */
+        | 'AsXMY2tRj44p' /* Hypnose */
+        | 'N9paOLuP7oKd' /* Personalentwicklung */
+        | 'hCQmyhyXqNso' /* Optimismus */
+        | '2npE3zFFQP' /* Therapy */
+        | '0CFr16kvwi' /* Agile */
+        | 'o7StvUBzVPLx' /* Impro Theater */
+        | 'k967uKxeipFV' /* Grammar */
+        | 'bFlRTxrl1bZ6' /* Planning */
+        | 'H_j58uCm-yom' /* MS Authentication */
+        | 'Uubi1H5qNU' /* Note-Taking */
+        | 'KJmj32sqyH-0' /* PKM */
+        | 'fiAJwvC-g3GX' /* EMPA */
+        | 'XSdFeHlBNhOY' /* ETHZ */
+        | 'szWSPAiSIi9M' /* UniSpital Basel */
+        | '0HUQxlhGwiHf' /* CSIRT.li */
+        | 'dmwkDFCH5nGu' /* CSCS */
+        | 'pMxbxLFwMvJ0' /* BZPflege */
+        | 'zDd-6DmBre89' /* BFH */
+        | 'rCMZqnftDvQE' /* OST */
+        | '85mtrtkKiVyV' /* PSI */
+        | 'jT8znK-7EPlU' /* HSLU */
+        | 'LPCmRG29D-40' /* EHB */
+        | 'RwLQQvdGuwGy' /* FHNW */
+        | '23MKeNj-oC0E' /* HES-SO */
+        | 'B8seJMx1_VKJ' /* ZHAW */
+        | 'J3UsEayHEvuV' /* Uni Bern */
+        | 'Gu2cVxFHiZrT' /* Uni Basel */
+        | 'so3Yg-QrdBU_' /* PHZH */
+        | '9YvmrbzUUh7Q' /* SOC Defender für PHZH */
+        | 'FnW-SKnR4GoP' /* HWZ */
+        | 'QhROCFAjlrIw' /* HFH */
+        | 'qotbkq3bY09b' /* Uni St. Gallen */
+        | 'U_imdLhiUOq8' /* PMO */
+        | '60QGci8PrQeA' /* Photography */
+        | 'pBP5N_YgJ6A3' /* Weiterbildung */
+        | '_btOjN3IXXuw' /* Wissen und Fähigkeiten in Gestaltung ausbauen */
+        | 'Bo7p1t-4t2O2' /* Gesunde Beziehung */
+        | '8DrUVb75KA9e' /* Berufliche Zufriedenheit */
+        | 'uuKXRFd3vU' /* Security Knowhow vertiefen */
+        | '6S49DIHpC_' /* CSOC im GFS Security als stabilen Teil etablieren */
+        | 'ney52tLbRR' /* Gesund Leben */
+        | 'lCRGx1PxUr' /* Fremdsprachen beherrschen */
+        | 'N42I2zwlkh' /* Sorgenfreies Alter */
+        | 'YqNjvitsL3' /* Team Mitglieder fördern und fordern */
+        | 'NvWvZw51EA' /* Transformation von SWITCH voranbringen */
+        | 'BM4V4pyt8V' /* CommunitySOC Dienstleistungen etablieren */
+        | 'xDbgUy5I3oSH' /* Kinderspital */
+        | 'ZYn5optHxT4N' /* baseVISION */
+        | 'y_asGqwNPW4e' /* UZH */
+        | 'idEzeE7-tvpf' /* EHL */
+        | 'nz2cYLxktF3X' /* Uni Genf */
+        | 'dYI65nPIhJV7' /* RPG */
+        | 'CfFYdx_LgcrJ' /* GFK Practitioner I */
+        | 'ALhfB1cWM1M5' /* Wohnung */
+        | '6fZRO6AqNx26' /* SOC Defender XDR */
+        | 'KCgvJMICNEv1' /* Partnerschaft */
+        | 'H-VUZE0VFzbb' /* Familie */
+        | '8dCMRqvihEDB' /* Graphic Design Course */
+        | 'NZ_fPTZxADzC' /* Pentax */
+        | 'FLdPXxeCWCl7' /* ZHdK */
+        | 'XUUWraFpE-HM' /* LLV */
+        | 'YxgU9_uBqMaT' /* FHGR */
+        | 'FvSS1P3-tsaF' /* PH GR */
+        | 'R_TQQtS4iGkc' /* NetSec WG 26 */
+        | '8JOnAOHvRkvX' /* ROESTI 2026 */
+        | 'LD5W2r2nbCSj' /* Exercise for both strength and cardio in 2026 */
+        | '9JzhtWzA-7i1' /* Get better a visual creative work */
+        | 'MrcRmh0jT29y' /* Mac Book */
+        | 'CGzvU9_5r7S7' /* Visual Creative Work */
+        | 'WNEvQLEM8sNf' /* Exercise 2026 */
+        | 'Q1f_3csoQRt-' /* Krisenstabsübung BZ Pflege */
+        | 'OcIDoh1RHAKy' /* Krisenübung BFH */
+        | 'aL_DgoY0OG21' /* SOC at BZ Pflege */;
+      }];
+    },
+  ];
+};

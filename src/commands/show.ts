@@ -1,0 +1,527 @@
+/**
+ * Show Command Group - Display full contents of Tana nodes
+ *
+ * Consolidates all tana-show functionality into main tana CLI
+ */
+
+import { Command } from "commander";
+import { existsSync } from "fs";
+import { Database } from "bun:sqlite";
+import { getDatabasePath, resolveWorkspace } from "../config/paths";
+import { getConfig } from "../config/manager";
+import { withDbRetrySync } from "../db/retry";
+
+// Default database path - uses XDG with legacy fallback
+const DEFAULT_DB_PATH = getDatabasePath();
+
+/**
+ * Resolve the database path from options
+ * Priority: --db-path > --workspace > default workspace > legacy
+ */
+function resolveDbPath(options: { dbPath?: string; workspace?: string }): string {
+  // Explicit db-path takes precedence
+  if (options.dbPath && options.dbPath !== DEFAULT_DB_PATH) {
+    return options.dbPath;
+  }
+
+  // Resolve workspace
+  const config = getConfig().getConfig();
+  const ctx = resolveWorkspace(options.workspace, config);
+  return ctx.dbPath;
+}
+
+export interface NodeData {
+  id: string;
+  name: string | null;
+  created: number | null;
+  rawData: string;
+}
+
+export interface FieldValue {
+  fieldName: string;
+  fieldId: string;
+  value: string;
+  valueId: string;
+}
+
+export interface NodeContents {
+  id: string;
+  name: string;
+  created: Date | null;
+  fields: FieldValue[];
+  children: Array<{ id: string; name: string; isContent: boolean }>;
+  tags: string[];
+}
+
+export interface NodeContentsWithChildren extends Omit<NodeContents, 'children'> {
+  children: NodeContentsWithChildren[];
+}
+
+function checkDb(dbPath: string): boolean {
+  if (!existsSync(dbPath)) {
+    console.error(`❌ Database not found: ${dbPath}`);
+    console.error(`   Run 'supertag sync index' first`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Get field name from database or fallback to hardcoded mappings
+ */
+function getFieldNameFromDb(db: Database, fieldId: string): string {
+  const result = withDbRetrySync(
+    () => db
+      .query("SELECT field_name FROM field_names WHERE field_id = ?")
+      .get(fieldId) as { field_name: string } | null,
+    "getFieldNameFromDb"
+  );
+
+  if (result?.field_name) {
+    return result.field_name;
+  }
+
+  const fallbackFields: Record<string, string> = {
+    SYS_A13: "Tag",
+    SYS_A61: "Due date",
+    SYS_A90: "Date",
+    SYS_A142: "Attendees",
+    SYS_T01: "Supertag",
+    SYS_T02: "Field",
+    Mp2A7_2PQw: "Attendees",
+  };
+
+  return fallbackFields[fieldId] || fieldId;
+}
+
+function isFieldName(name: string | null): boolean {
+  if (!name) return false;
+  return (
+    name.startsWith("⚙️") ||
+    ["Outcome", "Origin", "Focus", "Status", "Vault", "Due date", "Do date"].includes(name)
+  );
+}
+
+function formatValue(name: string | null, id: string): string {
+  if (!name) return id;
+
+  if (name.includes("data-inlineref-date")) {
+    const decoded = name
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+
+    const match = decoded.match(/dateTimeString":\s*"([^"]+)"/);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  if (name.includes("data-inlineref-node")) {
+    const match = name.match(/data-inlineref-node="([^"]+)"/);
+    if (match) {
+      return `[[${match[1]}]]`;
+    }
+  }
+
+  return name;
+}
+
+/**
+ * Extract and resolve node contents from the database
+ */
+export function getNodeContents(db: Database, nodeId: string): NodeContents | null {
+  const nodeResult = withDbRetrySync(
+    () => db
+      .query("SELECT id, name, created, raw_data as rawData FROM nodes WHERE id = ? AND (node_type IS NULL OR node_type != 'trash')")
+      .get(nodeId) as NodeData | null,
+    "getNodeContents"
+  );
+
+  if (!nodeResult) {
+    return null;
+  }
+
+  const rawData = JSON.parse(nodeResult.rawData);
+  const childIds: string[] = rawData.children || [];
+
+  const placeholders = childIds.map(() => "?").join(",");
+  const childrenData =
+    childIds.length > 0
+      ? withDbRetrySync(
+          () => db
+            .query(
+              `SELECT id, name, raw_data as rawData FROM nodes WHERE id IN (${placeholders})`
+            )
+            .all(...childIds) as NodeData[],
+          "getNodeContents children"
+        )
+      : [];
+
+  const childMap = new Map(childrenData.map((c) => [c.id, c]));
+
+  const fields: FieldValue[] = [];
+  const contentChildren: Array<{ id: string; name: string; isContent: boolean }> = [];
+  const tags: string[] = [];
+
+  for (const childId of childIds) {
+    const child = childMap.get(childId);
+    if (!child) continue;
+
+    const childRaw = JSON.parse(child.rawData);
+
+    if (childRaw.props?._docType === "tuple") {
+      const tupleChildren: string[] = childRaw.children || [];
+
+      if (tupleChildren.length >= 1) {
+        const resolvedPlaceholders = tupleChildren.map(() => "?").join(",");
+        const resolvedNodes =
+          tupleChildren.length > 0
+            ? withDbRetrySync(
+                () => db
+                  .query(
+                    `SELECT id, name FROM nodes WHERE id IN (${resolvedPlaceholders})`
+                  )
+                  .all(...tupleChildren) as Array<{ id: string; name: string | null }>,
+                "getNodeContents resolvedNodes"
+              )
+            : [];
+
+        const resolvedMap = new Map(resolvedNodes.map((n) => [n.id, n.name]));
+
+        let fieldName = "";
+        let fieldId = "";
+        const values: string[] = [];
+        let valueId = "";
+
+        for (const id of tupleChildren) {
+          const name = resolvedMap.get(id);
+          const mappedName = getFieldNameFromDb(db, id);
+
+          if (id.startsWith("SYS_")) {
+            fieldName = mappedName;
+            fieldId = id;
+          } else if (mappedName !== id) {
+            fieldName = mappedName;
+            fieldId = id;
+          } else if (name?.startsWith("⚙️") || isFieldName(name)) {
+            fieldName = name || id;
+            fieldId = id;
+          } else {
+            const formattedValue = formatValue(name, id);
+            values.push(formattedValue);
+            if (!valueId) valueId = id;
+          }
+        }
+
+        const meaningfulValues = values.filter(v => {
+          if (v.match(/^\d{4}-\d{2}-\d{2}/)) return true;
+          if (v.startsWith("[[")) return true;
+          if (v.match(/^[a-zA-Z0-9_-]{12,}$/)) return false;
+          return true;
+        });
+        if (fieldName && meaningfulValues.length > 0) {
+          fields.push({
+            fieldName,
+            fieldId,
+            value: meaningfulValues.join(", "),
+            valueId
+          });
+        }
+      }
+    } else {
+      contentChildren.push({
+        id: childId,
+        name: child.name || "(unnamed)",
+        isContent: true,
+      });
+    }
+  }
+
+  const tagResults = withDbRetrySync(
+    () => db
+      .query("SELECT tag_name FROM tag_applications WHERE data_node_id = ?")
+      .all(nodeId) as Array<{ tag_name: string }>,
+    "getNodeContents tags"
+  );
+
+  tags.push(...tagResults.map((t) => t.tag_name));
+
+  return {
+    id: nodeId,
+    name: nodeResult.name || "(unnamed)",
+    created: nodeResult.created ? new Date(nodeResult.created) : null,
+    fields,
+    children: contentChildren,
+    tags,
+  };
+}
+
+export function formatNodeOutput(contents: NodeContents, indent: string = ""): string {
+  const lines: string[] = [];
+
+  const tagStr = contents.tags.length > 0 ? ` #${contents.tags.join(" #")}` : "";
+  lines.push(`${indent}📄 ${contents.name}${tagStr}`);
+
+  if (contents.created) {
+    lines.push(`${indent}   Created: ${contents.created.toLocaleDateString()}`);
+  }
+
+  if (contents.fields.length > 0) {
+    lines.push(`${indent}   Fields:`);
+    for (const field of contents.fields) {
+      lines.push(`${indent}   - ${field.fieldName}:: ${field.value}`);
+    }
+  }
+
+  if (contents.children.length > 0) {
+    lines.push(`${indent}   Children:`);
+    for (const child of contents.children) {
+      lines.push(`${indent}   - ${child.name}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Recursively build node contents with depth traversal for JSON output
+ */
+export function getNodeContentsWithDepth(
+  db: Database,
+  nodeId: string,
+  currentDepth: number,
+  maxDepth: number
+): NodeContentsWithChildren | null {
+  const contents = getNodeContents(db, nodeId);
+  if (!contents) return null;
+
+  const result: NodeContentsWithChildren = {
+    id: contents.id,
+    name: contents.name,
+    created: contents.created,
+    fields: contents.fields,
+    tags: contents.tags,
+    children: [],
+  };
+
+  // Recurse into children if within depth limit
+  if (currentDepth < maxDepth && contents.children.length > 0) {
+    for (const child of contents.children) {
+      const childContents = getNodeContentsWithDepth(
+        db,
+        child.id,
+        currentDepth + 1,
+        maxDepth
+      );
+      if (childContents) {
+        result.children.push(childContents);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Recursively format node output with depth traversal
+ */
+export function formatNodeWithDepth(
+  db: Database,
+  nodeId: string,
+  currentDepth: number,
+  maxDepth: number,
+  indent: string = ""
+): string {
+  const contents = getNodeContents(db, nodeId);
+  if (!contents) return "";
+
+  const lines: string[] = [];
+  const tagStr = contents.tags.length > 0 ? ` #${contents.tags.join(" #")}` : "";
+
+  // Node header
+  lines.push(`${indent}${contents.name}${tagStr}`);
+
+  // Fields (inline)
+  if (contents.fields.length > 0) {
+    for (const field of contents.fields) {
+      lines.push(`${indent}  ${field.fieldName}:: ${field.value}`);
+    }
+  }
+
+  // Children - recurse if within depth limit
+  if (contents.children.length > 0) {
+    for (const child of contents.children) {
+      if (currentDepth < maxDepth) {
+        // Recurse into child
+        const childOutput = formatNodeWithDepth(
+          db,
+          child.id,
+          currentDepth + 1,
+          maxDepth,
+          indent + "  "
+        );
+        if (childOutput) {
+          lines.push(childOutput);
+        }
+      } else {
+        // Just show child name at max depth
+        lines.push(`${indent}  - ${child.name}`);
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+export function registerShowCommands(program: Command): void {
+  const show = program
+    .command("show")
+    .description("Display full contents of Tana nodes");
+
+  show
+    .command("node <node-id>")
+    .description("Show contents of a specific node by ID")
+    .option("-w, --workspace <alias>", "Workspace alias or nodeid")
+    .option("--db-path <path>", "Database path (overrides workspace)")
+    .option("-d, --depth <n>", "Traverse children to depth N (0 = no traversal)", "0")
+    .option("--json", "Output as JSON", false)
+    .action((nodeId, options) => {
+      const dbPath = resolveDbPath(options);
+      if (!checkDb(dbPath)) process.exit(1);
+
+      const db = new Database(dbPath);
+      const depth = parseInt(options.depth);
+
+      if (depth > 0) {
+        // Use depth traversal
+        if (options.json) {
+          // JSON output with depth
+          const contents = getNodeContentsWithDepth(db, nodeId, 0, depth);
+          db.close();
+
+          if (!contents) {
+            console.error(`❌ Node not found: ${nodeId}`);
+            process.exit(1);
+          }
+
+          console.log(JSON.stringify(contents, null, 2));
+        } else {
+          // Text output with depth
+          const output = formatNodeWithDepth(db, nodeId, 0, depth);
+          db.close();
+
+          if (!output) {
+            console.error(`❌ Node not found: ${nodeId}`);
+            process.exit(1);
+          }
+
+          console.log(output);
+        }
+      } else {
+        // Original behavior (no depth traversal)
+        const contents = getNodeContents(db, nodeId);
+        db.close();
+
+        if (!contents) {
+          console.error(`❌ Node not found: ${nodeId}`);
+          process.exit(1);
+        }
+
+        if (options.json) {
+          console.log(JSON.stringify(contents, null, 2));
+        } else {
+          console.log(formatNodeOutput(contents));
+        }
+      }
+    });
+
+  show
+    .command("tagged <tagname>")
+    .description("Show contents of nodes with a specific tag")
+    .option("-w, --workspace <alias>", "Workspace alias or nodeid")
+    .option("--db-path <path>", "Database path (overrides workspace)")
+    .option("--limit <n>", "Number of nodes to show", "1")
+    .option("--json", "Output as JSON", false)
+    .option("-i, --case-insensitive", "Case-insensitive tag matching", false)
+    .action((tagname, options) => {
+      const dbPath = resolveDbPath(options);
+      if (!checkDb(dbPath)) process.exit(1);
+
+      const db = new Database(dbPath);
+      const limit = parseInt(options.limit);
+
+      let nodeIds = withDbRetrySync(
+        () => db
+          .query(
+            `
+          SELECT DISTINCT ta.data_node_id as id
+          FROM tag_applications ta
+          JOIN nodes n ON n.id = ta.data_node_id
+          WHERE ta.tag_name = ?
+          ORDER BY n.created DESC
+          LIMIT ?
+        `
+          )
+          .all(tagname, limit) as Array<{ id: string }>,
+        "show tagged query"
+      );
+
+      if (nodeIds.length === 0 && options.caseInsensitive) {
+        const alternates = [
+          tagname.toLowerCase(),
+          tagname.charAt(0).toUpperCase() + tagname.slice(1).toLowerCase(),
+          tagname.toUpperCase(),
+        ];
+        for (const alt of alternates) {
+          if (alt === tagname) continue;
+          nodeIds = withDbRetrySync(
+            () => db
+              .query(
+                `
+              SELECT DISTINCT ta.data_node_id as id
+              FROM tag_applications ta
+              JOIN nodes n ON n.id = ta.data_node_id
+              WHERE ta.tag_name = ?
+              ORDER BY n.created DESC
+              LIMIT ?
+            `
+              )
+              .all(alt, limit) as Array<{ id: string }>,
+            "show tagged case-insensitive query"
+          );
+          if (nodeIds.length > 0) {
+            tagname = alt;
+            break;
+          }
+        }
+      }
+
+      if (nodeIds.length === 0) {
+        console.error(`❌ No nodes found with tag "#${tagname}"`);
+        db.close();
+        process.exit(1);
+      }
+
+      const allContents: NodeContents[] = [];
+      for (const { id } of nodeIds) {
+        const contents = getNodeContents(db, id);
+        if (contents) {
+          allContents.push(contents);
+        }
+      }
+
+      db.close();
+
+      if (options.json) {
+        console.log(JSON.stringify(allContents, null, 2));
+      } else {
+        console.log(`\n🏷️  Nodes tagged with #${tagname} (${allContents.length}):\n`);
+        for (const contents of allContents) {
+          console.log(formatNodeOutput(contents));
+          console.log();
+        }
+      }
+    });
+}
