@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Open Source Release** - Repository is now publicly available on GitHub
+  - MIT License
+  - CONTRIBUTING.md with development setup and TDD requirements
+  - CODE_OF_CONDUCT.md (Contributor Covenant v2.1)
+  - SECURITY.md with vulnerability reporting process
+  - GitHub issue and PR templates
+  - GitHub Actions CI workflow for automated testing
+
 ## [0.12.0] - 2025-12-20
 
 ### Removed

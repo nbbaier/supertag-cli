@@ -166,7 +166,7 @@ Edit `com.pai.tana-webhook.plist`:
 
 ```xml
 <string>--db-path</string>
-<string>/Users/fischer/path/to/database.db</string>  <!-- Change path -->
+<string>/path/to/your/database.db</string>  <!-- Change path -->
 ```
 
 ### Enable Network Access
@@ -197,7 +197,7 @@ tail -50 logs/tana-webhook.error.log
 **Common causes**:
 - Database file not found (run `./src/cli/tana-sync.ts index` first)
 - Port 3100 already in use (check with `lsof -i :3100`)
-- Bun not found in PATH (check `/Users/fischer/.bun/bin/bun` exists)
+- Bun not found in PATH (check `~/.bun/bin/bun` exists)
 
 **Verify plist syntax**:
 ```bash
@@ -352,7 +352,7 @@ Logs can grow over time. Rotate them periodically:
 # Create log rotation script
 cat > rotate-logs.sh <<'EOF'
 #!/bin/bash
-cd /Users/fischer/work/supertag-cli
+cd /path/to/supertag-cli
 mv logs/tana-webhook.log logs/tana-webhook.log.$(date +%Y%m%d)
 mv logs/tana-webhook.error.log logs/tana-webhook.error.log.$(date +%Y%m%d)
 launchctl kickstart -k gui/$(id -u)/com.pai.tana-webhook
@@ -362,7 +362,7 @@ EOF
 chmod +x rotate-logs.sh
 
 # Add to weekly cron
-0 0 * * 0 /Users/fischer/work/supertag-cli/rotate-logs.sh
+0 0 * * 0 /path/to/supertag-cli/rotate-logs.sh
 ```
 
 ## Related Documentation

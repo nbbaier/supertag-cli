@@ -107,10 +107,10 @@ describe("embed generate command (resona migration)", () => {
   describe("workspace embedding paths", () => {
     it("should derive embedding path from workspace dbPath", () => {
       // The LanceDB path should be derived from workspace context
-      const wsDbPath = "/Users/fischer/.local/share/supertag/workspaces/main/tana-index.db";
+      const wsDbPath = "/home/user/.local/share/supertag/workspaces/main/tana-index.db";
       const expectedLancePath = wsDbPath.replace(/\.db$/, ".lance");
 
-      expect(expectedLancePath).toBe("/Users/fischer/.local/share/supertag/workspaces/main/tana-index.lance");
+      expect(expectedLancePath).toBe("/home/user/.local/share/supertag/workspaces/main/tana-index.lance");
     });
 
     it("should keep .lance path unchanged", () => {

@@ -1,5 +1,8 @@
 # Supertag CLI
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/jcfischer/supertag-cli/actions/workflows/test.yml/badge.svg)](https://github.com/jcfischer/supertag-cli/actions/workflows/test.yml)
+
 **Complete Tana integration with seven powerful capabilities**: **MCP** (AI tool integration), **EMBED** (semantic vector search), INTERACTIVE (webhook server), WRITE (Input API), READ (query exports), EXPORT (automated backup), and WORKSPACES (multi-workspace management).
 
 **✨ New in v0.9.8:** Semantic search now returns proper Tana references with table format, improved deletion filtering, and parent context for every result.
@@ -14,11 +17,11 @@ Supertag CLI is distributed as standalone executables (no runtime required):
 | `supertag-export` | ~59 MB | Browser automation for exports (Playwright) |
 | `supertag-mcp` | ~60 MB | MCP server for AI tool integration |
 
-Platform-specific binaries are available for:
-- **macOS Apple Silicon (M1/M2/M3)**: `supertag-cli-v0.8.0-macos-arm64.zip`
-- **macOS Intel**: `supertag-cli-v0.8.0-macos-x64.zip`
-- **Linux x64**: `supertag-cli-v0.8.0-linux-x64.zip`
-- **Windows x64**: `supertag-cli-v0.8.0-windows-x64.zip`
+Platform-specific binaries are available from the [GitHub Releases](https://github.com/jcfischer/supertag-cli/releases) page:
+- **macOS Apple Silicon (M1/M2/M3)**: `supertag-cli-vX.Y.Z-macos-arm64.zip`
+- **macOS Intel**: `supertag-cli-vX.Y.Z-macos-x64.zip`
+- **Linux x64**: `supertag-cli-vX.Y.Z-linux-x64.zip`
+- **Windows x64**: `supertag-cli-vX.Y.Z-windows-x64.zip`
 
 ---
 
@@ -26,9 +29,11 @@ Platform-specific binaries are available for:
 
 ### 1. Download and Extract
 
+Download the latest release from [GitHub Releases](https://github.com/jcfischer/supertag-cli/releases).
+
 ```bash
-# Download the appropriate version for your platform
-unzip supertag-cli-v0.8.0-macos-arm64.zip
+# Extract the appropriate version for your platform
+unzip supertag-cli-vX.Y.Z-macos-arm64.zip
 cd supertag-cli-macos-arm64
 ```
 
@@ -828,10 +833,38 @@ bun run precommit
 
 ---
 
+## Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/jcfischer/supertag-cli.git
+cd supertag-cli
+
+# Install dependencies
+bun install
+
+# Run from source
+bun run src/index.ts --help
+
+# Build binaries
+bun run build
+```
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
+- Development setup
+- Testing requirements (TDD enforced)
+- Pull request process
+
+## Security
+
+For security issues, please see [SECURITY.md](SECURITY.md) for our security policy and how to report vulnerabilities.
+
 ## Credits
 
-Built for PAI (Personal AI Infrastructure) by Jens-Christian Fischer, 2025.
+Built by Jens-Christian Fischer, 2025.
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

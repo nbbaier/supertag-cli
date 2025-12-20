@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-# Tana Sync CLI - Monitor and index Tana exports
-# Wrapper script to run the TypeScript CLI with Bun
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec bun "$SCRIPT_DIR/src/cli/tana-sync.ts" "$@"

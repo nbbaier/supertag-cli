@@ -1,7 +1,7 @@
 {
-  "name": "@pai/supertag-cli",
+  "name": "supertag-cli",
   "version": "0.12.0",
-  "description": "CLI for Tana integration - query, create, sync, and manage Tana workspaces",
+  "description": "CLI for Tana integration - query, create, sync, and manage Tana workspaces with semantic search",
   "type": "module",
   "bin": {
     "supertag": "./supertag"
@@ -15,6 +15,7 @@
     "test": "bun test ./tests/*.test.ts ./src/**/*.test.ts",
     "test:slow": "bun test ./tests/slow/",
     "test:full": "bun test",
+    "typecheck": "tsc --noEmit",
     "precommit": "bun run test:full"
   },
   "dependencies": {
@@ -24,18 +25,32 @@
     "drizzle-kit": "^0.31.7",
     "drizzle-orm": "^0.44.7",
     "fastify": "^5.6.2",
-    "resona": "file:///Users/fischer/work/resona",
+    "resona": "^0.1.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   },
   "keywords": [
     "tana",
     "knowledge-management",
-    "cli"
+    "cli",
+    "typescript",
+    "bun",
+    "sqlite",
+    "mcp",
+    "semantic-search"
   ],
-  "author": "Jens-Christian Fischer",
-  "license": "MIT"
+  "author": "Jens-Christian Fischer <jens-christian@invisible.ch>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jcfischer/supertag-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jcfischer/supertag-cli/issues"
+  },
+  "homepage": "https://github.com/jcfischer/supertag-cli#readme"
 }

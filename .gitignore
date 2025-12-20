@@ -12,7 +12,7 @@ bun.lock
 sample_data/
 
 # Logs
-logs/*.log
+logs/
 
 # Temporary files
 *.tmp
@@ -32,6 +32,8 @@ dist/
 
 # Native libraries
 *.dylib
+*.so
+*.exe
 
 # MCP server binaries
 supertag-mcp
@@ -39,3 +41,15 @@ supertag-mcp-*
 
 # macOS
 .DS_Store
+
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+secrets.json
+config.local.json
+
+# LanceDB embeddings
+.lance/
