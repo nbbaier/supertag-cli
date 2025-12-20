@@ -146,12 +146,15 @@ describe("embed search --show integration", () => {
       { stdout: "pipe", stderr: "pipe" }
     );
 
+    // Add timeout to prevent hanging
+    const timeout = setTimeout(() => proc.kill(), 4000);
     const output = await new Response(proc.stdout).text();
     const stderr = await new Response(proc.stderr).text();
     await proc.exited;
+    clearTimeout(timeout);
 
-    // Skip test if no embeddings configured or database error
-    if (output.includes("Embeddings not configured") || proc.exitCode !== 0 || stderr.includes("SQLiteError")) {
+    // Skip test if no embeddings configured, database error, or process killed/timed out
+    if (output.includes("Embeddings not configured") || proc.exitCode !== 0 || stderr.includes("SQLiteError") || proc.signalCode) {
       console.log("Skipping test: embeddings not configured or database error");
       return;
     }

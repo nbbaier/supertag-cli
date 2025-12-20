@@ -13,8 +13,10 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { BROWSER_DATA_DIR, TANA_CACHE_DIR } from '../../src/config/paths';
 
-// Tana's Firebase Web API key (public, found in network requests)
-const FIREBASE_API_KEY = '***REMOVED***';
+// Tana's Firebase Web API key - required for token refresh
+// This is a client-side key (visible in browser network requests), not a secret
+// Can be extracted from Tana app network traffic if needed
+const FIREBASE_API_KEY = process.env.TANA_FIREBASE_API_KEY || '';
 const TOKEN_REFRESH_URL = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
 const TOKEN_CACHE_FILE = join(TANA_CACHE_DIR, 'auth-token.json');
 
