@@ -2,15 +2,19 @@
  * Test indexing large workspace (1.2M nodes)
  *
  * Validates indexer performance at production scale
+ * NOTE: These tests require sample_data/ which contains private workspace exports
  */
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { TanaIndexer } from "../../src/db/indexer";
-import { unlinkSync } from "fs";
+import { unlinkSync, existsSync } from "fs";
 
 const TEST_DB_PATH = "./test-large-index.db";
 
-describe("TanaIndexer - Large Workspace (1.2M nodes)", () => {
+// Skip tests if sample_data is not available (private workspace exports)
+const SAMPLE_DATA_EXISTS = existsSync("sample_data/M9rkJkwuED@2025-11-30.json");
+
+describe.skipIf(!SAMPLE_DATA_EXISTS)("TanaIndexer - Large Workspace (1.2M nodes)", () => {
   let indexer: TanaIndexer;
 
   beforeAll(async () => {

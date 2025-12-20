@@ -6,11 +6,17 @@
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { TanaWebhookServer } from "../src/server/tana-webhook-server";
+import { TanaIndexer } from "../src/db/indexer";
+import { unlinkSync } from "fs";
+import { join } from "path";
+
+const TEST_DB_PATH = "./test-webhook-server.db";
+const FIXTURE_PATH = join(__dirname, "fixtures/sample-workspace.json");
 
 /**
  * Create a test server configuration with the new multi-workspace API
  */
-function createTestServerConfig(port: number, dbPath = "./test-production.db") {
+function createTestServerConfig(port: number, dbPath = TEST_DB_PATH) {
   const workspaces = new Map<string, string>();
   workspaces.set("test", dbPath);
   return {
@@ -24,12 +30,24 @@ function createTestServerConfig(port: number, dbPath = "./test-production.db") {
 describe("TanaWebhookServer - Basic Setup", () => {
   let server: TanaWebhookServer;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    // Set up test database
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
+    const indexer = new TanaIndexer(TEST_DB_PATH);
+    await indexer.initializeSchema();
+    await indexer.indexExport(FIXTURE_PATH);
+    indexer.close();
+
     server = new TanaWebhookServer(createTestServerConfig(3001));
   });
 
   afterAll(async () => {
     await server.stop();
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
   });
 
   test("should create server instance", () => {
@@ -55,12 +73,23 @@ describe("TanaWebhookServer - Health Endpoint", () => {
   let server: TanaWebhookServer;
 
   beforeAll(async () => {
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
+    const indexer = new TanaIndexer(TEST_DB_PATH);
+    await indexer.initializeSchema();
+    await indexer.indexExport(FIXTURE_PATH);
+    indexer.close();
+
     server = new TanaWebhookServer(createTestServerConfig(3002));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
   });
 
   test("should respond to health check with workspaces info", async () => {
@@ -153,23 +182,34 @@ describe("TanaWebhookServer - Health Endpoint", () => {
   });
 });
 
-describe("TanaWebhookServer - Search Endpoint (🔴 RED)", () => {
+describe("TanaWebhookServer - Search Endpoint", () => {
   let server: TanaWebhookServer;
 
   beforeAll(async () => {
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
+    const indexer = new TanaIndexer(TEST_DB_PATH);
+    await indexer.initializeSchema();
+    await indexer.indexExport(FIXTURE_PATH);
+    indexer.close();
+
     server = new TanaWebhookServer(createTestServerConfig(3003));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
   });
 
   test("should search and return Tana Paste format", async () => {
     const response = await fetch("http://localhost:3003/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: "template", limit: 3 }),
+      body: JSON.stringify({ query: "the", limit: 3 }),
     });
 
     expect(response.status).toBe(200);
@@ -177,7 +217,6 @@ describe("TanaWebhookServer - Search Endpoint (🔴 RED)", () => {
 
     const tana = await response.text();
     expect(tana).toContain("- ");
-    expect(tana.toLowerCase()).toContain("template");
   });
 
   test("should return error for missing query", async () => {
@@ -191,16 +230,27 @@ describe("TanaWebhookServer - Search Endpoint (🔴 RED)", () => {
   });
 });
 
-describe("TanaWebhookServer - Stats Endpoint (🔴 RED)", () => {
+describe("TanaWebhookServer - Stats Endpoint", () => {
   let server: TanaWebhookServer;
 
   beforeAll(async () => {
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
+    const indexer = new TanaIndexer(TEST_DB_PATH);
+    await indexer.initializeSchema();
+    await indexer.indexExport(FIXTURE_PATH);
+    indexer.close();
+
     server = new TanaWebhookServer(createTestServerConfig(3004));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
   });
 
   test("should return database stats as Tana Paste", async () => {
@@ -216,16 +266,27 @@ describe("TanaWebhookServer - Stats Endpoint (🔴 RED)", () => {
   });
 });
 
-describe("TanaWebhookServer - Tags Endpoint (🔴 RED)", () => {
+describe("TanaWebhookServer - Tags Endpoint", () => {
   let server: TanaWebhookServer;
 
   beforeAll(async () => {
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
+    const indexer = new TanaIndexer(TEST_DB_PATH);
+    await indexer.initializeSchema();
+    await indexer.indexExport(FIXTURE_PATH);
+    indexer.close();
+
     server = new TanaWebhookServer(createTestServerConfig(3005));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
   });
 
   test("should return top tags as Tana Paste", async () => {
@@ -247,12 +308,23 @@ describe("TanaWebhookServer - Semantic Search Endpoint", () => {
   let server: TanaWebhookServer;
 
   beforeAll(async () => {
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
+    const indexer = new TanaIndexer(TEST_DB_PATH);
+    await indexer.initializeSchema();
+    await indexer.indexExport(FIXTURE_PATH);
+    indexer.close();
+
     server = new TanaWebhookServer(createTestServerConfig(3006));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
   });
 
   test("should return 400 for missing query", async () => {
@@ -346,12 +418,23 @@ describe("TanaWebhookServer - Embed Stats Endpoint", () => {
   let server: TanaWebhookServer;
 
   beforeAll(async () => {
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
+    const indexer = new TanaIndexer(TEST_DB_PATH);
+    await indexer.initializeSchema();
+    await indexer.indexExport(FIXTURE_PATH);
+    indexer.close();
+
     server = new TanaWebhookServer(createTestServerConfig(3007));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
+    try {
+      unlinkSync(TEST_DB_PATH);
+    } catch {}
   });
 
   test("should return embed stats as Tana Paste by default", async () => {

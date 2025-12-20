@@ -2,12 +2,17 @@
  * Test against Jens-Christian's real Tana workspace
  *
  * This validates the parser works with production data
+ * NOTE: These tests require sample_data/ which contains private workspace exports
  */
 
 import { describe, test, expect } from "bun:test";
 import { TanaExportParser } from "../../src/parsers/tana-export";
+import { existsSync } from "fs";
 
-describe("Real Workspace Parsing - M9rkJkwuED", () => {
+// Skip tests if sample_data is not available (private workspace exports)
+const SAMPLE_DATA_EXISTS = existsSync("sample_data/M9rkJkwuED@2025-11-30.json");
+
+describe.skipIf(!SAMPLE_DATA_EXISTS)("Real Workspace Parsing - M9rkJkwuED", () => {
   test("should parse Jens-Christian's full workspace", async () => {
     const parser = new TanaExportParser();
     const dump = await parser.parseFile("sample_data/M9rkJkwuED@2025-11-30.json");

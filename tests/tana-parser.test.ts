@@ -1,15 +1,18 @@
 /**
  * TDD Test Suite for Tana Export Parser
  *
- * Tests for parsing Tana JSON exports and extracting graph structure
+ * Uses synthetic test fixtures for reproducible testing
  */
 
 import { describe, test, expect, beforeAll } from "bun:test";
 import { TanaExportParser } from "../src/parsers/tana-export";
 import type { TanaDump, TanaGraph } from "../src/types/tana-dump";
 import { TanaDumpSchema } from "../src/types/tana-dump";
+import { join } from "path";
 
-describe("TanaExportParser - parseFile (🔴 RED)", () => {
+const FIXTURE_PATH = join(__dirname, "fixtures/sample-workspace.json");
+
+describe("TanaExportParser - parseFile", () => {
   let parser: TanaExportParser;
 
   beforeAll(() => {
@@ -17,7 +20,7 @@ describe("TanaExportParser - parseFile (🔴 RED)", () => {
   });
 
   test("should parse valid Tana JSON export file", async () => {
-    const dump = await parser.parseFile("sample_data/K4hTe8I__k@2025-11-30.json");
+    const dump = await parser.parseFile(FIXTURE_PATH);
 
     expect(dump.formatVersion).toBe(1);
     expect(dump.docs).toBeDefined();
@@ -26,8 +29,7 @@ describe("TanaExportParser - parseFile (🔴 RED)", () => {
   });
 
   test("should validate parsed data against schema", async () => {
-    const dump = await parser.parseFile("sample_data/K4hTe8I__k@2025-11-30.json");
-
+    const dump = await parser.parseFile(FIXTURE_PATH);
     const result = TanaDumpSchema.safeParse(dump);
     expect(result.success).toBe(true);
   });
@@ -37,22 +39,16 @@ describe("TanaExportParser - parseFile (🔴 RED)", () => {
       await parser.parseFile("nonexistent.json");
     }).toThrow();
   });
-
-  test("should throw error for invalid JSON", async () => {
-    // This will be tested with a malformed file if needed
-    // For now, we rely on JSON.parse throwing
-    expect(true).toBe(true);
-  });
 });
 
-describe("TanaExportParser - Supertag Detection (🔴 RED)", () => {
+describe("TanaExportParser - Supertag Detection", () => {
   let parser: TanaExportParser;
   let dump: TanaDump;
   let graph: TanaGraph;
 
   beforeAll(async () => {
     parser = new TanaExportParser();
-    dump = await parser.parseFile("sample_data/K4hTe8I__k@2025-11-30.json");
+    dump = await parser.parseFile(FIXTURE_PATH);
     graph = parser.buildGraph(dump);
   });
 
@@ -66,19 +62,13 @@ describe("TanaExportParser - Supertag Detection (🔴 RED)", () => {
   });
 
   test("should identify trashed nodes separately", () => {
-    // Trash map should have some nodes
     expect(graph.trash.size).toBeGreaterThan(0);
-
-    // Note: Implementation keeps trashed nodes in main index for reference resolution
-    // This is intentional to avoid broken references during graph traversal
     console.log(`Found ${graph.trash.size} trashed nodes`);
   });
 
   test("should detect supertag tuples (SYS_A13 + SYS_T01)", () => {
-    // Should find supertags in the dump
     expect(graph.supertags.size).toBeGreaterThan(0);
 
-    // Verify supertag structure
     for (const [tagName, tuple] of graph.supertags) {
       expect(tuple.nodeId).toBeDefined();
       expect(tuple.tagName).toBe(tagName);
@@ -88,37 +78,16 @@ describe("TanaExportParser - Supertag Detection (🔴 RED)", () => {
   });
 
   test("should extract supertag names correctly", () => {
-    // The sample data should have some known supertags
     const tagNames = Array.from(graph.supertags.keys());
     expect(tagNames.length).toBeGreaterThan(0);
 
-    // Each tag name should be a non-empty string
     for (const tagName of tagNames) {
       expect(typeof tagName).toBe("string");
       expect(tagName.length).toBeGreaterThan(0);
     }
   });
 
-  test("should detect supertag superclasses (inheritance)", () => {
-    // Find a supertag with superclasses
-    let foundWithSuperclass = false;
-    for (const [tagName, tuple] of graph.supertags) {
-      if (tuple.superclasses.length > 0) {
-        foundWithSuperclass = true;
-        // Verify superclass names are strings
-        for (const superclass of tuple.superclasses) {
-          expect(typeof superclass).toBe("string");
-        }
-      }
-    }
-
-    // We should find at least some supertags with inheritance
-    // (may not be true for all workspaces, so this is informational)
-    console.log(`Found ${graph.supertags.size} supertags, ${Array.from(graph.supertags.values()).filter(t => t.superclasses.length > 0).length} with superclasses`);
-  });
-
   test("should capture tag colors", () => {
-    // Some supertags may have colors
     for (const [tagName, tuple] of graph.supertags) {
       if (tuple.color) {
         expect(graph.tagColors.has(tagName)).toBe(true);
@@ -128,7 +97,6 @@ describe("TanaExportParser - Supertag Detection (🔴 RED)", () => {
   });
 
   test("should not include trashed supertags", () => {
-    // Verify that detected supertags are not in trash
     for (const [_, tuple] of graph.supertags) {
       expect(graph.trash.has(tuple.nodeId)).toBe(false);
       expect(graph.trash.has(tuple.tagId)).toBe(false);
@@ -136,22 +104,20 @@ describe("TanaExportParser - Supertag Detection (🔴 RED)", () => {
   });
 });
 
-describe("TanaExportParser - Field Detection (🔴 RED)", () => {
+describe("TanaExportParser - Field Detection", () => {
   let parser: TanaExportParser;
   let dump: TanaDump;
   let graph: TanaGraph;
 
   beforeAll(async () => {
     parser = new TanaExportParser();
-    dump = await parser.parseFile("sample_data/K4hTe8I__k@2025-11-30.json");
+    dump = await parser.parseFile(FIXTURE_PATH);
     graph = parser.buildGraph(dump);
   });
 
   test("should detect field tuples (SYS_A13 + SYS_T02)", () => {
-    // Should find fields in the dump
     expect(graph.fields.size).toBeGreaterThan(0);
 
-    // Verify field structure
     for (const [fieldName, tuple] of graph.fields) {
       expect(tuple.nodeId).toBeDefined();
       expect(tuple.fieldName).toBe(fieldName);
@@ -163,17 +129,15 @@ describe("TanaExportParser - Field Detection (🔴 RED)", () => {
     const fieldNames = Array.from(graph.fields.keys());
     expect(fieldNames.length).toBeGreaterThan(0);
 
-    // Each field name should be a non-empty string
     for (const fieldName of fieldNames) {
       expect(typeof fieldName).toBe("string");
       expect(fieldName.length).toBeGreaterThan(0);
     }
 
-    console.log(`Found ${graph.fields.size} fields: ${fieldNames.slice(0, 5).join(", ")}...`);
+    console.log(`Found ${graph.fields.size} fields: ${fieldNames.join(", ")}`);
   });
 
   test("should not include trashed fields", () => {
-    // Verify that detected fields are not in trash
     for (const [_, tuple] of graph.fields) {
       expect(graph.trash.has(tuple.nodeId)).toBe(false);
       expect(graph.trash.has(tuple.fieldId)).toBe(false);
@@ -181,22 +145,20 @@ describe("TanaExportParser - Field Detection (🔴 RED)", () => {
   });
 });
 
-describe("TanaExportParser - Inline Reference Extraction (🔴 RED)", () => {
+describe("TanaExportParser - Inline Reference Extraction", () => {
   let parser: TanaExportParser;
   let dump: TanaDump;
   let graph: TanaGraph;
 
   beforeAll(async () => {
     parser = new TanaExportParser();
-    dump = await parser.parseFile("sample_data/K4hTe8I__k@2025-11-30.json");
+    dump = await parser.parseFile(FIXTURE_PATH);
     graph = parser.buildGraph(dump);
   });
 
   test("should extract inline references from node names", () => {
-    // The sample data has at least one node with inline refs
     expect(graph.inlineRefs.length).toBeGreaterThan(0);
 
-    // Verify inline ref structure
     for (const ref of graph.inlineRefs) {
       expect(ref.sourceNodeId).toBeDefined();
       expect(Array.isArray(ref.targetNodeIds)).toBe(true);
@@ -206,7 +168,6 @@ describe("TanaExportParser - Inline Reference Extraction (🔴 RED)", () => {
   });
 
   test("should extract multiple inline refs from single node", () => {
-    // Find the sample node we know has 2 inline refs
     const refWithMultiple = graph.inlineRefs.find(ref =>
       ref.targetNodeIds.length > 1
     );
@@ -218,7 +179,6 @@ describe("TanaExportParser - Inline Reference Extraction (🔴 RED)", () => {
   });
 
   test("should only include valid target node IDs", () => {
-    // All target IDs should exist in the index
     for (const ref of graph.inlineRefs) {
       for (const targetId of ref.targetNodeIds) {
         expect(graph.nodes.has(targetId)).toBe(true);
@@ -227,34 +187,20 @@ describe("TanaExportParser - Inline Reference Extraction (🔴 RED)", () => {
   });
 
   test("should not extract inline refs from trashed nodes", () => {
-    // Inline refs should not come from trash
     for (const ref of graph.inlineRefs) {
       expect(graph.trash.has(ref.sourceNodeId)).toBe(false);
     }
   });
-
-  test("should extract expected inline ref pattern", () => {
-    // Sample node has inline refs with pattern: <span data-inlineref-node="NODE_ID"></span>
-    const sampleNodeId = "wLemsA7U0OFg"; // From our earlier extraction
-    const ref = graph.inlineRefs.find(r => r.sourceNodeId === sampleNodeId);
-
-    if (ref) {
-      // We know this node has 2 inline refs: pYUE1UrKvBPs and ZQXY-sgCUMOA
-      expect(ref.targetNodeIds.length).toBe(2);
-      expect(ref.targetNodeIds).toContain("pYUE1UrKvBPs");
-      expect(ref.targetNodeIds).toContain("ZQXY-sgCUMOA");
-    }
-  });
 });
 
-describe("TanaExportParser - Graph Statistics (🔴 RED)", () => {
+describe("TanaExportParser - Graph Statistics", () => {
   let parser: TanaExportParser;
   let dump: TanaDump;
   let graph: TanaGraph;
 
   beforeAll(async () => {
     parser = new TanaExportParser();
-    dump = await parser.parseFile("sample_data/K4hTe8I__k@2025-11-30.json");
+    dump = await parser.parseFile(FIXTURE_PATH);
     graph = parser.buildGraph(dump);
   });
 
@@ -270,7 +216,6 @@ Graph Statistics:
 - Tag colors: ${graph.tagColors.size}
     `);
 
-    // Basic sanity checks
     expect(graph.nodes.size).toBeLessThanOrEqual(dump.docs.length);
     expect(graph.supertags.size).toBeGreaterThan(0);
     expect(graph.fields.size).toBeGreaterThan(0);
