@@ -305,13 +305,11 @@ Vector embeddings enable semantic search - find nodes by meaning, not just keywo
 # Configure embedding provider (choose one)
 
 # Option 1: Ollama with bge-m3 (RECOMMENDED - best quality)
-supertag embed config --provider ollama --model bge-m3
+supertag embed config --model bge-m3
 
 # Option 2: Ollama with nomic-embed-text (faster, lower quality, bad on very short nodes)
-supertag embed config --provider ollama --model nomic-embed-text
+supertag embed config  --model nomic-embed-text
 
-# Option 3: Transformers.js (no server required, for getting started)
-supertag embed config --provider transformers --model Xenova/all-MiniLM-L6-v2
 
 # Show current configuration
 supertag embed config --show
