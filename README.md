@@ -122,16 +122,17 @@ supertag-export discover --add
 # Export your data
 ./supertag-export run
 
-
-
-# Create a todo
-./supertag create todo "Buy groceries" --status active
+# Now sync to create the local database and parse the supertag structure
+./supertag sync index
 
 # Search your workspace (requires indexed export)
 ./supertag query search "meeting"
 
 # Show database stats
 ./supertag query stats
+
+# Create a todo
+./supertag create todo "Buy groceries" --status active
 ```
 
 ---
@@ -297,13 +298,16 @@ See [WEBHOOK-SERVER.md](./WEBHOOK-SERVER.md) for detailed API documentation.
 
 Vector embeddings enable semantic search - find nodes by meaning, not just keywords.
 
+
+**NOTE**: You will need to have [ollama](https://ollama.com/) installed
+
 ```bash
 # Configure embedding provider (choose one)
 
-# Option 1: Ollama with mxbai-embed-large (RECOMMENDED - best quality)
-supertag embed config --provider ollama --model mxbai-embed-large
+# Option 1: Ollama with bge-m3 (RECOMMENDED - best quality)
+supertag embed config --provider ollama --model bge-m3
 
-# Option 2: Ollama with nomic-embed-text (faster, lower quality)
+# Option 2: Ollama with nomic-embed-text (faster, lower quality, bad on very short nodes)
 supertag embed config --provider ollama --model nomic-embed-text
 
 # Option 3: Transformers.js (no server required, for getting started)
@@ -381,19 +385,19 @@ This reduces embedding workload by ~47% while preserving semantic search quality
 
 | Provider | Server Required | Models |
 |----------|----------------|--------|
-| **Ollama** | Yes (local server) | **mxbai-embed-large (1024d)** - recommended, nomic-embed-text (768d), all-minilm (384d), bge-m3 (1024d) |
+| **Ollama** | Yes (local server) | ** bge-m3 (1024d)** - recommended, nomic-embed-text (768d), all-minilm (384d), mxbai-embed-large (1024d) |
 | **Transformers.js** | No (runs locally) | Xenova/all-MiniLM-L6-v2 (384d), bge-small-en-v1.5 (384d), bge-base-en-v1.5 (768d) |
 
 **Model Recommendation:**
 
-We recommend **mxbai-embed-large** for best semantic search quality. In A/B testing:
+We recommend **bge-m3** for best semantic search quality. In A/B testing:
 - 3x better differentiation of short text (names, titles) vs nomic-embed-text
 - More relevant search results with proper similarity scoring
 - Higher dimensional embeddings (1024d) capture more semantic nuance
 
-To use mxbai-embed-large, first pull the model in Ollama:
+To use bge-m3, first pull the model in Ollama:
 ```bash
-ollama pull mxbai-embed-large
+ollama pull bge-m3
 ```
 
 Embeddings are stored in LanceDB format (`.lance` directory next to the SQLite database), providing cross-platform support without any native extensions.
@@ -416,8 +420,8 @@ supertag-export discover --add
 
 ```bash
 # Add workspaces using rootFileId (from supertag-export discover)
-supertag workspace add M9rkJkwuED --alias personal
-supertag workspace add 7e25I56wgQ --alias work
+supertag workspace add xxx --alias personal
+supertag workspace add yyy --alias work
 
 # List and manage
 supertag workspace list
