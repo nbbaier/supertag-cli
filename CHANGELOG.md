@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `supertag-export setup` command for explicit installation
   - Improved first-time user experience with automatic dependency resolution
 
+- **Automatic Workspace Configuration** - `supertag-export discover` now auto-adds first workspace as `main`
+  - First discovered workspace (root workspace) automatically configured
+  - Sets as default workspace for immediate use
+  - Eliminates manual `supertag workspace add` step for primary workspace
+  - Shows clear next steps after discovery
+
 ## [0.13.0] - 2025-12-20
 
 ### Added

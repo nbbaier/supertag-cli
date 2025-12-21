@@ -495,10 +495,25 @@ program
         }
       }
 
-      // Show usage hints
-      if (!options.add && !options.update) {
+      // Auto-add first workspace as 'main' if no workspaces configured
+      const hasConfiguredWorkspaces = Object.keys(existingWorkspaces).length > 0;
+
+      if (!hasConfiguredWorkspaces && !options.add && !options.update && workspaces.length > 0) {
+        const firstWorkspace = workspaces[0]; // Root workspace (sorted first)
+        config.addWorkspace("main", firstWorkspace.rootFileId, {
+          name: firstWorkspace.name,
+          nodeid: firstWorkspace.homeNodeId,
+          enabled: true,
+        });
+        config.setDefaultWorkspace("main");
+        console.log(`\n✓ Automatically added "${firstWorkspace.name}" as workspace "main"\n`);
+        console.log("Next steps:");
+        console.log("  1. Run: supertag-export run");
+        console.log("  2. Then: supertag sync index\n");
+      } else if (!options.add && !options.update) {
+        // Show usage hints if workspaces already configured
         console.log("To add a workspace:");
-        console.log("  tana workspace add <rootFileId> --alias <name>\n");
+        console.log("  supertag workspace add <rootFileId> --alias <name>\n");
         console.log("Or use --add to automatically add all discovered workspaces:");
         console.log("  supertag-export discover --add\n");
         console.log("Or use --update to update existing workspaces with rootFileIds:");

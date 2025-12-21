@@ -80,8 +80,49 @@ On first run, Chromium will be automatically installed (~300 MB), then a browser
 
 ### 4. Export your data and setup your local information
 
+First, let's discover your Tana workspaces
 ```bash
-./export/supertag-export 
+./export/supertag-export discover
+Discovering Tana workspaces...
+
+Launching browser to discover workspaces...
+Navigating to Tana...
+Waiting for app to initialize (15s)...
+Extracting workspace data from appState...
+  Found: 🏠 Jens-Christian Fischer (1,350,721 nodes) (root)
+  Found: Learn Tana (3,050 nodes)
+  [...]
+
+Discovered 5 workspace(s):
+
+  🏠 Jens-Christian Fischer [root]
+    nodeid: xxx
+    rootFileId: M9rkyyyJkwuED
+    nodes: 1,350,721
+    status: (not configured)
+
+  2023 (Archived)
+  [...]
+
+✓ Automatically added "🏠 Jens-Christian Fischer" as workspace "main"
+
+Next steps:
+  1. Run: supertag-export run
+  2. Then: supertag sync index
+```
+
+The first discovered workspace (your root workspace) is automatically added as `main`. To add more workspaces:
+
+```bash
+# Add additional workspaces manually
+supertag workspace add <rootFileId> --alias <name>
+
+# Or add ALL discovered workspaces at once
+supertag-export discover --add
+
+# Export your data
+./supertag-export run
+
 
 
 # Create a todo
