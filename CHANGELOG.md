@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.4] - 2025-12-21
+
+### Fixed
+
+- **Firebase API Key Extraction** - Login now correctly extracts Firebase Web API key instead of auth token
+  - Extracts `entry.value.apiKey` from Firebase IndexedDB
+  - Enables token refresh functionality via Firebase API
+  - Previous version was extracting auth token (already cached elsewhere)
+
 ## [0.13.3] - 2025-12-21
 
 ### Changed
