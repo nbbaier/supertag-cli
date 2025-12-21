@@ -17,6 +17,7 @@ import { chromium } from "playwright";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
+import { $ } from "bun";
 
 // Import shared config from parent tana package
 import { getConfig } from "../src/config/manager";
@@ -38,6 +39,55 @@ const USER_DATA_DIR = BROWSER_DATA_DIR;
 const TANA_APP_URL = "https://app.tana.inc";
 
 const logger = createSimpleLogger("supertag-export");
+
+/**
+ * Check if Playwright chromium browser is installed
+ */
+async function isBrowserInstalled(): Promise<boolean> {
+  try {
+    // Try to get the executable path - this will throw if not installed
+    const execPath = chromium.executablePath();
+    return existsSync(execPath);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Install Playwright chromium browser
+ */
+async function installBrowser(): Promise<boolean> {
+  logger.info("Playwright chromium browser not found. Installing...");
+  logger.info("This is a one-time setup that may take a few minutes.\n");
+
+  try {
+    // Use bunx to run playwright install chromium
+    const result = await $`bunx playwright install chromium`.quiet();
+
+    if (result.exitCode === 0) {
+      logger.info("Browser installed successfully!\n");
+      return true;
+    } else {
+      logger.error("Browser installation failed");
+      logger.error("Try running manually: bunx playwright install chromium");
+      return false;
+    }
+  } catch (error) {
+    logger.error("Browser installation failed", error as Error);
+    logger.error("Try running manually: bunx playwright install chromium");
+    return false;
+  }
+}
+
+/**
+ * Ensure browser is installed before running browser operations
+ */
+async function ensureBrowser(): Promise<boolean> {
+  if (await isBrowserInstalled()) {
+    return true;
+  }
+  return await installBrowser();
+}
 
 interface ExportOptions {
   exportDir: string;
@@ -158,6 +208,11 @@ async function exportViaApi(options: ExportOptions): Promise<ExportResult> {
  * Interactive login via browser
  */
 async function interactiveLogin(): Promise<void> {
+  // Ensure browser is installed
+  if (!await ensureBrowser()) {
+    throw new Error("Browser not available. Please install manually: bunx playwright install chromium");
+  }
+
   logger.info("Opening browser for Tana login...");
   logger.info("");
   logger.info("1. Log in to Tana (via Google or email)");
@@ -249,6 +304,25 @@ program
   .name("supertag-export")
   .description('Browser automation for Tana workspace exports')
   .version(VERSION);
+
+program
+  .command("setup")
+  .description("Install Playwright browser (required for login and discover)")
+  .action(async () => {
+    const installed = await isBrowserInstalled();
+    if (installed) {
+      logger.info("Playwright chromium browser is already installed.");
+      logger.info(`Executable: ${chromium.executablePath()}`);
+      return;
+    }
+
+    const success = await installBrowser();
+    if (success) {
+      logger.info(`Executable: ${chromium.executablePath()}`);
+    } else {
+      process.exit(1);
+    }
+  });
 
 program
   .command("login")
@@ -356,6 +430,12 @@ program
   .option("--add", "Automatically add discovered workspaces to config")
   .option("--update", "Update existing workspaces with discovered rootFileIds")
   .action(async (options: { timeout: string; add?: boolean; update?: boolean }) => {
+    // Ensure browser is installed
+    if (!await ensureBrowser()) {
+      console.error("Browser not available. Please install manually: bunx playwright install chromium");
+      process.exit(1);
+    }
+
     console.log("Discovering Tana workspaces...\n");
 
     try {

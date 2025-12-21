@@ -15,7 +15,7 @@ If you discover a security vulnerability in Supertag CLI, please report it respo
 
 ### How to Report
 
-1. **Email**: Send details to security@invisible.ch
+1. **Email**: Send details to info@invisible.ch
 2. **Include**:
    - Description of the vulnerability
    - Steps to reproduce

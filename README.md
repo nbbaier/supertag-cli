@@ -3,9 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/jcfischer/supertag-cli/actions/workflows/test.yml/badge.svg)](https://github.com/jcfischer/supertag-cli/actions/workflows/test.yml)
 
-**Complete Tana integration with seven powerful capabilities**: **MCP** (AI tool integration), **EMBED** (semantic vector search), INTERACTIVE (webhook server), WRITE (Input API), READ (query exports), EXPORT (automated backup), and WORKSPACES (multi-workspace management).
-
-**✨ New in v0.9.8:** Semantic search now returns proper Tana references with table format, improved deletion filtering, and parent context for every result.
+**Complete Tana integration with seven powerful capabilities**: **MCP** (AI tool integration), **EMBED** (semantic vector search), **INTERACTIVE** (webhook server), **WRITE** (Input API), **READ** (query exports), **EXPORT** (automated backup), and **WORKSPACES** (multi-workspace management).
 
 ## Three-Tool Architecture
 
@@ -36,8 +34,34 @@ Download the latest release from [GitHub Releases](https://github.com/jcfischer/
 unzip supertag-cli-vX.Y.Z-macos-arm64.zip
 cd supertag-cli-macos-arm64
 ```
+For MAC OS, you will need to remove the quarantine bits of the three executables:
+
+```bash
+xattr -d com.apple.quarantine ./supertag
+xattr -d com.apple.quarantine ./mcp/supertag-mcp
+xattr -d com.apple.quarantine ./export/supertag-export
+```
+
+#### Install the dependencies for supertag-export
+
+The supertag export executable needs Playwright to control a browser for login. First [install Bun](https://bun.sh/docs/installation), then:
+
+```bash
+cd export
+bun install
+```
+
+The Chromium browser will be **automatically installed** on first run of `supertag-export login` or `supertag-export discover`. You can also install it explicitly:
+
+```bash
+supertag-export setup   # Installs Chromium browser (~300 MB)
+```
+
+
 
 ### 2. Configure API Token
+
+You will need the API token to use the Write API of Tana
 
 ```bash
 # Get token from: https://app.tana.inc/?bundle=settings&panel=api
@@ -45,9 +69,21 @@ export TANA_API_TOKEN="your_token_here"
 # Or: supertag config --token your_token
 ```
 
-### 3. Try It Out
+### 3. Login to Tana
 
 ```bash
+# first login (auto-installs Chromium if needed)
+./export/supertag-export login
+```
+
+On first run, Chromium will be automatically installed (~300 MB), then a browser window opens for Tana login. Complete the login, then close the browser. `supertag-export` saves your session for future exports.
+
+### 4. Export your data and setup your local information
+
+```bash
+./export/supertag-export 
+
+
 # Create a todo
 ./supertag create todo "Buy groceries" --status active
 
@@ -83,10 +119,10 @@ The export tool requires Playwright for browser automation:
 
 ```bash
 cd export
-npm install
+bun install
 ```
 
-**Note**: Chromium browser (~300 MB) auto-downloads on first `supertag-export` run.
+**Note**: Chromium browser (~300 MB) auto-installs on first `supertag-export login` or `supertag-export discover` run. You can also run `supertag-export setup` to install it explicitly.
 
 ---
 
@@ -793,10 +829,14 @@ supertag sync index  # Index a Tana export first
 
 ### "Chromium not found" (supertag-export)
 
-Chromium auto-installs on first run. If it fails:
+Chromium auto-installs on first run. If auto-install fails, try:
 
 ```bash
-cd export && npx playwright install chromium
+# Explicit install via setup command
+supertag-export setup
+
+# Or manual install via bunx
+bunx playwright install chromium
 ```
 
 ---
