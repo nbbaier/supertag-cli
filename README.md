@@ -34,27 +34,26 @@ Download the latest release from [GitHub Releases](https://github.com/jcfischer/
 unzip supertag-cli-vX.Y.Z-macos-arm64.zip
 cd supertag-cli-macos-arm64
 ```
-For MAC OS, you will need to remove the quarantine bits of the three executables:
+For macOS, you will need to remove the quarantine bits from the executables:
 
 ```bash
 xattr -d com.apple.quarantine ./supertag
-xattr -d com.apple.quarantine ./mcp/supertag-mcp
-xattr -d com.apple.quarantine ./export/supertag-export
+xattr -d com.apple.quarantine ./supertag-mcp
+xattr -d com.apple.quarantine ./supertag-export
 ```
 
-#### Install the dependencies for supertag-export
+#### Install Playwright dependencies for supertag-export
 
-The supertag export executable needs Playwright to control a browser for login. First [install Bun](https://bun.sh/docs/installation), then:
+The export tool needs Playwright for browser automation. [Install Bun](https://bun.sh/docs/installation) first, then:
 
 ```bash
-cd export
 bun install
 ```
 
-The Chromium browser will be **automatically installed** on first run of `supertag-export login` or `supertag-export discover`. You can also install it explicitly:
+The Chromium browser (~300 MB) will be **automatically installed** on first run of `supertag-export login` or `supertag-export discover`. You can also install it explicitly:
 
 ```bash
-supertag-export setup   # Installs Chromium browser (~300 MB)
+./supertag-export setup
 ```
 
 
@@ -73,7 +72,7 @@ export TANA_API_TOKEN="your_token_here"
 
 ```bash
 # first login (auto-installs Chromium if needed)
-./export/supertag-export login
+./supertag-export login
 ```
 
 On first run, Chromium will be automatically installed (~300 MB), then a browser window opens for Tana login. Complete the login, then close the browser. `supertag-export` saves your session for future exports.
@@ -82,7 +81,7 @@ On first run, Chromium will be automatically installed (~300 MB), then a browser
 
 First, let's discover your Tana workspaces
 ```bash
-./export/supertag-export discover
+./supertag-export discover
 Discovering Tana workspaces...
 
 Launching browser to discover workspaces...
@@ -143,8 +142,8 @@ supertag-export discover --add
 
 ```bash
 sudo ln -s $(pwd)/supertag /usr/local/bin/supertag
-sudo ln -s $(pwd)/export/supertag-export /usr/local/bin/supertag-export
-sudo ln -s $(pwd)/mcp/supertag-mcp /usr/local/bin/supertag-mcp
+sudo ln -s $(pwd)/supertag-export /usr/local/bin/supertag-export
+sudo ln -s $(pwd)/supertag-mcp /usr/local/bin/supertag-mcp
 ```
 
 ### Option B: Add to PATH
@@ -159,7 +158,6 @@ source ~/.zshrc
 The export tool requires Playwright for browser automation:
 
 ```bash
-cd export
 bun install
 ```
 

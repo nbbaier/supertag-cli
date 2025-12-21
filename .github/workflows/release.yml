@@ -84,12 +84,11 @@ jobs:
       - name: Create distribution package
         run: |
           DIST_NAME="supertag-cli-${{ matrix.suffix }}"
-          mkdir -p "$DIST_NAME/export"
-          mkdir -p "$DIST_NAME/mcp"
+          mkdir -p "$DIST_NAME"
           cp supertag "$DIST_NAME/"
-          cp supertag-mcp "$DIST_NAME/mcp/"
-          cp supertag-export "$DIST_NAME/export/"
-          cp export/package.json "$DIST_NAME/export/"
+          cp supertag-mcp "$DIST_NAME/"
+          cp supertag-export "$DIST_NAME/"
+          cp export/package.json "$DIST_NAME/"
           cp README.md "$DIST_NAME/"
           zip -r "supertag-cli-v${{ steps.version.outputs.VERSION }}-${{ matrix.suffix }}.zip" "$DIST_NAME"
 
@@ -133,12 +132,11 @@ jobs:
       - name: Create distribution package
         run: |
           DIST_NAME="supertag-cli-linux-x64"
-          mkdir -p "$DIST_NAME/export"
-          mkdir -p "$DIST_NAME/mcp"
+          mkdir -p "$DIST_NAME"
           cp supertag "$DIST_NAME/"
-          cp supertag-mcp "$DIST_NAME/mcp/"
-          cp supertag-export "$DIST_NAME/export/"
-          cp export/package.json "$DIST_NAME/export/"
+          cp supertag-mcp "$DIST_NAME/"
+          cp supertag-export "$DIST_NAME/"
+          cp export/package.json "$DIST_NAME/"
           cp README.md "$DIST_NAME/"
           zip -r "supertag-cli-v${{ steps.version.outputs.VERSION }}-linux-x64.zip" "$DIST_NAME"
 
@@ -182,12 +180,11 @@ jobs:
       - name: Create distribution package
         run: |
           DIST_NAME="supertag-cli-windows-x64"
-          mkdir -p "$DIST_NAME/export"
-          mkdir -p "$DIST_NAME/mcp"
+          mkdir -p "$DIST_NAME"
           cp supertag.exe "$DIST_NAME/"
-          cp supertag-mcp.exe "$DIST_NAME/mcp/"
-          cp supertag-export.exe "$DIST_NAME/export/"
-          cp export/package.json "$DIST_NAME/export/"
+          cp supertag-mcp.exe "$DIST_NAME/"
+          cp supertag-export.exe "$DIST_NAME/"
+          cp export/package.json "$DIST_NAME/"
           cp README.md "$DIST_NAME/"
           zip -r "supertag-cli-v${{ steps.version.outputs.VERSION }}-windows-x64.zip" "$DIST_NAME"
 

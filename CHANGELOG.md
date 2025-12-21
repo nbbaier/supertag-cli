@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminates manual `supertag workspace add` step for primary workspace
   - Shows clear next steps after discovery
 
+### Changed
+
+- **Flat Distribution Structure** - All executables now in same directory
+  - Changed from `export/supertag-export` to `./supertag-export`
+  - Changed from `mcp/supertag-mcp` to `./supertag-mcp`
+  - Simpler extraction: all tools in root directory
+  - Run `bun install` from root instead of `cd export && bun install`
+
 ## [0.13.0] - 2025-12-20
 
 ### Added
