@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.2] - 2025-12-21
+
+### Changed
+
+- **Documentation Improvements** - Updated README with better workflow and recommendations
+  - Added explicit sync step after export in Quick Start
+  - Changed recommended embedding model from mxbai-embed-large to bge-m3
+  - Clarified workspace configuration examples
+
 ## [0.13.1] - 2025-12-21
 
 ### Added
