@@ -330,13 +330,13 @@ async function performExport(options: ExportOptions): Promise<string | null> {
 }
 
 /**
- * Extract Firebase API token from browser context
- * Firebase stores auth tokens in IndexedDB under firebaseLocalStorageDb
+ * Extract Firebase Web API key from browser context
+ * Extracts the public Firebase configuration from the Tana app
  */
 async function extractFirebaseToken(page: any, verbose: boolean): Promise<string | null> {
   try {
-    // Firebase stores tokens in IndexedDB - extract via page.evaluate
-    const token = await page.evaluate(async () => {
+    // Extract Firebase config from IndexedDB
+    const apiKey = await page.evaluate(async () => {
       return new Promise((resolve) => {
         const request = indexedDB.open('firebaseLocalStorageDb');
         request.onsuccess = () => {
@@ -347,10 +347,11 @@ async function extractFirebaseToken(page: any, verbose: boolean): Promise<string
 
           getAllRequest.onsuccess = () => {
             const results = getAllRequest.result;
-            // Find the auth token entry
+            // Find the Firebase config entry
             for (const entry of results) {
-              if (entry?.value?.stsTokenManager?.accessToken) {
-                resolve(entry.value.stsTokenManager.accessToken);
+              // Firebase config is stored with the API key
+              if (entry?.value?.apiKey) {
+                resolve(entry.value.apiKey);
                 return;
               }
             }
@@ -362,12 +363,12 @@ async function extractFirebaseToken(page: any, verbose: boolean): Promise<string
       });
     });
 
-    if (token && verbose) {
-      logger.debug(`Extracted Firebase token (${token.length} chars)`);
+    if (apiKey && verbose) {
+      logger.debug(`Extracted Firebase API key: ${apiKey.substring(0, 20)}...`);
     }
-    return token;
+    return apiKey;
   } catch (error) {
-    if (verbose) logger.debug(`Failed to extract Firebase token: ${error}`);
+    if (verbose) logger.debug(`Failed to extract Firebase API key: ${error}`);
     return null;
   }
 }
