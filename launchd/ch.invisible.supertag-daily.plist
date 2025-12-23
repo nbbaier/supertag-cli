@@ -7,18 +7,45 @@
 
     <key>ProgramArguments</key>
     <array>
-        <!-- UPDATE THIS PATH to your supertag-cli installation -->
-        <string>/usr/local/bin/supertag-cli/tana-daily</string>
+        <!-- Path replaced by install-launchd.sh -->
+        <string>/usr/local/bin/supertag</string>
+        <string>sync</string>
+        <string>index</string>
     </array>
 
-    <!-- Run daily at 6:00 AM -->
+    <!-- Run every 6 hours: midnight, 6 AM, noon, 6 PM -->
     <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>6</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>0</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>6</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>12</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>18</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+
+    <!-- Working Directory -->
+    <key>WorkingDirectory</key>
+    <!-- Path replaced by install-launchd.sh -->
+    <string>/Users/YOUR_USERNAME</string>
 
     <!-- Environment variables -->
     <key>EnvironmentVariables</key>
@@ -26,29 +53,24 @@
         <key>PATH</key>
         <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
         <key>HOME</key>
-        <!-- UPDATE THIS to your home directory -->
+        <!-- Path replaced by install-launchd.sh -->
         <string>/Users/YOUR_USERNAME</string>
     </dict>
 
-    <!-- Working directory -->
-    <key>WorkingDirectory</key>
-    <!-- UPDATE THIS PATH to your supertag-cli installation -->
-    <string>/usr/local/bin/supertag-cli</string>
-
     <!-- Log output -->
     <key>StandardOutPath</key>
-    <!-- UPDATE THIS to your home directory -->
+    <!-- Path replaced by install-launchd.sh -->
     <string>/Users/YOUR_USERNAME/.local/state/supertag/logs/supertag-daily.log</string>
 
     <key>StandardErrorPath</key>
-    <!-- UPDATE THIS to your home directory -->
+    <!-- Path replaced by install-launchd.sh -->
     <string>/Users/YOUR_USERNAME/.local/state/supertag/logs/supertag-daily.error.log</string>
 
     <!-- Don't run at load, only on schedule -->
     <key>RunAtLoad</key>
     <false/>
 
-    <!-- Timeout: 30 minutes (export can take 15+ min for large workspaces) -->
+    <!-- Timeout: 30 minutes (sync can take time for large workspaces) -->
     <key>TimeOut</key>
     <integer>1800</integer>
 

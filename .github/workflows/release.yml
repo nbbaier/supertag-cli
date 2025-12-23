@@ -90,6 +90,9 @@ jobs:
           cp supertag-export "$DIST_NAME/"
           cp export/package.json "$DIST_NAME/"
           cp README.md "$DIST_NAME/"
+          cp -r docs "$DIST_NAME/"
+          cp -r launchd "$DIST_NAME/"
+          cp -r scripts "$DIST_NAME/"
           zip -r "supertag-cli-v${{ steps.version.outputs.VERSION }}-${{ matrix.suffix }}.zip" "$DIST_NAME"
 
       - name: Upload artifact
@@ -138,6 +141,9 @@ jobs:
           cp supertag-export "$DIST_NAME/"
           cp export/package.json "$DIST_NAME/"
           cp README.md "$DIST_NAME/"
+          cp -r docs "$DIST_NAME/"
+          cp -r launchd "$DIST_NAME/"
+          cp -r scripts "$DIST_NAME/"
           zip -r "supertag-cli-v${{ steps.version.outputs.VERSION }}-linux-x64.zip" "$DIST_NAME"
 
       - name: Upload artifact
@@ -186,6 +192,9 @@ jobs:
           cp supertag-export.exe "$DIST_NAME/"
           cp export/package.json "$DIST_NAME/"
           cp README.md "$DIST_NAME/"
+          cp -r docs "$DIST_NAME/"
+          cp -r launchd "$DIST_NAME/"
+          cp -r scripts "$DIST_NAME/"
           zip -r "supertag-cli-v${{ steps.version.outputs.VERSION }}-windows-x64.zip" "$DIST_NAME"
 
       - name: Upload artifact

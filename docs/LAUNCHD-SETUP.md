@@ -8,7 +8,7 @@ Auto-start configuration for macOS to run Supertag services on boot.
 # Install webhook server (auto-starts, restarts on crash)
 ./scripts/install-launchd.sh server
 
-# Install daily export/sync (runs at 6 AM)
+# Install sync scheduler (runs every 6 hours)
 ./scripts/install-launchd.sh daily
 
 # Check status
@@ -16,6 +16,69 @@ supertag server status
 
 # Test endpoint
 curl http://localhost:3100/health
+```
+
+---
+
+## Path Configuration
+
+**IMPORTANT:** The install script automatically configures paths based on where you run it from.
+
+### How Paths Are Configured
+
+The plist template files contain placeholders that get replaced during installation:
+
+| Placeholder | Replaced With |
+|-------------|---------------|
+| `/Users/YOUR_USERNAME` | Your `$HOME` directory |
+| `/usr/local/bin/supertag` | Path to supertag binary in your installation |
+
+### Installation from Different Locations
+
+**From extracted release zip:**
+```bash
+cd ~/Downloads/supertag-cli-macos-arm64
+./scripts/install-launchd.sh server
+# Uses: ~/Downloads/supertag-cli-macos-arm64/supertag
+```
+
+**From cloned repository:**
+```bash
+cd ~/Projects/supertag-cli
+./scripts/install-launchd.sh server
+# Uses: ~/Projects/supertag-cli/supertag
+```
+
+**After moving to permanent location (recommended):**
+```bash
+# Move to permanent location first
+mv ~/Downloads/supertag-cli-macos-arm64 /usr/local/supertag-cli
+cd /usr/local/supertag-cli
+./scripts/install-launchd.sh server
+# Uses: /usr/local/supertag-cli/supertag
+```
+
+### If You Move the Installation
+
+If you move the supertag-cli directory after installing launchd services, you must reinstall:
+
+```bash
+# After moving to new location
+cd /new/path/to/supertag-cli
+./scripts/deploy-launchd.sh server
+./scripts/deploy-launchd.sh daily
+```
+
+### Verifying Path Configuration
+
+Check the installed plist to verify paths are correct:
+
+```bash
+# View installed server plist
+cat ~/Library/LaunchAgents/ch.invisible.supertag-server.plist | grep -A1 ProgramArguments
+
+# Should show your actual path, e.g.:
+# <string>/usr/local/supertag-cli/supertag</string>
 ```
 
 ---
@@ -29,10 +92,11 @@ curl http://localhost:3100/health
 - **Port**: 3100 (localhost only)
 - **Plist**: `ch.invisible.supertag-server.plist`
 
-### Daily Export/Sync (`supertag-daily`)
+### Sync Scheduler (`supertag-daily`)
 
-- **Purpose**: Automated export and database sync
-- **Schedule**: Daily at 6:00 AM
+- **Purpose**: Automated database sync from Tana exports
+- **Schedule**: Every 6 hours (midnight, 6 AM, noon, 6 PM)
+- **Command**: `supertag sync index`
 - **Plist**: `ch.invisible.supertag-daily.plist`
 
 ---
@@ -45,7 +109,7 @@ curl http://localhost:3100/health
 ./scripts/install-launchd.sh server
 ```
 
-### Install Daily Sync (Scheduled)
+### Install Sync Scheduler
 
 ```bash
 ./scripts/install-launchd.sh daily
@@ -53,7 +117,7 @@ curl http://localhost:3100/health
 
 The install script:
 1. Copies plist to `~/Library/LaunchAgents/`
-2. Replaces placeholders with your paths
+2. Replaces path placeholders with your actual paths
 3. Loads the service
 4. Verifies it's running
 
@@ -77,7 +141,7 @@ supertag server status
 # Server logs
 tail -f ~/.local/state/supertag/logs/supertag-server.log
 
-# Daily sync logs
+# Sync logs
 tail -f ~/.local/state/supertag/logs/supertag-daily.log
 
 # Error logs
@@ -108,7 +172,7 @@ launchctl unload ~/Library/LaunchAgents/ch.invisible.supertag-server.plist
 # Uninstall server
 ./scripts/uninstall-launchd.sh server
 
-# Uninstall daily sync
+# Uninstall sync scheduler
 ./scripts/uninstall-launchd.sh daily
 
 # Uninstall both
@@ -134,27 +198,24 @@ Then deploy:
 ./scripts/deploy-launchd.sh server
 ```
 
-### Change Daily Schedule
+### Change Sync Schedule
 
-Edit `launchd/ch.invisible.supertag-daily.plist`:
+Edit `launchd/ch.invisible.supertag-daily.plist`.
 
-```xml
-<key>StartCalendarInterval</key>
-<dict>
-    <key>Hour</key>
-    <integer>7</integer>  <!-- Change from 6 -->
-    <key>Minute</key>
-    <integer>30</integer> <!-- Add minutes -->
-</dict>
-```
-
-### Run Multiple Times Daily
-
+**Current schedule (every 6 hours):**
 ```xml
 <key>StartCalendarInterval</key>
 <array>
     <dict>
+        <key>Hour</key><integer>0</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+    <dict>
         <key>Hour</key><integer>6</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+    <dict>
+        <key>Hour</key><integer>12</integer>
         <key>Minute</key><integer>0</integer>
     </dict>
     <dict>
@@ -162,6 +223,22 @@ Edit `launchd/ch.invisible.supertag-daily.plist`:
         <key>Minute</key><integer>0</integer>
     </dict>
 </array>
+```
+
+**Once daily at 7:30 AM:**
+```xml
+<key>StartCalendarInterval</key>
+<dict>
+    <key>Hour</key>
+    <integer>7</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+</dict>
+```
+
+Then deploy:
+```bash
+./scripts/deploy-launchd.sh daily
 ```
 
 ---
@@ -181,7 +258,17 @@ plutil -lint ~/Library/LaunchAgents/ch.invisible.supertag-server.plist
 **Common causes:**
 - Database not found: Run `supertag sync index` first
 - Port in use: Check with `lsof -i :3100`
-- Binary not found: Verify path in plist
+- Binary not found: Verify path in plist matches actual location
+
+### Wrong Path in Plist
+
+If paths are incorrect after moving the installation:
+
+```bash
+# Re-run install from new location
+cd /new/path/to/supertag-cli
+./scripts/deploy-launchd.sh server
+```
 
 ### Port Already in Use
 
