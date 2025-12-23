@@ -5,6 +5,39 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-12-23
+
+### Added
+
+- **Release Packages Include Documentation** - Release zips now include:
+  - `docs/` - Full documentation (MCP setup, embeddings, webhooks, launchd, etc.)
+  - `launchd/` - macOS LaunchAgent plist templates
+  - `scripts/` - Installation and management scripts
+
+- **Tana Command Integration Guide** - New documentation for setting up Tana Commands
+  - Screenshot showing Make API request configuration
+  - Payload parameters explained (`${sys:context}`, format, workspace)
+  - Examples for semantic search, full-text search, and tagged nodes
+
+### Changed
+
+- **Sync Scheduler Runs Every 6 Hours** - Daily sync now runs 4 times per day
+  - Schedule: midnight, 6 AM, noon, 6 PM
+  - Command: `supertag sync index`
+  - Previous: once daily at 6 AM
+
+- **Improved launchd Documentation** - Path configuration section added
+  - Explains placeholder replacement during installation
+  - Documents installation from different locations
+  - Troubleshooting for wrong paths after moving installation
+
+### Fixed
+
+- **launchd Plist Naming** - Corrected inconsistent naming
+  - Renamed from `ch.invisible.tana-*` to `ch.invisible.supertag-*`
+  - Scripts now use consistent naming convention
+  - Fixed daily plist to use correct `supertag sync index` command
+
 ## [1.0.0] - 2025-12-23
 
 ### BREAKING CHANGES
