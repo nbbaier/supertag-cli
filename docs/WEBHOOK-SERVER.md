@@ -1,4 +1,4 @@
-# Tana Webhook Server
+# Webhook Server
 
 HTTP server providing Tana integration endpoints with Tana Paste format responses.
 
@@ -6,24 +6,22 @@ HTTP server providing Tana integration endpoints with Tana Paste format response
 
 ```bash
 # Start server (foreground)
-./src/cli/tana-webhook.ts start
+supertag server start
 
 # Start server in background
-./src/cli/tana-webhook.ts start --daemon
+supertag server start --daemon
 
 # Check status
-./src/cli/tana-webhook.ts status
+supertag server status
 
 # Stop server
-./src/cli/tana-webhook.ts stop
+supertag server stop
 ```
 
-## Installation
+## Prerequisites
 
-The webhook server is part of the Tana skill. Ensure you have:
-
-1. Indexed a Tana export using `tana-sync`
-2. Database file available (default: `./tana-index.db`)
+1. Indexed a Tana export: `supertag sync index`
+2. For semantic search: `supertag embed generate`
 
 **CORS Support**: The server includes CORS headers to allow browser-based requests from Tana. This enables using webhooks directly from within the Tana application.
 
@@ -31,46 +29,38 @@ The webhook server is part of the Tana skill. Ensure you have:
 
 ### Start Server
 
-Start the webhook server with default settings:
-
 ```bash
-./src/cli/tana-webhook.ts start
+supertag server start
 ```
 
 **Options:**
-- `--port <n>` - Port to listen on (default: 3000)
+- `--port <n>` - Port to listen on (default: 3100)
 - `--host <host>` - Host to bind to (default: localhost)
-- `--db-path <path>` - Database path (default: ./tana-index.db)
 - `--daemon` - Run in background
 
 **Example:**
 ```bash
-./src/cli/tana-webhook.ts start --port 3000 --db-path ./test-production.db --daemon
+supertag server start --port 3100 --daemon
 ```
 
 ### Check Status
 
-Check if the server is running:
-
 ```bash
-./src/cli/tana-webhook.ts status
+supertag server status
 ```
 
 **Output:**
 ```
 ✅ Server is running
    PID: 12345
-   Address: http://localhost:3000
-   Database: ./test-production.db
+   Address: http://localhost:3100
    Health: ok
 ```
 
 ### Stop Server
 
-Stop a daemon server:
-
 ```bash
-./src/cli/tana-webhook.ts stop
+supertag server stop
 ```
 
 ## API Endpoints
@@ -84,7 +74,7 @@ All endpoints return responses in **Tana Paste format** (plain text with bullet 
 **Response:** JSON (only endpoint that doesn't return Tana Paste)
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:3100/health
 ```
 
 **Response:**
@@ -109,7 +99,7 @@ curl http://localhost:3000/health
 
 **Example:**
 ```bash
-curl -X POST http://localhost:3000/search \
+curl -X POST http://localhost:3100/search \
   -H "Content-Type: application/json" \
   -d '{"query": "template", "limit": 3}'
 ```
@@ -134,7 +124,7 @@ curl -X POST http://localhost:3000/search \
 
 **Example:**
 ```bash
-curl http://localhost:3000/stats
+curl http://localhost:3100/stats
 ```
 
 **Response (Tana Paste):**
@@ -159,7 +149,7 @@ curl http://localhost:3000/stats
 
 **Example:**
 ```bash
-curl -X POST http://localhost:3000/tags \
+curl -X POST http://localhost:3100/tags \
   -H "Content-Type: application/json" \
   -d '{"limit": 5}'
 ```
@@ -193,7 +183,7 @@ curl -X POST http://localhost:3000/tags \
 
 **Example:**
 ```bash
-curl -X POST http://localhost:3000/nodes \
+curl -X POST http://localhost:3100/nodes \
   -H "Content-Type: application/json" \
   -d '{"pattern": "Meeting%", "limit": 5}'
 ```
@@ -222,7 +212,7 @@ curl -X POST http://localhost:3000/nodes \
 
 **Example:**
 ```bash
-curl -X POST http://localhost:3000/refs \
+curl -X POST http://localhost:3100/refs \
   -H "Content-Type: application/json" \
   -d '{"nodeId": "wLemsA7U0OFg"}'
 ```
@@ -267,7 +257,7 @@ supertag embed generate
 
 **Example (Tana Paste format):**
 ```bash
-curl -X POST http://localhost:3000/semantic-search \
+curl -X POST http://localhost:3100/semantic-search \
   -H "Content-Type: application/json" \
   -d '{"query": "productivity tips", "limit": 5}'
 ```
@@ -290,7 +280,7 @@ curl -X POST http://localhost:3000/semantic-search \
 
 **Example (JSON format):**
 ```bash
-curl -X POST http://localhost:3000/semantic-search \
+curl -X POST http://localhost:3100/semantic-search \
   -H "Content-Type: application/json" \
   -d '{"query": "productivity tips", "limit": 5, "format": "json"}'
 ```
@@ -332,7 +322,7 @@ Returns information about the embedding configuration and statistics.
 
 **Example (Tana Paste format):**
 ```bash
-curl http://localhost:3000/embed-stats
+curl http://localhost:3100/embed-stats
 ```
 
 **Response (Tana Paste - configured):**
@@ -357,7 +347,7 @@ curl http://localhost:3000/embed-stats
 
 **Example (JSON format):**
 ```bash
-curl "http://localhost:3000/embed-stats?format=json"
+curl "http://localhost:3100/embed-stats?format=json"
 ```
 
 **Response (JSON - configured):**
@@ -413,7 +403,7 @@ This format can be directly copied and pasted into Tana, where it will be automa
 
 **Example Tana Command:**
 ```
-/webhook http://localhost:3000/search?query=template
+/webhook http://localhost:3100/search?query=template
 ```
 
 The response will be automatically inserted as structured Tana nodes.
@@ -453,7 +443,7 @@ TanaWebhookServer (Fastify)
 
 **Solution:** Index a Tana export first:
 ```bash
-./src/cli/tana-sync.ts index
+supertag sync index
 ```
 
 ### Server already running
@@ -462,14 +452,8 @@ TanaWebhookServer (Fastify)
 
 **Solution:** Stop the existing server:
 ```bash
-./src/cli/tana-webhook.ts stop
+supertag server stop
 ```
-
-### Stale PID file
-
-**Error:** `Server is not running (stale PID file)`
-
-**Solution:** The PID file is automatically cleaned up. Try starting the server again.
 
 ### Port already in use
 
@@ -477,36 +461,11 @@ TanaWebhookServer (Fastify)
 
 **Solution:** Use a different port:
 ```bash
-./src/cli/tana-webhook.ts start --port 3001
+supertag server start --port 3200
 ```
-
-## Development
-
-### Run Tests
-
-```bash
-bun test tests/tana-webhook.test.ts
-```
-
-### Watch Mode
-
-```bash
-bun test --watch
-```
-
-## Files
-
-- `src/cli/tana-webhook.ts` - CLI tool
-- `src/server/tana-webhook-server.ts` - Fastify server implementation
-- `src/converters/tana-paste.ts` - Tana Paste converter
-- `tests/tana-webhook.test.ts` - Test suite
 
 ## Related Documentation
 
-- [TDD Implementation Log](./TDD-IMPLEMENTATION-LOG.md) - Development history
-- [Tana Query CLI](./src/cli/tana-query.ts) - Direct database queries
-- [Tana Sync CLI](./src/cli/tana-sync.ts) - Export monitoring and indexing
-
-## License
-
-MIT
+- [MCP Integration](./mcp.md) - AI tool integration
+- [Embeddings](./embeddings.md) - Semantic search setup
+- [Launchd Setup](./LAUNCHD-SETUP.md) - Auto-start configuration
