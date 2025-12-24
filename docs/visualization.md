@@ -14,13 +14,21 @@ supertag tags visualize --output graph.md
 
 ## Examples
 
-The following examples show the ancestors of the `#meeting` tag using `--from meeting`.
+### Descendants with `--root` (downwards)
 
-### Interactive HTML Visualization
+Show all tags that inherit from `#source`:
 
-![HTML Visualization](images/meeting-html.png)
+![Source Descendants](images/source-html.png)
 
-*2D hierarchical layout with UML-style nodes showing fields and inheritance*
+*`supertag tags visualize --root source` - Shows #source and all its descendants (webSource, book, article, tweet, etc.)*
+
+### Ancestors with `--from` (upwards)
+
+Show what `#meeting` inherits from:
+
+![Meeting Ancestors](images/meeting-html.png)
+
+*`supertag tags visualize --from meeting` - Shows #meeting and its parent chain*
 
 ### Interactive 3D Visualization
 
