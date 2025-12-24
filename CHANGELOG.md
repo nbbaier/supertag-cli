@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - System fields now appear in `supertag tags fields <tag>` output
   - Mapping exported as `SYSTEM_FIELD_MARKERS` for extensibility
 
+- **Supertag Visualization** - New `tags visualize` command for inheritance graph visualization
+  - Three output formats: Mermaid (default), Graphviz DOT, and JSON
+  - Filter options: `--root <tag>` for subtrees, `--orphans` to include isolated tags
+  - Display options: `--direction` (BT/TB/LR/RL), `--show-fields`, `--colors`
+  - Output to file with `--output <file>`
+  - New documentation: `docs/visualization.md` with rendering instructions
+
 ### Fixed
 
 - **Duplicate Supertag Detection** - Fixed inconsistent tag resolution when multiple tags share the same name
