@@ -10,7 +10,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { SupertagMetadataService } from "../../src/services/supertag-metadata-service";
-import { migrateSupertagMetadataSchema } from "../../src/db/migrate";
+import { migrateSupertagMetadataSchema, migrateSchemaConsolidation } from "../../src/db/migrate";
 
 describe("SupertagMetadataService", () => {
   const testDir = join(process.cwd(), "tmp-test-metadata-service");
@@ -40,6 +40,7 @@ describe("SupertagMetadataService", () => {
     }
     db = new Database(dbPath);
     migrateSupertagMetadataSchema(db);
+    migrateSchemaConsolidation(db);
     service = new SupertagMetadataService(db);
   });
 

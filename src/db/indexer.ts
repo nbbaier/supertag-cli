@@ -32,7 +32,7 @@ import { TanaExportParser } from "../parsers/tana-export";
 import { nodes, supertags, fields, references, fieldNames } from "./schema";
 import type { Node, Supertag, Field, Reference, FieldName } from "./schema";
 import { withDbRetrySync } from "./retry";
-import { migrateFieldValuesSchema, clearFieldValues, migrateSupertagMetadataSchema, clearSupertagMetadata } from "./migrate";
+import { migrateFieldValuesSchema, clearFieldValues, migrateSupertagMetadataSchema, clearSupertagMetadata, migrateSchemaConsolidation } from "./migrate";
 import { extractFieldValuesFromNodes, insertFieldValues } from "./field-values";
 import { extractSupertagMetadata } from "./supertag-metadata";
 import type { NodeDump } from "../types/tana-dump";
@@ -198,6 +198,9 @@ export class TanaIndexer {
 
     // Create supertag metadata schema (T-2.4: migrate during initializeSchema)
     migrateSupertagMetadataSchema(this.sqlite);
+
+    // Apply schema consolidation migrations (Spec 020 T-4.3)
+    migrateSchemaConsolidation(this.sqlite);
   }
 
   /**
@@ -1078,6 +1081,14 @@ export class TanaIndexer {
     }
 
     return results;
+  }
+
+  /**
+   * Get the underlying SQLite database instance
+   * Used for UnifiedSchemaService integration (Spec 020 T-4.3)
+   */
+  getDatabase(): Database {
+    return this.sqlite;
   }
 
   /**

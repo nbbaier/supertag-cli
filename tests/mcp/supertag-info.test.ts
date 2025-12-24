@@ -8,7 +8,7 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { mkdirSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { Database } from "bun:sqlite";
-import { migrateSupertagMetadataSchema } from "../../src/db/migrate";
+import { migrateSupertagMetadataSchema, migrateSchemaConsolidation } from "../../src/db/migrate";
 import { supertagInfo } from "../../src/mcp/tools/supertag-info";
 
 describe("tana_supertag_info MCP Tool", () => {
@@ -34,6 +34,7 @@ describe("tana_supertag_info MCP Tool", () => {
     `);
 
     migrateSupertagMetadataSchema(db);
+    migrateSchemaConsolidation(db);
 
     // Insert test inheritance: manager -> employee -> contact
     db.run(`
@@ -43,15 +44,15 @@ describe("tana_supertag_info MCP Tool", () => {
         ('manager-tag', 'employee-tag')
     `);
 
-    // Insert test fields
+    // Insert test fields with inferred_data_type (T-5.4)
     db.run(`
-      INSERT INTO supertag_fields (tag_id, tag_name, field_name, field_label_id, field_order)
+      INSERT INTO supertag_fields (tag_id, tag_name, field_name, field_label_id, field_order, normalized_name, inferred_data_type)
       VALUES
-        ('contact-tag', 'contact', 'Email', 'l1', 0),
-        ('contact-tag', 'contact', 'Phone', 'l2', 1),
-        ('employee-tag', 'employee', 'Department', 'l3', 0),
-        ('employee-tag', 'employee', 'StartDate', 'l4', 1),
-        ('manager-tag', 'manager', 'Team', 'l5', 0)
+        ('contact-tag', 'contact', 'Email', 'l1', 0, 'email', 'email'),
+        ('contact-tag', 'contact', 'Phone', 'l2', 1, 'phone', 'phone'),
+        ('employee-tag', 'employee', 'Department', 'l3', 0, 'department', 'text'),
+        ('employee-tag', 'employee', 'StartDate', 'l4', 1, 'startdate', 'date'),
+        ('manager-tag', 'manager', 'Team', 'l5', 0, 'team', 'text')
     `);
 
     db.close();
@@ -145,6 +146,74 @@ describe("tana_supertag_info MCP Tool", () => {
       expect(result.fields).toBeDefined();
       expect(result.parents).toBeDefined();
       expect(result.ancestors).toBeDefined();
+    });
+  });
+
+  // ============================================================================
+  // T-5.4: Inferred data types in field info
+  // ============================================================================
+
+  describe("inferred data types (T-5.4)", () => {
+    it("should return inferredDataType for own fields", async () => {
+      const result = await supertagInfo({
+        tagname: "contact",
+        mode: "fields",
+        _dbPath: dbPath,
+      });
+
+      expect(result.fields).toBeDefined();
+      expect(result.fields!.length).toBe(2);
+
+      const emailField = result.fields!.find((f) => f.name === "Email");
+      expect(emailField).toBeDefined();
+      expect(emailField!.inferredDataType).toBe("email");
+
+      const phoneField = result.fields!.find((f) => f.name === "Phone");
+      expect(phoneField).toBeDefined();
+      expect(phoneField!.inferredDataType).toBe("phone");
+    });
+
+    it("should return inferredDataType for inherited fields with includeInherited", async () => {
+      const result = await supertagInfo({
+        tagname: "manager",
+        mode: "fields",
+        includeInherited: true,
+        _dbPath: dbPath,
+      });
+
+      expect(result.fields!.length).toBe(5);
+
+      // Own field
+      const teamField = result.fields!.find((f) => f.name === "Team");
+      expect(teamField!.inferredDataType).toBe("text");
+
+      // Inherited from employee
+      const startDateField = result.fields!.find((f) => f.name === "StartDate");
+      expect(startDateField!.inferredDataType).toBe("date");
+
+      // Inherited from contact
+      const emailField = result.fields!.find((f) => f.name === "Email");
+      expect(emailField!.inferredDataType).toBe("email");
+    });
+
+    it("should handle null inferredDataType gracefully", async () => {
+      // Insert a field without inferred_data_type
+      const db = new Database(dbPath);
+      db.run(`
+        INSERT INTO supertag_fields (tag_id, tag_name, field_name, field_label_id, field_order, normalized_name)
+        VALUES ('contact-tag', 'contact', 'Notes', 'l10', 2, 'notes')
+      `);
+      db.close();
+
+      const result = await supertagInfo({
+        tagname: "contact",
+        mode: "fields",
+        _dbPath: dbPath,
+      });
+
+      const notesField = result.fields!.find((f) => f.name === "Notes");
+      expect(notesField).toBeDefined();
+      expect(notesField!.inferredDataType).toBeUndefined();
     });
   });
 });

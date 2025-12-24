@@ -262,3 +262,109 @@ export function getSupertagMetadataStats(db: Database): {
     parentsCount: parentsResult?.count ?? 0,
   };
 }
+
+// ============================================================================
+// Spec 020: Schema Consolidation Migration
+// ============================================================================
+
+/**
+ * SQL statements for supertag_metadata table (Spec 020)
+ */
+const SUPERTAG_METADATA_TABLE = `
+CREATE TABLE IF NOT EXISTS supertag_metadata (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tag_id TEXT NOT NULL UNIQUE,
+  tag_name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  description TEXT,
+  color TEXT,
+  created_at INTEGER
+)`;
+
+const SUPERTAG_METADATA_INDEXES = [
+  "CREATE INDEX IF NOT EXISTS idx_supertag_metadata_name ON supertag_metadata(tag_name)",
+  "CREATE INDEX IF NOT EXISTS idx_supertag_metadata_normalized ON supertag_metadata(normalized_name)",
+];
+
+/**
+ * Check if a column exists in a table
+ */
+function columnExists(db: Database, tableName: string, columnName: string): boolean {
+  const columns = db
+    .query(`PRAGMA table_info(${tableName})`)
+    .all() as Array<{ name: string }>;
+  return columns.some((c) => c.name === columnName);
+}
+
+/**
+ * Migrate schema for Spec 020: Schema Consolidation
+ *
+ * Creates supertag_metadata table and adds enhanced columns to supertag_fields.
+ * Safe to run multiple times - uses IF NOT EXISTS and column checks.
+ *
+ * @param db - SQLite database connection
+ */
+export function migrateSchemaConsolidation(db: Database): void {
+  // Create supertag_metadata table
+  db.run(SUPERTAG_METADATA_TABLE);
+
+  // Create indexes for supertag_metadata
+  for (const indexSql of SUPERTAG_METADATA_INDEXES) {
+    db.run(indexSql);
+  }
+
+  // Create supertag_fields table if it doesn't exist (with enhanced columns)
+  if (!tableExists(db, "supertag_fields")) {
+    db.run(`
+      CREATE TABLE supertag_fields (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tag_id TEXT NOT NULL,
+        tag_name TEXT NOT NULL,
+        field_name TEXT NOT NULL,
+        field_label_id TEXT NOT NULL,
+        field_order INTEGER DEFAULT 0,
+        normalized_name TEXT,
+        description TEXT,
+        inferred_data_type TEXT,
+        UNIQUE(tag_id, field_name)
+      )
+    `);
+  } else {
+    // Add enhanced columns to existing table if they don't exist
+    if (!columnExists(db, "supertag_fields", "normalized_name")) {
+      db.run("ALTER TABLE supertag_fields ADD COLUMN normalized_name TEXT");
+    }
+    if (!columnExists(db, "supertag_fields", "description")) {
+      db.run("ALTER TABLE supertag_fields ADD COLUMN description TEXT");
+    }
+    if (!columnExists(db, "supertag_fields", "inferred_data_type")) {
+      db.run("ALTER TABLE supertag_fields ADD COLUMN inferred_data_type TEXT");
+    }
+  }
+
+  // Create indexes for enhanced columns
+  db.run("CREATE INDEX IF NOT EXISTS idx_supertag_fields_normalized ON supertag_fields(normalized_name)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_supertag_fields_data_type ON supertag_fields(inferred_data_type)");
+}
+
+/**
+ * Check if schema consolidation migration is needed
+ *
+ * @param db - SQLite database connection
+ * @returns true if migration is needed (tables or columns don't exist)
+ */
+export function needsSchemaConsolidationMigration(db: Database): boolean {
+  // Check if supertag_metadata table exists
+  if (!tableExists(db, "supertag_metadata")) {
+    return true;
+  }
+
+  // Check if supertag_fields has enhanced columns
+  if (tableExists(db, "supertag_fields")) {
+    if (!columnExists(db, "supertag_fields", "normalized_name")) return true;
+    if (!columnExists(db, "supertag_fields", "description")) return true;
+    if (!columnExists(db, "supertag_fields", "inferred_data_type")) return true;
+  }
+
+  return false;
+}

@@ -8,15 +8,17 @@
  * - metaNode contains tuples with SYS_A13 marker followed by parent tagDef IDs
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import type { NodeDump } from "../../src/types/tana-dump";
 import {
   extractFieldsFromTagDef,
   extractParentsFromTagDef,
   extractSupertagMetadata,
+  extractEnhancedFieldsFromTagDef,
+  extractSupertagMetadataEntry,
 } from "../../src/db/supertag-metadata";
-import { migrateSupertagMetadataSchema } from "../../src/db/migrate";
+import { migrateSupertagMetadataSchema, migrateSchemaConsolidation } from "../../src/db/migrate";
 
 describe("Supertag Metadata Extraction", () => {
   describe("extractFieldsFromTagDef", () => {
@@ -790,12 +792,357 @@ describe("Supertag Metadata Extraction", () => {
     });
   });
 
+  // ============================================================================
+  // T-2.3: Enhanced Field Extraction (Spec 020)
+  // ============================================================================
+
+  describe("extractEnhancedFieldsFromTagDef (T-2.3)", () => {
+    it("should include normalizedName, description, and inferredDataType in extracted fields", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "tagdef1",
+          {
+            id: "tagdef1",
+            props: { name: "contact", _docType: "tagDef", created: 1000 },
+            children: ["tuple1", "tuple2", "tuple3"],
+          } as NodeDump,
+        ],
+        [
+          "tuple1",
+          {
+            id: "tuple1",
+            props: { _docType: "tuple", created: 1001 },
+            children: ["label1", "value1"],
+          } as NodeDump,
+        ],
+        [
+          "label1",
+          {
+            id: "label1",
+            props: { name: "📧 Email Address", created: 1002 },
+          } as NodeDump,
+        ],
+        [
+          "value1",
+          { id: "value1", props: { name: "", created: 1003 } } as NodeDump,
+        ],
+        [
+          "tuple2",
+          {
+            id: "tuple2",
+            props: { _docType: "tuple", created: 1004 },
+            children: ["label2", "value2"],
+          } as NodeDump,
+        ],
+        [
+          "label2",
+          {
+            id: "label2",
+            props: { name: "Birth Date", created: 1005 },
+          } as NodeDump,
+        ],
+        [
+          "value2",
+          { id: "value2", props: { name: "", created: 1006 } } as NodeDump,
+        ],
+        [
+          "tuple3",
+          {
+            id: "tuple3",
+            props: { _docType: "tuple", created: 1007 },
+            children: ["label3", "value3"],
+          } as NodeDump,
+        ],
+        [
+          "label3",
+          {
+            id: "label3",
+            props: { name: "Website URL", created: 1008 },
+          } as NodeDump,
+        ],
+        [
+          "value3",
+          { id: "value3", props: { name: "", created: 1009 } } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("tagdef1")!;
+      const fields = extractEnhancedFieldsFromTagDef(tagDef, nodes);
+
+      expect(fields.length).toBe(3);
+
+      // First field: "📧 Email Address"
+      expect(fields[0].fieldName).toBe("📧 Email Address");
+      expect(fields[0].normalizedName).toBe("emailaddress");
+      expect(fields[0].inferredDataType).toBe("text"); // "email" not a keyword, but it's text
+
+      // Second field: "Birth Date"
+      expect(fields[1].fieldName).toBe("Birth Date");
+      expect(fields[1].normalizedName).toBe("birthdate");
+      expect(fields[1].inferredDataType).toBe("date");
+
+      // Third field: "Website URL"
+      expect(fields[2].fieldName).toBe("Website URL");
+      expect(fields[2].normalizedName).toBe("websiteurl");
+      expect(fields[2].inferredDataType).toBe("url");
+    });
+
+    it("should infer checkbox type for boolean-like field names", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "tagdef1",
+          {
+            id: "tagdef1",
+            props: { name: "task", _docType: "tagDef", created: 1000 },
+            children: ["tuple1", "tuple2"],
+          } as NodeDump,
+        ],
+        [
+          "tuple1",
+          {
+            id: "tuple1",
+            props: { _docType: "tuple", created: 1001 },
+            children: ["label1", "value1"],
+          } as NodeDump,
+        ],
+        [
+          "label1",
+          {
+            id: "label1",
+            props: { name: "isCompleted", created: 1002 },
+          } as NodeDump,
+        ],
+        [
+          "value1",
+          { id: "value1", props: { name: "", created: 1003 } } as NodeDump,
+        ],
+        [
+          "tuple2",
+          {
+            id: "tuple2",
+            props: { _docType: "tuple", created: 1004 },
+            children: ["label2", "value2"],
+          } as NodeDump,
+        ],
+        [
+          "label2",
+          {
+            id: "label2",
+            props: { name: "Has Attachment", created: 1005 },
+          } as NodeDump,
+        ],
+        [
+          "value2",
+          { id: "value2", props: { name: "", created: 1006 } } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("tagdef1")!;
+      const fields = extractEnhancedFieldsFromTagDef(tagDef, nodes);
+
+      expect(fields.length).toBe(2);
+      expect(fields[0].inferredDataType).toBe("checkbox");
+      expect(fields[1].inferredDataType).toBe("checkbox");
+    });
+
+    it("should handle system field markers with enhanced data", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "meeting-tagdef",
+          {
+            id: "meeting-tagdef",
+            props: { name: "meeting", _docType: "tagDef", created: 1000 },
+            children: ["date-tuple", "due-tuple"],
+          } as NodeDump,
+        ],
+        [
+          "date-tuple",
+          {
+            id: "date-tuple",
+            props: { _docType: "tuple", created: 1001 },
+            children: ["SYS_A90", "date-value"],
+          } as NodeDump,
+        ],
+        [
+          "date-value",
+          { id: "date-value", props: { name: "", created: 1002 } } as NodeDump,
+        ],
+        [
+          "due-tuple",
+          {
+            id: "due-tuple",
+            props: { _docType: "tuple", created: 1003 },
+            children: ["SYS_A61", "due-value"],
+          } as NodeDump,
+        ],
+        [
+          "due-value",
+          { id: "due-value", props: { name: "", created: 1004 } } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("meeting-tagdef")!;
+      const fields = extractEnhancedFieldsFromTagDef(tagDef, nodes);
+
+      expect(fields.length).toBe(2);
+
+      // SYS_A90 -> Date
+      expect(fields[0].fieldName).toBe("Date");
+      expect(fields[0].normalizedName).toBe("date");
+      expect(fields[0].inferredDataType).toBe("date");
+
+      // SYS_A61 -> Due Date
+      expect(fields[1].fieldName).toBe("Due Date");
+      expect(fields[1].normalizedName).toBe("duedate");
+      expect(fields[1].inferredDataType).toBe("date");
+    });
+
+    it("should return empty array for tagDef without children", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "tagdef1",
+          {
+            id: "tagdef1",
+            props: { name: "empty", _docType: "tagDef", created: 1000 },
+          } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("tagdef1")!;
+      const fields = extractEnhancedFieldsFromTagDef(tagDef, nodes);
+
+      expect(fields.length).toBe(0);
+    });
+  });
+
+  // ============================================================================
+  // T-2.4: Supertag Metadata Entry Extraction (Spec 020)
+  // ============================================================================
+
+  describe("extractSupertagMetadataEntry (T-2.4)", () => {
+    it("should extract supertag-level metadata from tagDef", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "contact-tagdef",
+          {
+            id: "contact-tagdef",
+            props: {
+              name: "📇 Contact",
+              _docType: "tagDef",
+              created: 1000,
+              _color: "blue",
+            },
+          } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("contact-tagdef")!;
+      const metadata = extractSupertagMetadataEntry(tagDef);
+
+      expect(metadata.tagId).toBe("contact-tagdef");
+      expect(metadata.tagName).toBe("📇 Contact");
+      expect(metadata.normalizedName).toBe("contact");
+      expect(metadata.color).toBe("blue");
+    });
+
+    it("should handle tagDef without color", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "simple-tagdef",
+          {
+            id: "simple-tagdef",
+            props: {
+              name: "simple-tag",
+              _docType: "tagDef",
+              created: 1000,
+            },
+          } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("simple-tagdef")!;
+      const metadata = extractSupertagMetadataEntry(tagDef);
+
+      expect(metadata.tagId).toBe("simple-tagdef");
+      expect(metadata.tagName).toBe("simple-tag");
+      expect(metadata.normalizedName).toBe("simpletag");
+      expect(metadata.color).toBeNull();
+    });
+
+    it("should normalize names with emojis and special characters", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "emoji-tagdef",
+          {
+            id: "emoji-tagdef",
+            props: {
+              name: "🎯 My-Goal_Item (v2)",
+              _docType: "tagDef",
+              created: 1000,
+            },
+          } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("emoji-tagdef")!;
+      const metadata = extractSupertagMetadataEntry(tagDef);
+
+      expect(metadata.tagName).toBe("🎯 My-Goal_Item (v2)");
+      expect(metadata.normalizedName).toBe("mygoalitemv2");
+    });
+
+    it("should extract description from tagDef if present", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "described-tagdef",
+          {
+            id: "described-tagdef",
+            props: {
+              name: "Project",
+              _docType: "tagDef",
+              created: 1000,
+              _description: "A project is a collection of tasks",
+            },
+          } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("described-tagdef")!;
+      const metadata = extractSupertagMetadataEntry(tagDef);
+
+      expect(metadata.description).toBe("A project is a collection of tasks");
+    });
+
+    it("should handle empty name gracefully", () => {
+      const nodes = new Map<string, NodeDump>([
+        [
+          "empty-tagdef",
+          {
+            id: "empty-tagdef",
+            props: {
+              name: "",
+              _docType: "tagDef",
+              created: 1000,
+            },
+          } as NodeDump,
+        ],
+      ]);
+
+      const tagDef = nodes.get("empty-tagdef")!;
+      const metadata = extractSupertagMetadataEntry(tagDef);
+
+      expect(metadata.tagName).toBe("");
+      expect(metadata.normalizedName).toBe("");
+    });
+  });
+
   describe("extractSupertagMetadata", () => {
     let db: Database;
 
     beforeAll(() => {
       db = new Database(":memory:");
       migrateSupertagMetadataSchema(db);
+      migrateSchemaConsolidation(db); // Required for normalized_name and inferred_data_type columns
     });
 
     afterAll(() => {

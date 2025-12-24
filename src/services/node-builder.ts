@@ -25,8 +25,11 @@
  * });
  */
 
+import { Database } from 'bun:sqlite';
+import { existsSync } from 'fs';
 import type { SchemaRegistry, SupertagSchema } from '../schema/registry';
 import type { TanaApiNode, ChildNodeInput, CreateNodeInput, CreateNodeResult } from '../types';
+import { UnifiedSchemaService } from './unified-schema-service';
 
 /**
  * Validate supertag names exist in registry
@@ -133,6 +136,59 @@ export function buildNodePayload(
   }
 
   return nodePayload;
+}
+
+/**
+ * Build node payload from database using UnifiedSchemaService (T-5.3)
+ *
+ * This function uses the database directly instead of SchemaRegistry cache,
+ * providing access to enhanced schema data including inferred types.
+ *
+ * @param dbPath - Path to the SQLite database
+ * @param input - Node creation input
+ * @returns TanaApiNode ready for posting
+ * @throws Error if database doesn't exist or supertag not found
+ */
+export function buildNodePayloadFromDatabase(
+  dbPath: string,
+  input: CreateNodeInput
+): TanaApiNode {
+  if (!existsSync(dbPath)) {
+    throw new Error(`Database not found: ${dbPath}`);
+  }
+
+  const db = new Database(dbPath);
+  try {
+    const schemaService = new UnifiedSchemaService(db);
+
+    // Build base payload using UnifiedSchemaService
+    const fieldValues: Record<string, string | string[]> = {};
+    if (input.fields) {
+      for (const [key, value] of Object.entries(input.fields)) {
+        fieldValues[key] = value;
+      }
+    }
+
+    const nodePayload = schemaService.buildNodePayload(
+      input.supertag,
+      input.name,
+      fieldValues
+    );
+
+    // Add children if provided
+    if (input.children && input.children.length > 0) {
+      const childNodes = buildChildNodes(input.children);
+
+      // Append to existing children (fields) or create new array
+      nodePayload.children = nodePayload.children
+        ? [...nodePayload.children, ...childNodes]
+        : childNodes;
+    }
+
+    return nodePayload;
+  } finally {
+    db.close();
+  }
 }
 
 /**

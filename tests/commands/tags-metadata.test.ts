@@ -9,7 +9,7 @@ import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { $ } from "bun";
 import { Database } from "bun:sqlite";
-import { migrateSupertagMetadataSchema } from "../../src/db/migrate";
+import { migrateSupertagMetadataSchema, migrateSchemaConsolidation } from "../../src/db/migrate";
 
 describe("Tags Metadata CLI Commands", () => {
   const testDir = join(process.cwd(), "tmp-test-tags-metadata");
@@ -36,6 +36,7 @@ describe("Tags Metadata CLI Commands", () => {
     `);
 
     migrateSupertagMetadataSchema(db);
+    migrateSchemaConsolidation(db);
 
     // Insert test inheritance: manager -> employee -> contact
     db.run(`

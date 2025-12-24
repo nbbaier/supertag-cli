@@ -8,12 +8,14 @@
 import { watch, type FSWatcher, existsSync, readdirSync, statSync } from "fs";
 import { join, basename } from "path";
 import { TanaIndexer, type IndexResult } from "../db/indexer";
+import { UnifiedSchemaService } from "../services/unified-schema-service";
 import { EventEmitter } from "events";
 
 export interface WatcherConfig {
   exportDir: string;
   dbPath: string;
   debounceMs?: number; // Debounce delay for file changes (default: 1000ms)
+  schemaCachePath?: string; // Path to write schema-registry.json cache
 }
 
 export interface WatcherStatus {
@@ -47,7 +49,7 @@ export interface TanaExportWatcherEvents {
  * and automatically triggers indexing.
  */
 export class TanaExportWatcher extends EventEmitter {
-  private config: Required<WatcherConfig>;
+  private config: WatcherConfig & { debounceMs: number };
   private indexer: TanaIndexer;
   private watcher: FSWatcher | null = null;
   private debounceTimer: NodeJS.Timeout | null = null;
@@ -67,6 +69,7 @@ export class TanaExportWatcher extends EventEmitter {
       exportDir: config.exportDir,
       dbPath: config.dbPath,
       debounceMs: config.debounceMs ?? 1000,
+      schemaCachePath: config.schemaCachePath,
     };
 
     // Initialize indexer
@@ -122,6 +125,17 @@ export class TanaExportWatcher extends EventEmitter {
       const result = await this.indexer.indexExport(exportFile);
 
       this.lastIndexedTimestamp = Date.now();
+
+      // Generate schema cache from database if configured (T-4.3)
+      if (this.config.schemaCachePath) {
+        try {
+          const schemaService = new UnifiedSchemaService(this.indexer.getDatabase());
+          await schemaService.generateSchemaCache(this.config.schemaCachePath);
+        } catch (cacheError) {
+          // Log but don't fail indexing if cache generation fails
+          console.error("Schema cache generation failed:", cacheError);
+        }
+      }
 
       const successResult: IndexEventResult = {
         success: true,

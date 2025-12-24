@@ -9,7 +9,9 @@
 import { Command } from 'commander';
 import { join, dirname } from 'path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { Database } from 'bun:sqlite';
 import { SchemaRegistry } from '../schema';
+import { UnifiedSchemaService } from '../services/unified-schema-service';
 import {
   DEFAULT_EXPORT_DIR,
   TANA_CACHE_DIR,
@@ -112,6 +114,31 @@ export function syncSchema(exportPath: string, verbose: boolean, workspace?: str
   const config = getConfig().getConfig();
   const ctx = resolveWorkspace(workspace, config);
   return syncSchemaToPath(exportPath, ctx.schemaPath, verbose);
+}
+
+/**
+ * Get schema registry from database (T-5.1)
+ *
+ * Creates a SchemaRegistry from the database supertag metadata tables.
+ * This is the fallback when no schema-registry.json cache exists.
+ *
+ * @param dbPath - Path to the SQLite database
+ * @returns SchemaRegistry loaded from database data
+ * @throws Error if database doesn't exist
+ */
+export function getSchemaRegistryFromDatabase(dbPath: string): SchemaRegistry {
+  if (!existsSync(dbPath)) {
+    throw new Error(`Database not found: ${dbPath}`);
+  }
+
+  const db = new Database(dbPath);
+  try {
+    const schemaService = new UnifiedSchemaService(db);
+    const json = schemaService.toSchemaRegistryJSON();
+    return SchemaRegistry.fromJSON(json);
+  } finally {
+    db.close();
+  }
 }
 
 /**

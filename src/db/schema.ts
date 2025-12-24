@@ -139,6 +139,7 @@ export const fieldExclusions = sqliteTable("field_exclusions", {
 /**
  * Supertag Fields table - Field definitions for each supertag
  * Extracted from tagDef tuple children during indexing
+ * Enhanced with normalized_name, description, inferred_data_type (Spec 020)
  */
 export const supertagFields = sqliteTable(
   "supertag_fields",
@@ -149,6 +150,10 @@ export const supertagFields = sqliteTable(
     fieldName: text("field_name").notNull(), // Field label (from tuple's first child)
     fieldLabelId: text("field_label_id").notNull(), // Node ID of the field label
     fieldOrder: integer("field_order").default(0), // Position in tagDef children
+    // Enhanced columns (Spec 020: Schema Consolidation)
+    normalizedName: text("normalized_name"), // Lowercase, no special chars
+    description: text("description"), // Field documentation
+    inferredDataType: text("inferred_data_type"), // 'text'|'date'|'reference'|'url'|'number'|'checkbox'
   },
   (table) => ({
     tagIdx: index("idx_supertag_fields_tag").on(table.tagId),
@@ -158,6 +163,8 @@ export const supertagFields = sqliteTable(
       table.tagId,
       table.fieldName
     ),
+    normalizedIdx: index("idx_supertag_fields_normalized").on(table.normalizedName),
+    dataTypeIdx: index("idx_supertag_fields_data_type").on(table.inferredDataType),
   })
 );
 
@@ -183,6 +190,28 @@ export const supertagParents = sqliteTable(
   })
 );
 
+/**
+ * Supertag Metadata table - Supertag-level properties
+ * Stores normalized name, description, color for each supertag definition
+ * Spec 020: Schema Consolidation
+ */
+export const supertagMetadata = sqliteTable(
+  "supertag_metadata",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    tagId: text("tag_id").notNull().unique(), // tagDef node ID (same as supertag_fields.tag_id)
+    tagName: text("tag_name").notNull(), // Human-readable name
+    normalizedName: text("normalized_name").notNull(), // Lowercase, no special chars
+    description: text("description"), // Optional documentation
+    color: text("color"), // Hex code or color name
+    createdAt: integer("created_at"), // Unix timestamp
+  },
+  (table) => ({
+    nameIdx: index("idx_supertag_metadata_name").on(table.tagName),
+    normalizedIdx: index("idx_supertag_metadata_normalized").on(table.normalizedName),
+  })
+);
+
 // Export type inference for use in queries
 export type Node = typeof nodes.$inferSelect;
 export type Supertag = typeof supertags.$inferSelect;
@@ -193,3 +222,4 @@ export type FieldValue = typeof fieldValues.$inferSelect;
 export type FieldExclusion = typeof fieldExclusions.$inferSelect;
 export type SupertagFieldRow = typeof supertagFields.$inferSelect;
 export type SupertagParentRow = typeof supertagParents.$inferSelect;
+export type SupertagMetadataRow = typeof supertagMetadata.$inferSelect;

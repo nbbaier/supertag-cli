@@ -16,6 +16,7 @@ export interface SupertagField {
   fieldName: string; // Field label (from tuple's first child)
   fieldLabelId: string; // Node ID of the field label
   fieldOrder: number; // Position in tagDef children
+  inferredDataType?: string; // Inferred data type (text, date, email, etc.) - Spec 020
 }
 
 /**
@@ -38,6 +39,7 @@ export interface InheritedField {
   originTagId: string; // Tag that defines this field
   originTagName: string; // Human-readable origin tag name
   depth: number; // 0 = own field, 1+ = inherited depth
+  inferredDataType?: string; // Inferred data type (text, date, email, etc.) - Spec 020
 }
 
 /**
@@ -107,6 +109,28 @@ export interface ExtractedField {
   fieldName: string;
   fieldLabelId: string;
   fieldOrder: number;
+}
+
+/**
+ * Enhanced field extraction with additional metadata (Spec 020).
+ * Includes normalized name and inferred data type for unified schema.
+ */
+export interface EnhancedExtractedField extends ExtractedField {
+  normalizedName: string; // Lowercase, no special chars
+  inferredDataType: string; // 'text' | 'date' | 'reference' | 'url' | 'number' | 'checkbox'
+  description?: string | null; // Field description if available
+}
+
+/**
+ * Supertag-level metadata entry (Spec 020).
+ * Extracted from tagDef node for supertag_metadata table.
+ */
+export interface SupertagMetadataEntry {
+  tagId: string;
+  tagName: string;
+  normalizedName: string;
+  description: string | null;
+  color: string | null;
 }
 
 /**

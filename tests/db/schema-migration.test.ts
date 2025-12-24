@@ -7,7 +7,11 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../../src/db/schema";
-import { migrateFieldValuesSchema } from "../../src/db/migrate";
+import {
+  migrateFieldValuesSchema,
+  migrateSchemaConsolidation,
+  needsSchemaConsolidationMigration,
+} from "../../src/db/migrate";
 
 describe("Field Values Schema", () => {
   let db: Database;
@@ -299,5 +303,186 @@ describe("Schema Type Exports", () => {
       reason: "reason",
     };
     expect(_).toBeDefined();
+  });
+});
+
+// ============================================================================
+// Spec 020: Schema Consolidation Migration Tests (T-1.3)
+// ============================================================================
+
+describe("Schema Consolidation Migration (Spec 020 T-1.3)", () => {
+  let db: Database;
+
+  beforeEach(() => {
+    db = new Database(":memory:");
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  describe("migrateSchemaConsolidation", () => {
+    it("should create supertag_metadata table if not exists", () => {
+      migrateSchemaConsolidation(db);
+
+      // Check table exists
+      const tables = db
+        .query(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='supertag_metadata'"
+        )
+        .all();
+      expect(tables.length).toBe(1);
+    });
+
+    it("should create supertag_metadata with correct columns", () => {
+      migrateSchemaConsolidation(db);
+
+      const columns = db
+        .query("PRAGMA table_info(supertag_metadata)")
+        .all() as Array<{ name: string }>;
+      const columnNames = columns.map((c) => c.name);
+
+      expect(columnNames).toContain("id");
+      expect(columnNames).toContain("tag_id");
+      expect(columnNames).toContain("tag_name");
+      expect(columnNames).toContain("normalized_name");
+      expect(columnNames).toContain("description");
+      expect(columnNames).toContain("color");
+      expect(columnNames).toContain("created_at");
+    });
+
+    it("should add enhanced columns to supertag_fields if table exists", () => {
+      // Create old supertag_fields table without new columns
+      db.run(`
+        CREATE TABLE supertag_fields (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tag_id TEXT NOT NULL,
+          tag_name TEXT NOT NULL,
+          field_name TEXT NOT NULL,
+          field_label_id TEXT NOT NULL,
+          field_order INTEGER DEFAULT 0
+        )
+      `);
+
+      migrateSchemaConsolidation(db);
+
+      const columns = db
+        .query("PRAGMA table_info(supertag_fields)")
+        .all() as Array<{ name: string }>;
+      const columnNames = columns.map((c) => c.name);
+
+      expect(columnNames).toContain("normalized_name");
+      expect(columnNames).toContain("description");
+      expect(columnNames).toContain("inferred_data_type");
+    });
+
+    it("should not fail if enhanced columns already exist", () => {
+      // Create table with all columns
+      db.run(`
+        CREATE TABLE supertag_fields (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tag_id TEXT NOT NULL,
+          tag_name TEXT NOT NULL,
+          field_name TEXT NOT NULL,
+          field_label_id TEXT NOT NULL,
+          field_order INTEGER DEFAULT 0,
+          normalized_name TEXT,
+          description TEXT,
+          inferred_data_type TEXT
+        )
+      `);
+
+      // Should not throw
+      expect(() => migrateSchemaConsolidation(db)).not.toThrow();
+    });
+
+    it("should create indexes for new columns", () => {
+      migrateSchemaConsolidation(db);
+
+      const indexes = db
+        .query("PRAGMA index_list(supertag_fields)")
+        .all() as Array<{ name: string }>;
+      const indexNames = indexes.map((i) => i.name);
+
+      expect(indexNames.some((n) => n.includes("normalized"))).toBe(true);
+      expect(indexNames.some((n) => n.includes("data_type"))).toBe(true);
+    });
+
+    it("should be safe to run multiple times", () => {
+      migrateSchemaConsolidation(db);
+      migrateSchemaConsolidation(db);
+      migrateSchemaConsolidation(db);
+
+      // Should still have correct schema
+      const tables = db
+        .query(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='supertag_metadata'"
+        )
+        .all();
+      expect(tables.length).toBe(1);
+    });
+  });
+
+  describe("needsSchemaConsolidationMigration", () => {
+    it("should return true if supertag_metadata table missing", () => {
+      expect(needsSchemaConsolidationMigration(db)).toBe(true);
+    });
+
+    it("should return true if supertag_fields missing enhanced columns", () => {
+      // Create old table without enhanced columns
+      db.run(`
+        CREATE TABLE supertag_fields (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tag_id TEXT NOT NULL,
+          tag_name TEXT NOT NULL,
+          field_name TEXT NOT NULL,
+          field_label_id TEXT NOT NULL,
+          field_order INTEGER DEFAULT 0
+        )
+      `);
+      db.run(`
+        CREATE TABLE supertag_metadata (
+          id INTEGER PRIMARY KEY,
+          tag_id TEXT,
+          tag_name TEXT,
+          normalized_name TEXT,
+          description TEXT,
+          color TEXT,
+          created_at INTEGER
+        )
+      `);
+
+      expect(needsSchemaConsolidationMigration(db)).toBe(true);
+    });
+
+    it("should return false if all tables and columns exist", () => {
+      // Create all tables with all columns
+      db.run(`
+        CREATE TABLE supertag_fields (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tag_id TEXT NOT NULL,
+          tag_name TEXT NOT NULL,
+          field_name TEXT NOT NULL,
+          field_label_id TEXT NOT NULL,
+          field_order INTEGER DEFAULT 0,
+          normalized_name TEXT,
+          description TEXT,
+          inferred_data_type TEXT
+        )
+      `);
+      db.run(`
+        CREATE TABLE supertag_metadata (
+          id INTEGER PRIMARY KEY,
+          tag_id TEXT,
+          tag_name TEXT,
+          normalized_name TEXT,
+          description TEXT,
+          color TEXT,
+          created_at INTEGER
+        )
+      `);
+
+      expect(needsSchemaConsolidationMigration(db)).toBe(false);
+    });
   });
 });

@@ -17,8 +17,12 @@ import { Database } from "bun:sqlite";
 import type { NodeDump } from "../types/tana-dump";
 import type {
   ExtractedField,
+  EnhancedExtractedField,
+  SupertagMetadataEntry,
   SupertagMetadataExtractionResult,
 } from "../types/supertag-metadata";
+import { normalizeName } from "../utils/normalize-name";
+import { inferDataType } from "../utils/infer-data-type";
 
 /**
  * Mapping of known Tana system field markers to human-readable names.
@@ -188,6 +192,10 @@ export function extractParentsFromTagDef(
  * Scans all nodes for tagDef entries, extracts their field definitions
  * and inheritance relationships, and stores them in the database tables.
  *
+ * Updated for Spec 020 (Schema Consolidation):
+ * - Also populates supertag_metadata table (T-2.4)
+ * - Uses enhanced field extraction with normalized_name and inferred_data_type (T-2.3)
+ *
  * @param nodes - Map of all nodes from Tana export
  * @param db - SQLite database connection
  * @returns Extraction statistics
@@ -201,19 +209,33 @@ export function extractSupertagMetadata(
   let parentsExtracted = 0;
 
   // Prepare statements for batch insertion with upsert
+  // Enhanced field insert includes normalized_name and inferred_data_type (T-2.3)
   const insertField = db.prepare(`
-    INSERT INTO supertag_fields (tag_id, tag_name, field_name, field_label_id, field_order)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO supertag_fields (tag_id, tag_name, field_name, field_label_id, field_order, normalized_name, inferred_data_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(tag_id, field_name) DO UPDATE SET
       tag_name = excluded.tag_name,
       field_label_id = excluded.field_label_id,
-      field_order = excluded.field_order
+      field_order = excluded.field_order,
+      normalized_name = excluded.normalized_name,
+      inferred_data_type = excluded.inferred_data_type
   `);
 
   const insertParent = db.prepare(`
     INSERT INTO supertag_parents (child_tag_id, parent_tag_id)
     VALUES (?, ?)
     ON CONFLICT(child_tag_id, parent_tag_id) DO NOTHING
+  `);
+
+  // Supertag metadata insert (T-2.4)
+  const insertMetadata = db.prepare(`
+    INSERT INTO supertag_metadata (tag_id, tag_name, normalized_name, description, color)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(tag_id) DO UPDATE SET
+      tag_name = excluded.tag_name,
+      normalized_name = excluded.normalized_name,
+      description = excluded.description,
+      color = excluded.color
   `);
 
   // Iterate through all nodes looking for tagDefs
@@ -223,17 +245,28 @@ export function extractSupertagMetadata(
     }
 
     tagDefsProcessed++;
-    const tagName = node.props.name || "";
 
-    // Extract and store fields
-    const fields = extractFieldsFromTagDef(node, nodes);
+    // Extract and store supertag-level metadata (T-2.4)
+    const metadata = extractSupertagMetadataEntry(node);
+    insertMetadata.run(
+      metadata.tagId,
+      metadata.tagName,
+      metadata.normalizedName,
+      metadata.description,
+      metadata.color
+    );
+
+    // Extract and store enhanced fields with normalized_name and inferred_data_type (T-2.3)
+    const fields = extractEnhancedFieldsFromTagDef(node, nodes);
     for (const field of fields) {
       insertField.run(
         nodeId,
-        tagName,
+        metadata.tagName,
         field.fieldName,
         field.fieldLabelId,
-        field.fieldOrder
+        field.fieldOrder,
+        field.normalizedName,
+        field.inferredDataType
       );
       fieldsExtracted++;
     }
@@ -250,5 +283,58 @@ export function extractSupertagMetadata(
     tagDefsProcessed,
     fieldsExtracted,
     parentsExtracted,
+  };
+}
+
+/**
+ * Extract enhanced field definitions from a tagDef node (Spec 020 T-2.3).
+ *
+ * Extends extractFieldsFromTagDef with:
+ * - normalizedName: Lowercase, special chars removed
+ * - inferredDataType: Heuristic data type from field name
+ *
+ * @param tagDef - The tagDef node to extract fields from
+ * @param nodes - Map of all nodes for child lookup
+ * @returns Array of enhanced extracted field definitions
+ */
+export function extractEnhancedFieldsFromTagDef(
+  tagDef: NodeDump,
+  nodes: Map<string, NodeDump>
+): EnhancedExtractedField[] {
+  // Get base fields using existing function
+  const baseFields = extractFieldsFromTagDef(tagDef, nodes);
+
+  // Enhance each field with normalized name and inferred data type
+  return baseFields.map((field) => ({
+    ...field,
+    normalizedName: normalizeName(field.fieldName),
+    inferredDataType: inferDataType(field.fieldName),
+  }));
+}
+
+/**
+ * Extract supertag-level metadata from a tagDef node (Spec 020 T-2.4).
+ *
+ * Extracts:
+ * - tagId: The node ID
+ * - tagName: Original tag name
+ * - normalizedName: Lowercase, special chars removed
+ * - description: From _description prop if present
+ * - color: From _color prop if present
+ *
+ * @param tagDef - The tagDef node to extract metadata from
+ * @returns Supertag metadata entry
+ */
+export function extractSupertagMetadataEntry(
+  tagDef: NodeDump
+): SupertagMetadataEntry {
+  const tagName = tagDef.props.name || "";
+
+  return {
+    tagId: tagDef.id,
+    tagName,
+    normalizedName: normalizeName(tagName),
+    description: (tagDef.props._description as string) || null,
+    color: (tagDef.props._color as string) || null,
   };
 }

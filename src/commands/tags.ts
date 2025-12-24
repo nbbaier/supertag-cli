@@ -14,8 +14,10 @@
 
 import { Command } from "commander";
 import { Database } from "bun:sqlite";
+import { existsSync } from "fs";
 import { TanaQueryEngine } from "../query/tana-query-engine";
 import { getSchemaRegistry } from "./schema";
+import { UnifiedSchemaService } from "../services/unified-schema-service";
 import {
   resolveDbPath,
   checkDb,
@@ -39,6 +41,71 @@ interface TagsMetadataOptions extends StandardOptions {
   all?: boolean;
   inherited?: boolean;
   own?: boolean;
+}
+
+/**
+ * Tag details from database with inferred types (T-5.2)
+ */
+export interface TagDetails {
+  id: string;
+  name: string;
+  normalizedName: string;
+  description: string | null;
+  color: string | null;
+  fields: TagFieldDetails[];
+}
+
+/**
+ * Field details with inferred data type
+ */
+export interface TagFieldDetails {
+  name: string;
+  attributeId: string;
+  normalizedName: string;
+  inferredDataType: string | null;
+  order: number;
+}
+
+/**
+ * Get tag details from database using UnifiedSchemaService (T-5.2)
+ *
+ * Provides access to inferred data types stored in the database.
+ *
+ * @param dbPath - Path to the SQLite database
+ * @param tagName - Tag name to look up (exact or normalized)
+ * @returns Tag details or null if not found
+ */
+export function getTagDetailsFromDatabase(dbPath: string, tagName: string): TagDetails | null {
+  if (!existsSync(dbPath)) {
+    throw new Error(`Database not found: ${dbPath}`);
+  }
+
+  const db = new Database(dbPath);
+  try {
+    const schemaService = new UnifiedSchemaService(db);
+    const supertag = schemaService.getSupertag(tagName);
+
+    if (!supertag) {
+      return null;
+    }
+
+    return {
+      id: supertag.id,
+      name: supertag.name,
+      normalizedName: supertag.normalizedName,
+      description: supertag.description ?? null,
+      color: supertag.color ?? null,
+      fields: supertag.fields.map((field) => ({
+        name: field.name,
+        attributeId: field.attributeId,
+        normalizedName: field.normalizedName,
+        inferredDataType: field.dataType ?? null,
+        order: field.order,
+      })),
+    };
+  } finally {
+    db.close();
+  }
 }
 
 /**

@@ -14,6 +14,7 @@ import type { SupertagInfoInput } from "../schemas.js";
 export interface FieldInfo {
   name: string;
   origin?: string; // For inherited fields, shows the origin tag name
+  inferredDataType?: string; // Inferred data type (text, date, email, etc.) - T-5.4
 }
 
 export interface AncestorInfo {
@@ -61,12 +62,14 @@ export async function supertagInfo(
         result.fields = allFields.map((f) => ({
           name: f.fieldName,
           origin: f.depth > 0 ? f.originTagName : undefined,
+          inferredDataType: f.inferredDataType,
         }));
       } else {
         // Get only own fields
         const ownFields = service.getFieldsByName(input.tagname);
         result.fields = ownFields.map((f) => ({
           name: f.fieldName,
+          inferredDataType: f.inferredDataType,
         }));
       }
     }

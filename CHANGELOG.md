@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Schema Consolidation (Spec 020)** - Unified database-backed schema storage
+  - New `UnifiedSchemaService` class for database-backed schema queries
+  - Auto-generates `schema-registry.json` cache after `sync index` (no separate `schema sync` needed)
+  - New database columns: `normalized_name`, `description`, `inferred_data_type` for fields
+  - New `supertag_metadata` table for tag-level metadata (name, description, color)
+  - `getSchemaRegistryFromDatabase()` function for loading schema from database
+  - `getTagDetailsFromDatabase()` function with inferred data types
+  - `buildNodePayloadFromDatabase()` function for node creation from database
+  - MCP `tana_supertag_info` tool now returns `inferredDataType` in field info
+  - Utility functions: `normalizeName()`, `inferDataType()`
+
 - **System Field Extraction** - Added support for Tana's built-in system fields
   - `SYS_A90` → "Date" field (used by meeting, calendar-item, appointment supertags)
   - `SYS_A61` → "Due Date" field (used by task, todo, project supertags)

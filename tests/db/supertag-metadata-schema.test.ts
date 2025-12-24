@@ -22,7 +22,7 @@ describe("Supertag Metadata Schema", () => {
   beforeAll(() => {
     db = new Database(":memory:");
 
-    // Create supertag_fields table
+    // Create supertag_fields table (including enhanced columns from Spec 020)
     db.run(`
       CREATE TABLE supertag_fields (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,6 +31,9 @@ describe("Supertag Metadata Schema", () => {
         field_name TEXT NOT NULL,
         field_label_id TEXT NOT NULL,
         field_order INTEGER DEFAULT 0,
+        normalized_name TEXT,
+        description TEXT,
+        inferred_data_type TEXT,
         UNIQUE(tag_id, field_name)
       )
     `);

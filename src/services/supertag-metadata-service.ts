@@ -34,7 +34,7 @@ export class SupertagMetadataService {
   getFields(tagId: string): SupertagField[] {
     const results = this.db
       .query(
-        `SELECT id, tag_id, tag_name, field_name, field_label_id, field_order
+        `SELECT id, tag_id, tag_name, field_name, field_label_id, field_order, inferred_data_type
          FROM supertag_fields
          WHERE tag_id = ?
          ORDER BY field_order`
@@ -46,6 +46,7 @@ export class SupertagMetadataService {
       field_name: string;
       field_label_id: string;
       field_order: number;
+      inferred_data_type: string | null;
     }>;
 
     return results.map((r) => ({
@@ -55,6 +56,7 @@ export class SupertagMetadataService {
       fieldName: r.field_name,
       fieldLabelId: r.field_label_id,
       fieldOrder: r.field_order,
+      inferredDataType: r.inferred_data_type ?? undefined,
     }));
   }
 
@@ -65,7 +67,7 @@ export class SupertagMetadataService {
   getFieldsByName(tagName: string): SupertagField[] {
     const results = this.db
       .query(
-        `SELECT id, tag_id, tag_name, field_name, field_label_id, field_order
+        `SELECT id, tag_id, tag_name, field_name, field_label_id, field_order, inferred_data_type
          FROM supertag_fields
          WHERE tag_name = ?
          ORDER BY field_order`
@@ -77,6 +79,7 @@ export class SupertagMetadataService {
       field_name: string;
       field_label_id: string;
       field_order: number;
+      inferred_data_type: string | null;
     }>;
 
     return results.map((r) => ({
@@ -86,6 +89,7 @@ export class SupertagMetadataService {
       fieldName: r.field_name,
       fieldLabelId: r.field_label_id,
       fieldOrder: r.field_order,
+      inferredDataType: r.inferred_data_type ?? undefined,
     }));
   }
 
@@ -201,6 +205,7 @@ export class SupertagMetadataService {
           originTagId: tagId,
           originTagName: field.tagName,
           depth: 0,
+          inferredDataType: field.inferredDataType,
         });
       }
     }
@@ -220,6 +225,7 @@ export class SupertagMetadataService {
             originTagId: ancestor.tagId,
             originTagName: ancestorName || ancestor.tagId,
             depth: ancestor.depth,
+            inferredDataType: field.inferredDataType,
           });
         }
       }
