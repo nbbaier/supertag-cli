@@ -69,7 +69,7 @@ describe("Create Command Field Validation", () => {
       ],
       lastUpdated: Date.now(),
     };
-    writeFileSync(join(dataDir, "schema.json"), JSON.stringify(schema, null, 2));
+    writeFileSync(join(dataDir, "schema-registry.json"), JSON.stringify(schema, null, 2));
 
     // Set env vars to use test directories
     process.env.XDG_CONFIG_HOME = join(testDir, "config");
