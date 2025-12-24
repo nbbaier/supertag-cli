@@ -43,15 +43,17 @@ supertag tags visualize
 supertag tags visualize --format mermaid  # explicit
 ```
 
-Example output (`supertag tags visualize --from meeting`):
+Example output (`supertag tags visualize --from meeting --show-fields --show-inherited`):
 ```mermaid
 flowchart BT
-    WcNfAKD2JI["#meeting"]
-    BpyXUrxqwJ3Q["#Stream | Professional"]
-    2Ux7TUEjN4yt["#Type | Event"]
+    WcNfAKD2JI["#meeting<br/>---<br/>Attendees: text<br/>Date: date<br/>Meeting link: url<br/>⚙️ Vault: text<br/>⚙️ Focus: text"]
+    BpyXUrxqwJ3Q["#Stream | Professional<br/>---<br/>⚙️ Vault: text<br/>⚙️ Focus: text"]
+    2Ux7TUEjN4yt["#Type | Event<br/>---<br/>⚙️ Vault: text<br/>⚙️ Focus: text"]
     WcNfAKD2JI --> BpyXUrxqwJ3Q
     BpyXUrxqwJ3Q --> 2Ux7TUEjN4yt
 ```
+
+*Own fields shown normally, inherited fields marked with ⚙️*
 
 ### Graphviz DOT
 
