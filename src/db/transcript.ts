@@ -365,15 +365,77 @@ export function searchTranscripts(
 
   const speakerMap = new Map(metadata.map((m) => [m.line_id, m.speaker]));
 
-  // Return results without meeting context for now (can be added if needed)
-  return matched.map((r) => ({
-    lineId: r.line_id,
-    lineText: r.line_text,
-    meetingId: null,
-    meetingName: null,
-    speaker: speakerMap.get(r.line_id) ?? null,
-    rank: r.rank,
-  }));
+  // Step 3: Batch find parent transcripts using indexed parent_id column
+  const parentTranscripts = db
+    .query(
+      `
+      SELECT
+        l.id as line_id,
+        l.parent_id as transcript_id
+      FROM nodes l
+      WHERE l.id IN (${placeholders})
+        AND l.parent_id IS NOT NULL
+    `
+    )
+    .all(...lineIds) as Array<{
+    line_id: string;
+    transcript_id: string;
+  }>;
+
+  const lineToTranscript = new Map(
+    parentTranscripts.map((p) => [p.line_id, p.transcript_id])
+  );
+
+  // Step 4: Find meetings for unique transcripts (excluding trashed meetings)
+  // Uses indexed parent_id: tuple → metanode → meeting
+  const uniqueTranscriptIds = [...new Set(parentTranscripts.map((p) => p.transcript_id))];
+  const transcriptPlaceholders = uniqueTranscriptIds.map(() => "?").join(", ");
+
+  const meetingInfo =
+    uniqueTranscriptIds.length > 0
+      ? (db
+          .query(
+            `
+      SELECT
+        json_extract(t.raw_data, '$.children[1]') as transcript_id,
+        m.id as meeting_id,
+        m.name as meeting_name
+      FROM nodes t
+      JOIN nodes meta ON meta.id = t.parent_id
+      JOIN nodes m ON m.id = json_extract(meta.raw_data, '$.props._ownerId')
+      WHERE json_extract(t.raw_data, '$.children[0]') = 'SYS_A199'
+        AND json_extract(t.raw_data, '$.children[1]') IN (${transcriptPlaceholders})
+        AND json_extract(m.raw_data, '$.props._ownerId') NOT LIKE '%_TRASH'
+    `
+          )
+          .all(...uniqueTranscriptIds) as Array<{
+          transcript_id: string;
+          meeting_id: string;
+          meeting_name: string | null;
+        }>)
+      : [];
+
+  const transcriptToMeeting = new Map(
+    meetingInfo.map((m) => [
+      m.transcript_id,
+      { id: m.meeting_id, name: m.meeting_name },
+    ])
+  );
+
+  // Combine all data
+  return matched.map((r) => {
+    const transcriptId = lineToTranscript.get(r.line_id);
+    const meeting = transcriptId ? transcriptToMeeting.get(transcriptId) : null;
+
+    return {
+      lineId: r.line_id,
+      lineText: r.line_text,
+      meetingId: meeting?.id ?? null,
+      meetingName: meeting?.name ?? null,
+      speaker: speakerMap.get(r.line_id) ?? null,
+      rank: r.rank,
+    };
+  });
 }
 
 /**

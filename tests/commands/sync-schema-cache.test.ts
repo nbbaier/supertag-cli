@@ -281,8 +281,11 @@ describe("sync index schema cache integration (T-4.3)", () => {
 
   describe("error handling", () => {
     it("should not fail indexing if schema cache generation fails", async () => {
-      // Use a path that should fail (directory that can't be created)
-      const invalidCachePath = "/root/cannot-write/schema.json";
+      // Use a path that will fail - treating a file as a directory
+      // First create the blocker file
+      const blockerFile = "/tmp/supertag-test-file-blocker";
+      await Bun.write(blockerFile, "");
+      const invalidCachePath = `${blockerFile}/subdir/schema.json`;
 
       createTestExport("test@2025-01-01.json", [
         { id: "tag1", name: "task" },

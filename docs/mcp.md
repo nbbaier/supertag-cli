@@ -21,6 +21,9 @@ The `supertag-mcp` binary runs locally on your machine as a subprocess - no serv
 | `tana_node` | Get node contents with depth | "Show node abc123 with children" |
 | `tana_create` | Create new nodes with references | "Create a todo linked to node abc123" |
 | `tana_sync` | Trigger reindex or status | "Reindex my Tana database" |
+| `tana_transcript_list` | List meetings with transcripts | "Which meetings have transcripts?" |
+| `tana_transcript_show` | Get transcript for a meeting | "Show transcript from last standup" |
+| `tana_transcript_search` | Search within transcripts | "Find where we discussed pricing" |
 
 ## Prerequisites
 
@@ -270,6 +273,9 @@ mcphost --quiet -m ollama:qwen2.5:7b -p "List the top 5 supertags in workspace '
 - "Show me the node with ID abc123"
 - "Create a new todo called 'Review pull request'"
 - "Reindex my Tana database"
+- "Which meetings have transcripts?"
+- "Show me the transcript from last week's planning meeting"
+- "Find where we discussed the pricing strategy in meetings"
 
 ---
 

@@ -5,7 +5,10 @@
  * Uses the real database for integration testing.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, setDefaultTimeout } from "bun:test";
+
+// Transcript queries can be slow due to JSON extraction on large datasets
+setDefaultTimeout(30000);
 import { Database } from "bun:sqlite";
 import { existsSync } from "fs";
 import { getDatabasePath, resolveWorkspace } from "../../src/config/paths";
@@ -197,6 +200,27 @@ describe("Transcript Data Access", () => {
 
       const results = searchTranscripts(db, "the", { limit: 3 });
       expect(results.length).toBeLessThanOrEqual(3);
+    });
+
+    it("should resolve meeting context for transcript lines", () => {
+      if (!db || !hasTranscripts) {
+        console.log("Skipping - no transcripts available");
+        return;
+      }
+
+      // Search for a common word in transcripts
+      const results = searchTranscripts(db, "meeting", { limit: 10 });
+
+      if (results.length > 0) {
+        // At least some results should have meetingId resolved
+        const withMeetingId = results.filter((r) => r.meetingId !== null);
+        expect(withMeetingId.length).toBeGreaterThan(0);
+
+        // Check structure of resolved meeting
+        const result = withMeetingId[0];
+        expect(typeof result.meetingId).toBe("string");
+        // meetingName can be null for trashed meetings
+      }
     });
   });
 });

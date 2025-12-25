@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Transcript Search Meeting Context** - Fixed `tana_transcript_search` returning null meetingId/meetingName
+  - Added meeting context resolution: transcript line → parent transcript → meeting via SYS_A199 tuple
+  - Optimized queries using indexed `parent_id` column (reduced from 13s to ~4s)
+  - Filters out trashed meetings (`_ownerId` ending with `_TRASH`)
+
 - **System Field Extraction** - Fixed SYS_* fields (Due date, Date, Attendees) not being extracted into `field_values` table
   - System field IDs like `SYS_A61` are synthetic IDs that don't exist in the nodes table
   - `isFieldTuple()` now recognizes SYS_* first children as valid field labels

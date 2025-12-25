@@ -127,6 +127,31 @@ supertag fields values "Gratitude" --json > reflections.json
 
 See [Field Values Documentation](./docs/fields.md) for details.
 
+### TRANSCRIPTS - Meeting Recordings
+
+Query and search meeting transcripts. By default, transcripts are excluded from general search to keep results clean.
+
+```bash
+# List meetings with transcripts
+supertag transcript list                      # All meetings with transcripts
+supertag transcript list --limit 10           # Recent 10 meetings
+
+# View transcript content
+supertag transcript show <meeting-id>         # Full transcript with speakers
+supertag transcript show <id> --json          # JSON with timing metadata
+
+# Search within transcripts only
+supertag transcript search "budget"           # Find spoken mentions
+supertag transcript search "quarterly" --limit 5
+```
+
+**Include in embeddings:**
+```bash
+supertag embed generate --include-transcripts  # Opt-in for semantic search
+```
+
+See [Transcript Documentation](./docs/transcripts.md) for details.
+
 ### SERVER - Webhook API
 
 ```bash
@@ -274,6 +299,7 @@ bun install
 | [MCP Integration](./docs/mcp.md) | AI tool setup (Claude, ChatGPT, Cursor, etc.) |
 | [Embeddings](./docs/embeddings.md) | Semantic search configuration |
 | [Field Values](./docs/fields.md) | Query and search field data from nodes |
+| [Transcripts](./docs/transcripts.md) | Query and search meeting transcripts |
 | [Visualization](./docs/visualization.md) | Inheritance graph rendering (Mermaid, DOT, PNG) |
 | [Webhook Server](./docs/WEBHOOK-SERVER.md) | HTTP API reference |
 | [Workspaces](./docs/workspaces.md) | Multi-workspace management |
@@ -281,6 +307,7 @@ bun install
 | [Development](./docs/development.md) | Building, testing, contributing |
 | [Launchd Setup](./docs/LAUNCHD-SETUP.md) | macOS auto-start configuration |
 | [Field Structures](./docs/TANA-FIELD-STRUCTURES.md) | Technical reference for Tana tuple/field patterns |
+| [Database Schema](./docs/database-schema.md) | SQLite schema, tables, JSON storage |
 
 ---
 

@@ -113,6 +113,18 @@ supertag paths --json
 
 ---
 
+## Database Schema
+
+The SQLite database uses a hybrid approach:
+
+- **Normalized tables** for fast queries (nodes, tag_applications, field_values, etc.)
+- **JSON storage** in `nodes.raw_data` for complete Tana node data
+- **FTS5 virtual tables** for full-text search
+
+See [Database Schema](./database-schema.md) for complete table definitions, indexes, and query patterns.
+
+---
+
 ## Schema Registry
 
 The schema registry enables dynamic node creation for any supertag:
