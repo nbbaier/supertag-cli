@@ -15,6 +15,20 @@ import type { NodeDump } from "../types/tana-dump";
 import type { ExtractedFieldValue } from "../types/field-values";
 
 /**
+ * System field IDs to human-readable names
+ * These are synthetic field IDs that don't exist in the nodes table
+ * but are used by Tana for built-in fields
+ */
+export const SYSTEM_FIELD_NAMES: Record<string, string> = {
+  SYS_A13: "Tag",
+  SYS_A61: "Due date",
+  SYS_A90: "Date",
+  SYS_A142: "Attendees",
+  SYS_T01: "Supertag",
+  SYS_T02: "Field",
+};
+
+/**
  * Options for value extraction
  */
 export interface ExtractionOptions {
@@ -70,6 +84,12 @@ export function isFieldTuple(
 
   // First child must be a valid field label (has name, not an indented outline item)
   const firstChildId = node.children[0];
+
+  // System field IDs (SYS_*) are valid field labels even if not in nodes table
+  if (firstChildId.startsWith("SYS_")) {
+    return true;
+  }
+
   const labelNode = nodes.get(firstChildId);
 
   if (!labelNode?.props.name) {
@@ -105,6 +125,12 @@ export function resolveFieldNameFromTuple(
   }
 
   const firstChildId = tuple.children[0];
+
+  // System field IDs (SYS_*) have known names
+  if (firstChildId.startsWith("SYS_")) {
+    return SYSTEM_FIELD_NAMES[firstChildId] ?? null;
+  }
+
   const labelNode = nodes.get(firstChildId);
 
   if (!labelNode?.props.name) {

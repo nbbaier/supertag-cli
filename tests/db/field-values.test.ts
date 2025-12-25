@@ -273,6 +273,106 @@ describe("Field Values Extraction", () => {
     });
   });
 
+  describe("system field extraction (SYS_*)", () => {
+    it("should extract Due Date field with SYS_A61 label", () => {
+      const nodes = new Map<string, NodeDump>();
+
+      // Parent node with the Due Date field
+      const parentNode = createNode(
+        "UHq3MQrnm7o-",
+        "Task with due date",
+        { created: 1729900800000 },
+        ["tupleEEO"]
+      );
+      nodes.set("UHq3MQrnm7o-", parentNode);
+
+      // Tuple containing the Due Date field
+      // Structure: tuple -> [SYS_A61, valueNode]
+      // SYS_A61 is the Due Date field label (synthetic - NOT in nodes map)
+      const tuple = createNode(
+        "tupleEEO",
+        null,
+        {
+          _docType: "tuple",
+        },
+        ["SYS_A61", "j7nKIZBaXkNC"]
+      );
+      nodes.set("tupleEEO", tuple);
+
+      // Value node with the date
+      nodes.set("j7nKIZBaXkNC", createNode("j7nKIZBaXkNC", "2025-10-26"));
+
+      // NOTE: SYS_A61 is NOT in the nodes map - this is the bug!
+      // The isFieldTuple() function should recognize SYS_* as valid field labels
+
+      const extracted = extractFieldValuesFromNodes(nodes, db);
+
+      // Should extract the Due Date field
+      expect(extracted.length).toBe(1);
+      expect(extracted[0].fieldName).toBe("Due date");
+      expect(extracted[0].valueText).toBe("2025-10-26");
+      expect(extracted[0].parentId).toBe("UHq3MQrnm7o-");
+    });
+
+    it("should extract Date field with SYS_A90 label", () => {
+      const nodes = new Map<string, NodeDump>();
+
+      const parentNode = createNode(
+        "meeting123",
+        "Team Meeting",
+        { created: 1729900800000 },
+        ["dateTuple"]
+      );
+      nodes.set("meeting123", parentNode);
+
+      const tuple = createNode(
+        "dateTuple",
+        null,
+        { _docType: "tuple" },
+        ["SYS_A90", "dateValue"]
+      );
+      nodes.set("dateTuple", tuple);
+
+      nodes.set("dateValue", createNode("dateValue", "2025-12-25"));
+
+      const extracted = extractFieldValuesFromNodes(nodes, db);
+
+      expect(extracted.length).toBe(1);
+      expect(extracted[0].fieldName).toBe("Date");
+      expect(extracted[0].valueText).toBe("2025-12-25");
+    });
+
+    it("should extract Attendees field with SYS_A142 label", () => {
+      const nodes = new Map<string, NodeDump>();
+
+      const parentNode = createNode(
+        "meeting456",
+        "Planning Session",
+        { created: 1729900800000 },
+        ["attendeesTuple"]
+      );
+      nodes.set("meeting456", parentNode);
+
+      const tuple = createNode(
+        "attendeesTuple",
+        null,
+        { _docType: "tuple" },
+        ["SYS_A142", "attendee1", "attendee2"]
+      );
+      nodes.set("attendeesTuple", tuple);
+
+      nodes.set("attendee1", createNode("attendee1", "Alice"));
+      nodes.set("attendee2", createNode("attendee2", "Bob"));
+
+      const extracted = extractFieldValuesFromNodes(nodes, db);
+
+      expect(extracted.length).toBe(2);
+      expect(extracted[0].fieldName).toBe("Attendees");
+      expect(extracted[0].valueText).toBe("Alice");
+      expect(extracted[1].valueText).toBe("Bob");
+    });
+  });
+
   describe("extractFieldValuesFromNodes (full extraction)", () => {
     it("should extract field values from multiple tuples", () => {
       const nodes = new Map<string, NodeDump>();
