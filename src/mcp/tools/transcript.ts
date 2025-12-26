@@ -18,7 +18,6 @@ import {
   formatTranscriptTime,
   type TranscriptSummary,
   type TranscriptLine,
-  type TranscriptSearchResult,
 } from "../../db/transcript.js";
 import type {
   TranscriptListInput,

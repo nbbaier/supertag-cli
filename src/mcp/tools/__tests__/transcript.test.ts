@@ -68,7 +68,7 @@ describe("MCP Transcript Tools", () => {
           return;
         }
 
-        const result = await transcriptList({ limit: 5 });
+        const result = await transcriptList({ workspace: undefined, limit: 5 });
 
         expect(result).toHaveProperty("workspace");
         expect(result).toHaveProperty("meetings");
@@ -92,7 +92,7 @@ describe("MCP Transcript Tools", () => {
         return;
       }
 
-      const result = await transcriptList({ limit: 2 });
+      const result = await transcriptList({ workspace: undefined, limit: 2 });
       expect(result.meetings.length).toBeLessThanOrEqual(2);
     }, 15000); // May be slow with 90K+ transcript lines
   });
@@ -115,14 +115,14 @@ describe("MCP Transcript Tools", () => {
       }
 
       // First get a meeting
-      const listResult = await transcriptList({ limit: 1 });
+      const listResult = await transcriptList({ workspace: undefined, limit: 1 });
       if (listResult.meetings.length === 0) {
         console.log("Skipping - no meetings found");
         return;
       }
 
       const meetingId = listResult.meetings[0].meetingId;
-      const result = await transcriptShow({ id: meetingId, limit: 5 });
+      const result = await transcriptShow({ id: meetingId, workspace: undefined, limit: 5 });
 
       expect(result).toHaveProperty("workspace");
       expect(result).toHaveProperty("meeting");
@@ -144,7 +144,7 @@ describe("MCP Transcript Tools", () => {
         return;
       }
 
-      const result = await transcriptShow({ id: "nonexistent123" });
+      const result = await transcriptShow({ id: "nonexistent123", workspace: undefined, limit: 100 });
 
       expect(result.lines).toEqual([]);
       expect(result.count).toBe(0);
@@ -170,6 +170,8 @@ describe("MCP Transcript Tools", () => {
 
       const result = await transcriptSearch({
         query: "xyznonexistentquery123",
+        workspace: undefined,
+        limit: 20,
       });
 
       expect(result).toHaveProperty("workspace");
@@ -185,7 +187,7 @@ describe("MCP Transcript Tools", () => {
       }
 
       // Search for a common word
-      const result = await transcriptSearch({ query: "meeting", limit: 5 });
+      const result = await transcriptSearch({ query: "meeting", workspace: undefined, limit: 5 });
 
       expect(result).toHaveProperty("results");
       expect(Array.isArray(result.results)).toBe(true);
@@ -203,7 +205,7 @@ describe("MCP Transcript Tools", () => {
         return;
       }
 
-      const result = await transcriptSearch({ query: "the", limit: 3 });
+      const result = await transcriptSearch({ query: "the", workspace: undefined, limit: 3 });
       expect(result.results.length).toBeLessThanOrEqual(3);
     });
   });
