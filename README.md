@@ -133,11 +133,13 @@ Query and search meeting transcripts. By default, transcripts are excluded from 
 
 ```bash
 # List meetings with transcripts
-supertag transcript list                      # All meetings with transcripts
+supertag transcript list                      # Tab-separated output
+supertag transcript list --pretty             # Formatted table
 supertag transcript list --limit 10           # Recent 10 meetings
 
 # View transcript content
 supertag transcript show <meeting-id>         # Full transcript with speakers
+supertag transcript show <id> --pretty        # Formatted with speaker sections
 supertag transcript show <id> --json          # JSON with timing metadata
 
 # Search within transcripts only

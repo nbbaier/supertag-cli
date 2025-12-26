@@ -5,7 +5,7 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2025-12-26
 
 ### Added
 
@@ -17,21 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Transcripts (90K+ lines) excluded from default embeddings to improve search quality
   - MCP tools: `tana_transcript_list`, `tana_transcript_show`, `tana_transcript_search`
   - Optimized batch queries for transcript metadata (30x performance improvement)
-
-### Fixed
-
-- **Transcript Search Meeting Context** - Fixed `tana_transcript_search` returning null meetingId/meetingName
-  - Added meeting context resolution: transcript line → parent transcript → meeting via SYS_A199 tuple
-  - Optimized queries using indexed `parent_id` column (reduced from 13s to ~4s)
-  - Filters out trashed meetings (`_ownerId` ending with `_TRASH`)
-
-- **System Field Extraction** - Fixed SYS_* fields (Due date, Date, Attendees) not being extracted into `field_values` table
-  - System field IDs like `SYS_A61` are synthetic IDs that don't exist in the nodes table
-  - `isFieldTuple()` now recognizes SYS_* first children as valid field labels
-  - `resolveFieldNameFromTuple()` now looks up SYS_* names from centralized `SYSTEM_FIELD_NAMES` mapping
-  - Added tests for Due date (SYS_A61), Date (SYS_A90), and Attendees (SYS_A142) extraction
-
-### Added
+  - Pretty table output with `--pretty` flag for transcript list command
 
 - **Expanded System Field Mappings** - Added 12 additional SYS_* field mappings for comprehensive field extraction
   - Core fields: Tag (SYS_A13), Due date (SYS_A61), Date (SYS_A90), Attendees (SYS_A142)
@@ -40,6 +26,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - AI/Entity fields: Entity type (SYS_A130)
   - Transcript fields: Speaker (SYS_A150), Transcript speaker (SYS_A252), Start time (SYS_A253), End time (SYS_A254)
   - Internal fields: System reference (SYS_A12), Default value (SYS_A16), Field reference (SYS_A20)
+
+### Fixed
+
+- **Transcript Search Meeting Context** - Fixed `tana_transcript_search` returning null meetingId/meetingName
+  - Added meeting context resolution: transcript line → parent transcript → meeting via SYS_A199 tuple
+  - Optimized queries using indexed `parent_id` column (reduced from 13s to ~4s)
+  - Filters out trashed meetings (`_ownerId` ending with `_TRASH`)
+
+- **Inline Reference Parsing** - Meeting names with inline date references now display properly
+  - Parses `<span data-inlineref-date=...>` to readable ISO-8601 dates
+  - Applied to both transcript list and transcript show commands
+
+- **System Field Extraction** - Fixed SYS_* fields (Due date, Date, Attendees) not being extracted into `field_values` table
+  - System field IDs like `SYS_A61` are synthetic IDs that don't exist in the nodes table
+  - `isFieldTuple()` now recognizes SYS_* first children as valid field labels
+  - `resolveFieldNameFromTuple()` now looks up SYS_* names from centralized `SYSTEM_FIELD_NAMES` mapping
+  - Added tests for Due date (SYS_A61), Date (SYS_A90), and Attendees (SYS_A142) extraction
+
+### Upgrade Notes
+
+**Re-embedding recommended for transcript functionality:**
+
+If you want semantic search to include transcript content, regenerate your embeddings:
+
+```bash
+# Default: transcripts excluded (recommended for most users)
+supertag embed generate
+
+# Include transcripts in semantic search (90K+ additional nodes)
+supertag embed generate --include-transcripts
+```
+
+Transcript-specific search is always available via `supertag transcript search` regardless of embedding settings
 
 ## [1.1.1] - 2025-12-24
 

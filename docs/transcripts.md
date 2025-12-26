@@ -20,14 +20,32 @@ By default, transcripts are **excluded from general search and embeddings** to k
 supertag transcript list
 ```
 
-Shows all meetings that have associated transcripts:
+Shows all meetings that have associated transcripts.
+
+**Default output (TSV for piping):**
 
 ```
-ID            Meeting Name                    Lines  Date
-─────────────────────────────────────────────────────────
-M9rkJkwuED    Monthly Team Standup            127    2025-12-20
-xY7nKpQrSt    Q4 Planning Session             342    2025-12-18
-aB3cDeFgHi    Client Review Call              89     2025-12-15
+M9rkJkwuED    Monthly Team Standup    127    2025-12-20
+xY7nKpQrSt    Q4 Planning Session     342    2025-12-18
+aB3cDeFgHi    Client Review Call      89     2025-12-15
+```
+
+**Pretty output (`--pretty`):**
+
+```bash
+supertag transcript list --pretty
+```
+
+```
+🎙️ Meetings with transcripts (3):
+
+  ID            Meeting                         Lines  Date
+  ───────────────────────────────────────────────────────────────
+  M9rkJkwuED    Monthly Team Standup              127  2025-12-20
+  xY7nKpQrSt    Q4 Planning Session               342  2025-12-18
+  aB3cDeFgHi    Client Review Call                 89  2025-12-15
+
+💡 Tip: Use 'supertag transcript show <id>' to view transcript
 ```
 
 **Options:**
@@ -35,6 +53,7 @@ aB3cDeFgHi    Client Review Call              89     2025-12-15
 | Flag | Description |
 |------|-------------|
 | `--limit <n>` | Maximum meetings to show (default: 20) |
+| `--pretty` | Formatted table output with header |
 | `--json` | Output as JSON |
 | `-w, --workspace <alias>` | Target specific workspace |
 
@@ -66,6 +85,7 @@ Meeting: Monthly Team Standup
 | Flag | Description |
 |------|-------------|
 | `--limit <n>` | Maximum lines to show (default: 100) |
+| `--pretty` | Formatted output with speaker sections |
 | `--json` | Output as JSON with full metadata |
 | `-w, --workspace <alias>` | Target specific workspace |
 
