@@ -195,6 +195,65 @@ supertag tags visualize --format dot --output graph.dot
 
 See [Visualization Documentation](./docs/visualization.md) for rendering instructions.
 
+### CODEGEN - Generate Effect Schema Classes
+
+Generate type-safe Effect Schema class definitions from your Tana supertags.
+
+```bash
+# Generate single file with all supertags
+supertag codegen generate -o ./generated/schemas.ts
+
+# Filter to specific supertags
+supertag codegen generate -o ./generated/todo.ts --tags TodoItem Meeting
+
+# Generate separate files per supertag
+supertag codegen generate -o ./generated/schemas.ts --split
+
+# Preview without writing
+supertag codegen generate -o ./generated/schemas.ts --dry-run
+```
+
+**Output Example:**
+```typescript
+import { Schema } from "effect";
+
+export class TodoItem extends Schema.Class<TodoItem>("TodoItem")({
+  id: Schema.String,
+  title: Schema.optionalWith(Schema.String, { as: "Option" }),
+  dueDate: Schema.optionalWith(Schema.DateFromString, { as: "Option" }),
+  completed: Schema.optionalWith(Schema.Boolean, { as: "Option" }),
+}) {}
+
+// Child class extends parent
+export class WorkTask extends TodoItem.extend<WorkTask>("WorkTask")({
+  project: Schema.optionalWith(Schema.String, { as: "Option" }),
+}) {}
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-o, --output <path>` | Output file path (required) |
+| `-t, --tags <tags...>` | Filter to specific supertags |
+| `--split` | Generate separate file per supertag |
+| `--optional <strategy>` | `option` (default), `undefined`, or `nullable` |
+| `--no-metadata` | Exclude supertag metadata comments |
+| `-d, --dry-run` | Preview without writing files |
+
+**Type Mapping:**
+
+| Tana Type | Effect Schema |
+|-----------|---------------|
+| text | `Schema.String` |
+| number | `Schema.Number` |
+| date | `Schema.DateFromString` |
+| checkbox | `Schema.Boolean` |
+| url | `Schema.String.pipe(Schema.pattern(/^https?:\/\//))` |
+| email | `Schema.String` |
+| reference | `Schema.String` |
+| options | `Schema.String` |
+
 ### MCP - AI Tool Integration
 
 Integrate with Claude Desktop, ChatGPT, Cursor, VS Code, and other MCP-compatible AI tools.
@@ -267,6 +326,29 @@ Set defaults in `~/.config/supertag/config.json`:
 
 ---
 
+## Examples
+
+The `examples/` directory contains sample applications demonstrating supertag-cli features:
+
+### TUI Todo (`examples/tui-todo/`)
+
+A terminal-based todo manager built with [Ink](https://github.com/vadimdemedes/ink) (React for CLIs). Demonstrates:
+
+- **Codegen integration**: Uses Effect Schema classes generated from Tana supertags
+- **SQLite queries**: Reads from the supertag-cli indexed database
+- **Tana Input API**: Creates new todos directly in Tana
+- **Split-pane UI**: Vim-style navigation with search/filter
+
+```bash
+cd examples/tui-todo
+bun install
+bun run start
+```
+
+See [examples/tui-todo/README.md](./examples/tui-todo/README.md) for full documentation.
+
+---
+
 ## Installation
 
 ### Option A: Symlink (Recommended)
@@ -303,6 +385,7 @@ bun install
 | [Field Values](./docs/fields.md) | Query and search field data from nodes |
 | [Transcripts](./docs/transcripts.md) | Query and search meeting transcripts |
 | [Visualization](./docs/visualization.md) | Inheritance graph rendering (Mermaid, DOT, PNG) |
+| [Codegen](./docs/codegen.md) | Generate Effect Schema classes from supertags |
 | [Webhook Server](./docs/WEBHOOK-SERVER.md) | HTTP API reference |
 | [Workspaces](./docs/workspaces.md) | Multi-workspace management |
 | [Export](./docs/export.md) | Automated backup and scheduling |

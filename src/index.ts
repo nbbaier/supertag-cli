@@ -35,6 +35,7 @@ import { createTranscriptCommand } from './commands/transcript';
 import { createSimpleLogger, ensureAllDirs, getAllPaths, getDatabasePath, needsMigration, DATABASE_PATH, TANA_DATA_DIR } from './config/paths';
 import { existsSync, copyFileSync } from 'fs';
 import { VERSION } from './version';
+import { createCodegenCommand } from './commands/codegen';
 
 // Use portable logger (no external dependencies)
 export const logger = createSimpleLogger('tana-skill');
@@ -151,6 +152,7 @@ program.addCommand(createTagsCommand());       // supertag tags list|top|show
 program.addCommand(createStatsCommand());      // supertag stats [--db] [--embed] [--filter]
 program.addCommand(createFieldsCommand());     // supertag fields list|values|search
 program.addCommand(createTranscriptCommand()); // supertag transcript list|show|search
+program.addCommand(createCodegenCommand());    // supertag codegen generate -o <path>
 
 /**
  * Help text with examples
@@ -240,6 +242,14 @@ program.on('--help', () => {
   console.log('    supertag workspace show        Show workspace details');
   console.log('    supertag workspace enable <a>  Enable for batch operations');
   console.log('    supertag workspace disable <a> Disable from batch operations');
+  console.log('');
+  console.log('  CODEGEN:');
+  console.log('    supertag codegen generate      Generate Effect Schema classes');
+  console.log('      -o, --output <path>          Output file (required)');
+  console.log('      -t, --tags <tags...>         Filter to specific supertags');
+  console.log('      --split                      One file per supertag');
+  console.log('      --optional <strategy>        option|undefined|nullable');
+  console.log('      -d, --dry-run                Preview without writing');
   console.log('');
   console.log('Examples:');
   console.log('');

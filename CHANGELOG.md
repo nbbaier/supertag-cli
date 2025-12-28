@@ -5,6 +5,40 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-12-28
+
+### Added
+
+- **Code Generation from Supertags (Spec 024)** - Generate type-safe Effect Schema classes from Tana supertag definitions
+  - New `supertag codegen generate -o <path>` command for generating TypeScript code
+  - Generates Effect Schema.Class definitions with proper type mappings
+  - Full inheritance support: child supertags extend parent classes using `.extend()`
+  - Topological sorting ensures parent classes are generated before children
+  - Multiple optional field strategies: `option` (default), `undefined`, `nullable`
+  - Split mode: `--split` generates separate files per supertag with barrel index
+  - Dry-run mode: `--dry-run` previews output without writing files
+  - Filter by tags: `--tags TodoItem Meeting` generates only specified supertags
+  - Metadata comments: includes Tana supertag ID and description (disable with `--no-metadata`)
+  - Type mappings: text→String, date→DateFromString, checkbox→Boolean, url→URL pattern, number→Number, reference→String, email→String, options→String
+  - Unicode support: handles emoji field names (⚙️Vault → vault) while preserving unicode letters
+  - All fields treated as optional since Tana allows sparse data
+
+- **TUI Todo Example Application (Spec 031)** - Terminal-based todo manager demonstrating codegen feature
+  - Located in `examples/tui-todo/` with full documentation
+  - Uses Ink (React for CLIs) for terminal UI with split-pane layout
+  - Reads todos from supertag-cli SQLite database
+  - Creates new todos via Tana Input API
+  - 35 tests covering TodoService and TanaInputApi
+  - Vim-style keyboard navigation (j/k, /search, n/c/h/q)
+  - Demonstrates Effect Schema generated from Tana supertags
+
+- **Codegen Documentation** - New comprehensive documentation at `docs/codegen.md`
+  - Quick start guide with CLI examples
+  - Type mapping reference (Tana → Effect Schema)
+  - Optional field strategies (option/undefined/nullable)
+  - Supertag inheritance examples
+  - Integration with supertag-cli database
+
 ## [1.2.3] - 2025-12-28
 
 ### Fixed
