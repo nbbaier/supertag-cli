@@ -10,13 +10,29 @@ import { TanaIndexer } from "../src/db/indexer";
 import { unlinkSync } from "fs";
 import { join } from "path";
 
-const TEST_DB_PATH = "./test-webhook-server.db";
 const FIXTURE_PATH = join(__dirname, "fixtures/sample-workspace.json");
+
+/**
+ * Generate a unique database path for each test suite to avoid conflicts
+ * when tests run in random order
+ */
+function getUniqueDbPath(suiteName: string): string {
+  return `./test-webhook-${suiteName}-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
+}
+
+/**
+ * Get a unique port for each test suite to avoid port conflicts.
+ * Uses a base port + random offset to minimize collision chance.
+ */
+function getUniquePort(): number {
+  // Base port range: 10000-20000 to avoid common service ports
+  return 10000 + Math.floor(Math.random() * 10000);
+}
 
 /**
  * Create a test server configuration with the new multi-workspace API
  */
-function createTestServerConfig(port: number, dbPath = TEST_DB_PATH) {
+function createTestServerConfig(port: number, dbPath: string) {
   const workspaces = new Map<string, string>();
   workspaces.set("test", dbPath);
   return {
@@ -29,24 +45,28 @@ function createTestServerConfig(port: number, dbPath = TEST_DB_PATH) {
 
 describe("TanaWebhookServer - Basic Setup", () => {
   let server: TanaWebhookServer;
+  let dbPath: string;
+  let port: number;
 
   beforeAll(async () => {
+    // Use unique database path and port to avoid conflicts with other test suites
+    dbPath = getUniqueDbPath("basic-setup");
+    port = getUniquePort();
+
     // Set up test database
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
-    const indexer = new TanaIndexer(TEST_DB_PATH);
+    const indexer = new TanaIndexer(dbPath);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
     indexer.close();
 
-    server = new TanaWebhookServer(createTestServerConfig(3001));
+    server = new TanaWebhookServer(createTestServerConfig(port, dbPath));
+    await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
     try {
-      unlinkSync(TEST_DB_PATH);
+      unlinkSync(dbPath);
     } catch {}
   });
 
@@ -54,13 +74,7 @@ describe("TanaWebhookServer - Basic Setup", () => {
     expect(server).toBeDefined();
   });
 
-  test("should start server on specified port", async () => {
-    await server.start();
-    expect(server.isRunning()).toBe(true);
-  });
-
-  test("should report running status", async () => {
-    // Server already started in previous test
+  test("should start and be running", async () => {
     expect(server.isRunning()).toBe(true);
   });
 
@@ -71,29 +85,31 @@ describe("TanaWebhookServer - Basic Setup", () => {
 
 describe("TanaWebhookServer - Health Endpoint", () => {
   let server: TanaWebhookServer;
+  let dbPath: string;
+  let port: number;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
-    const indexer = new TanaIndexer(TEST_DB_PATH);
+    dbPath = getUniqueDbPath("health-endpoint");
+    port = getUniquePort();
+
+    const indexer = new TanaIndexer(dbPath);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
     indexer.close();
 
-    server = new TanaWebhookServer(createTestServerConfig(3002));
+    server = new TanaWebhookServer(createTestServerConfig(port, dbPath));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
     try {
-      unlinkSync(TEST_DB_PATH);
+      unlinkSync(dbPath);
     } catch {}
   });
 
   test("should respond to health check with workspaces info", async () => {
-    const response = await fetch("http://localhost:3002/health");
+    const response = await fetch(`http://localhost:${port}/health`);
     expect(response.status).toBe(200);
 
     const data = await response.json() as { status: string; workspaces: string[]; defaultWorkspace: string };
@@ -106,7 +122,7 @@ describe("TanaWebhookServer - Health Endpoint", () => {
   });
 
   test("should list workspaces", async () => {
-    const response = await fetch("http://localhost:3002/workspaces");
+    const response = await fetch(`http://localhost:${port}/workspaces`);
     expect(response.status).toBe(200);
 
     const data = await response.json() as { workspaces: string[]; default: string };
@@ -115,7 +131,7 @@ describe("TanaWebhookServer - Health Endpoint", () => {
   });
 
   test("should provide API documentation in Tana Paste format by default", async () => {
-    const response = await fetch("http://localhost:3002/help");
+    const response = await fetch(`http://localhost:${port}/help`);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/plain");
 
@@ -144,7 +160,7 @@ describe("TanaWebhookServer - Health Endpoint", () => {
   });
 
   test("should provide API documentation in JSON format with format=json", async () => {
-    const response = await fetch("http://localhost:3002/help?format=json");
+    const response = await fetch(`http://localhost:${port}/help?format=json`);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
 
@@ -184,29 +200,31 @@ describe("TanaWebhookServer - Health Endpoint", () => {
 
 describe("TanaWebhookServer - Search Endpoint", () => {
   let server: TanaWebhookServer;
+  let dbPath: string;
+  let port: number;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
-    const indexer = new TanaIndexer(TEST_DB_PATH);
+    dbPath = getUniqueDbPath("search-endpoint");
+    port = getUniquePort();
+
+    const indexer = new TanaIndexer(dbPath);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
     indexer.close();
 
-    server = new TanaWebhookServer(createTestServerConfig(3003));
+    server = new TanaWebhookServer(createTestServerConfig(port, dbPath));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
     try {
-      unlinkSync(TEST_DB_PATH);
+      unlinkSync(dbPath);
     } catch {}
   });
 
   test("should search and return Tana Paste format", async () => {
-    const response = await fetch("http://localhost:3003/search", {
+    const response = await fetch(`http://localhost:${port}/search`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: "the", limit: 3 }),
@@ -220,7 +238,7 @@ describe("TanaWebhookServer - Search Endpoint", () => {
   });
 
   test("should return error for missing query", async () => {
-    const response = await fetch("http://localhost:3003/search", {
+    const response = await fetch(`http://localhost:${port}/search`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -232,29 +250,31 @@ describe("TanaWebhookServer - Search Endpoint", () => {
 
 describe("TanaWebhookServer - Stats Endpoint", () => {
   let server: TanaWebhookServer;
+  let dbPath: string;
+  let port: number;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
-    const indexer = new TanaIndexer(TEST_DB_PATH);
+    dbPath = getUniqueDbPath("stats-endpoint");
+    port = getUniquePort();
+
+    const indexer = new TanaIndexer(dbPath);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
     indexer.close();
 
-    server = new TanaWebhookServer(createTestServerConfig(3004));
+    server = new TanaWebhookServer(createTestServerConfig(port, dbPath));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
     try {
-      unlinkSync(TEST_DB_PATH);
+      unlinkSync(dbPath);
     } catch {}
   });
 
   test("should return database stats as Tana Paste", async () => {
-    const response = await fetch("http://localhost:3004/stats");
+    const response = await fetch(`http://localhost:${port}/stats`);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/plain");
@@ -270,29 +290,31 @@ describe("TanaWebhookServer - Stats Endpoint", () => {
 
 describe("TanaWebhookServer - Tags Endpoint", () => {
   let server: TanaWebhookServer;
+  let dbPath: string;
+  let port: number;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
-    const indexer = new TanaIndexer(TEST_DB_PATH);
+    dbPath = getUniqueDbPath("tags-endpoint");
+    port = getUniquePort();
+
+    const indexer = new TanaIndexer(dbPath);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
     indexer.close();
 
-    server = new TanaWebhookServer(createTestServerConfig(3005));
+    server = new TanaWebhookServer(createTestServerConfig(port, dbPath));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
     try {
-      unlinkSync(TEST_DB_PATH);
+      unlinkSync(dbPath);
     } catch {}
   });
 
   test("should return top tags as Tana Paste", async () => {
-    const response = await fetch("http://localhost:3005/tags", {
+    const response = await fetch(`http://localhost:${port}/tags`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ limit: 5 }),
@@ -308,29 +330,31 @@ describe("TanaWebhookServer - Tags Endpoint", () => {
 
 describe("TanaWebhookServer - Semantic Search Endpoint", () => {
   let server: TanaWebhookServer;
+  let dbPath: string;
+  let port: number;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
-    const indexer = new TanaIndexer(TEST_DB_PATH);
+    dbPath = getUniqueDbPath("semantic-search-endpoint");
+    port = getUniquePort();
+
+    const indexer = new TanaIndexer(dbPath);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
     indexer.close();
 
-    server = new TanaWebhookServer(createTestServerConfig(3006));
+    server = new TanaWebhookServer(createTestServerConfig(port, dbPath));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
     try {
-      unlinkSync(TEST_DB_PATH);
+      unlinkSync(dbPath);
     } catch {}
   });
 
   test("should return 400 for missing query", async () => {
-    const response = await fetch("http://localhost:3006/semantic-search", {
+    const response = await fetch(`http://localhost:${port}/semantic-search`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -346,7 +370,7 @@ describe("TanaWebhookServer - Semantic Search Endpoint", () => {
     const timeout = setTimeout(() => controller.abort(), 4000);
 
     try {
-      const response = await fetch("http://localhost:3006/semantic-search", {
+      const response = await fetch(`http://localhost:${port}/semantic-search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: "productivity", limit: 5, format: "json" }),
@@ -384,7 +408,7 @@ describe("TanaWebhookServer - Semantic Search Endpoint", () => {
     const timeout = setTimeout(() => controller.abort(), 4000);
 
     try {
-      const response = await fetch("http://localhost:3006/semantic-search", {
+      const response = await fetch(`http://localhost:${port}/semantic-search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: "notes", limit: 3 }),
@@ -419,7 +443,7 @@ describe("TanaWebhookServer - Semantic Search Endpoint", () => {
     const timeout = setTimeout(() => controller.abort(), 4000);
 
     try {
-      const response = await fetch("http://localhost:3006/semantic-search", {
+      const response = await fetch(`http://localhost:${port}/semantic-search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -449,29 +473,31 @@ describe("TanaWebhookServer - Semantic Search Endpoint", () => {
 
 describe("TanaWebhookServer - Embed Stats Endpoint", () => {
   let server: TanaWebhookServer;
+  let dbPath: string;
+  let port: number;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
-    const indexer = new TanaIndexer(TEST_DB_PATH);
+    dbPath = getUniqueDbPath("embed-stats-endpoint");
+    port = getUniquePort();
+
+    const indexer = new TanaIndexer(dbPath);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
     indexer.close();
 
-    server = new TanaWebhookServer(createTestServerConfig(3007));
+    server = new TanaWebhookServer(createTestServerConfig(port, dbPath));
     await server.start();
   });
 
   afterAll(async () => {
     await server.stop();
     try {
-      unlinkSync(TEST_DB_PATH);
+      unlinkSync(dbPath);
     } catch {}
   });
 
   test("should return embed stats as Tana Paste by default", async () => {
-    const response = await fetch("http://localhost:3007/embed-stats");
+    const response = await fetch(`http://localhost:${port}/embed-stats`);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/plain");
@@ -482,7 +508,7 @@ describe("TanaWebhookServer - Embed Stats Endpoint", () => {
   });
 
   test("should return embed stats as JSON when format=json", async () => {
-    const response = await fetch("http://localhost:3007/embed-stats?format=json");
+    const response = await fetch(`http://localhost:${port}/embed-stats?format=json`);
 
     expect(response.status).toBe(200);
 
