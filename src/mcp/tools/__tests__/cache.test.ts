@@ -5,6 +5,16 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { cacheClear } from '../cache';
 import { clearWorkspaceCache, resolveWorkspaceContext } from '../../../config/workspace-resolver';
+import { getConfig } from '../../../config/manager';
+
+// Check if workspaces are configured (for CI vs local development)
+let hasWorkspacesConfigured = false;
+try {
+  const config = getConfig();
+  hasWorkspacesConfigured = Object.keys(config.workspaces || {}).length > 0;
+} catch {
+  hasWorkspacesConfigured = false;
+}
 
 describe('tana_cache_clear MCP tool', () => {
   beforeEach(() => {
@@ -19,7 +29,8 @@ describe('tana_cache_clear MCP tool', () => {
     expect(result.message).toBe('Workspace cache cleared');
   });
 
-  it('should clear cached workspace data', async () => {
+  // This test requires workspace configuration - skip in CI
+  it.skipIf(!hasWorkspacesConfigured)('should clear cached workspace data', async () => {
     // First, populate the cache by resolving a workspace
     const ws1 = resolveWorkspaceContext({ requireDatabase: false });
 

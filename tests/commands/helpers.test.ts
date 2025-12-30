@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { mkdirSync, rmSync, writeFileSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
@@ -14,6 +14,16 @@ import {
   formatTableOutput,
 } from "../../src/commands/helpers";
 import { Command } from "commander";
+import { getConfig } from "../../src/config/manager";
+
+// Check if workspaces are configured (for CI vs local development)
+let hasWorkspacesConfigured = false;
+try {
+  const config = getConfig();
+  hasWorkspacesConfigured = Object.keys(config.workspaces || {}).length > 0;
+} catch {
+  hasWorkspacesConfigured = false;
+}
 
 describe("resolveDbPath", () => {
   it("should return dbPath when explicitly provided", () => {
@@ -21,13 +31,13 @@ describe("resolveDbPath", () => {
     expect(result).toBe("/custom/path.db");
   });
 
-  it("should resolve workspace when provided", () => {
-    // This uses the actual config system, so just test the function exists
+  // These tests require workspace configuration - skip in CI
+  it.skipIf(!hasWorkspacesConfigured)("should resolve workspace when provided", () => {
     const result = resolveDbPath({ workspace: "main" });
     expect(result).toContain(".db");
   });
 
-  it("should use default workspace when no options provided", () => {
+  it.skipIf(!hasWorkspacesConfigured)("should use default workspace when no options provided", () => {
     const result = resolveDbPath({});
     expect(result).toContain(".db");
   });
