@@ -268,6 +268,10 @@ export const transcriptSearchSchema = z.object({
 });
 export type TranscriptSearchInput = z.infer<typeof transcriptSearchSchema>;
 
+// tana_cache_clear
+export const cacheClearSchema = z.object({});
+export type CacheClearInput = z.infer<typeof cacheClearSchema>;
+
 // Zod v4 internal type definition
 interface ZodDef {
   type: string;

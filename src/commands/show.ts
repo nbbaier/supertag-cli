@@ -10,8 +10,8 @@
  */
 import { existsSync } from "fs";
 import { Database } from "bun:sqlite";
-import { getDatabasePath, resolveWorkspace } from "../config/paths";
-import { getConfig } from "../config/manager";
+import { getDatabasePath } from "../config/paths";
+import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import { withDbRetrySync } from "../db/retry";
 
 // Default database path - uses XDG with legacy fallback
@@ -27,10 +27,12 @@ function resolveDbPath(options: { dbPath?: string; workspace?: string }): string
     return options.dbPath;
   }
 
-  // Resolve workspace
-  const config = getConfig().getConfig();
-  const ctx = resolveWorkspace(options.workspace, config);
-  return ctx.dbPath;
+  // Use unified workspace resolver
+  const ws = resolveWorkspaceContext({
+    workspace: options.workspace,
+    requireDatabase: false,
+  });
+  return ws.dbPath;
 }
 
 export interface NodeData {

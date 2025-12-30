@@ -15,10 +15,10 @@ import {
   getDatabasePath,
   DEFAULT_EXPORT_DIR,
   createSimpleLogger,
-  resolveWorkspace,
   getEnabledWorkspaces,
   ensureWorkspaceDir,
 } from "../config/paths";
+import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import { getConfig } from "../config/manager";
 import {
   cleanupExports,
@@ -47,25 +47,26 @@ function resolvePaths(options: {
     (options.dbPath && options.dbPath !== DEFAULT_DB_PATH) ||
     (options.exportDir && options.exportDir !== DEFAULT_EXPORT_DIR)
   ) {
-    // For custom paths, use default schema cache
-    const config = getConfig().getConfig();
-    const ctx = resolveWorkspace(undefined, config);
+    // For custom paths, use default workspace for schema cache
+    const ws = resolveWorkspaceContext({ requireDatabase: false });
     return {
       dbPath: options.dbPath || DEFAULT_DB_PATH,
       exportDir: options.exportDir || DEFAULT_EXPORT_DIR,
-      schemaPath: ctx.schemaPath,
+      schemaPath: ws.schemaPath,
       alias: 'custom',
     };
   }
 
-  // Resolve workspace
-  const config = getConfig().getConfig();
-  const ctx = resolveWorkspace(options.workspace, config);
+  // Use unified workspace resolver
+  const ws = resolveWorkspaceContext({
+    workspace: options.workspace,
+    requireDatabase: false, // Sync creates/updates the database
+  });
   return {
-    dbPath: ctx.dbPath,
-    exportDir: ctx.exportDir,
-    schemaPath: ctx.schemaPath,
-    alias: ctx.alias,
+    dbPath: ws.dbPath,
+    exportDir: ws.exportDir,
+    schemaPath: ws.schemaPath,
+    alias: ws.alias,
   };
 }
 

@@ -7,8 +7,7 @@
  * Uses shared node-builder module for validation and payload building.
  */
 
-import { ConfigManager } from '../../config/manager.js';
-import { resolveWorkspace } from '../../config/paths.js';
+import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import { createNode, parseChildArray } from '../../services/node-builder.js';
 import type { CreateInput } from '../schemas.js';
 import type { TanaApiNode } from '../../types.js';
@@ -26,9 +25,10 @@ export interface CreateResult {
 }
 
 export async function create(input: CreateInput): Promise<CreateResult> {
-  const configManager = ConfigManager.getInstance();
-  const config = configManager.getConfig();
-  const workspace = resolveWorkspace(input.workspace, config);
+  const workspace = resolveWorkspaceContext({
+    workspace: input.workspace,
+    requireDatabase: false, // Create doesn't need local DB
+  });
 
   // Validate supertag name
   if (!input.supertag || input.supertag.trim().length === 0) {

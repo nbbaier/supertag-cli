@@ -17,10 +17,9 @@ import { Command } from "commander";
 import { Database } from "bun:sqlite";
 import {
   getDatabasePath,
-  resolveWorkspace,
   getEnabledWorkspaces,
 } from "../config/paths";
-import type { WorkspaceContext } from "../types";
+import { resolveWorkspaceContext, type ResolvedWorkspace } from "../config/workspace-resolver";
 import { ConfigManager } from "../config/manager";
 import {
   tsv,
@@ -51,9 +50,11 @@ import { existsSync } from "node:fs";
 /**
  * Get workspace context for display
  */
-function getWorkspaceContext(workspace?: string): WorkspaceContext {
-  const config = ConfigManager.getInstance().getConfig();
-  return resolveWorkspace(workspace, config);
+function getWorkspaceContext(workspace?: string): ResolvedWorkspace {
+  return resolveWorkspaceContext({
+    workspace,
+    requireDatabase: false,
+  });
 }
 
 /**

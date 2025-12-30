@@ -23,7 +23,8 @@ const { Logger } = await import(loggerPath);
 
 // Import workspace resolution
 import { getConfig } from '../config/manager';
-import { resolveWorkspace, getEnabledWorkspaces, ensureWorkspaceDir } from '../config/paths';
+import { getEnabledWorkspaces, ensureWorkspaceDir } from '../config/paths';
+import { resolveWorkspaceContext } from '../config/workspace-resolver';
 
 // Configuration
 const USER_DATA_DIR = join(homedir(), '.config', 'tana', 'browser-data');
@@ -574,20 +575,22 @@ Examples:
   let exportDir = values['export-dir'];
 
   if (!nodeid) {
-    const config = getConfig().getConfig();
-    const ctx = resolveWorkspace(values.workspace, config);
+    const ws = resolveWorkspaceContext({
+      workspace: values.workspace,
+      requireDatabase: false, // Export doesn't need database
+    });
 
-    if (!ctx.nodeid) {
+    if (!ws.nodeid) {
       logger.error('No workspace specified and no default workspace configured');
       logger.error('Use --nodeid <id>, --workspace <alias>, or configure a default workspace');
       process.exit(1);
     }
 
-    nodeid = ctx.nodeid;
-    exportDir = exportDir || ctx.exportDir;
+    nodeid = ws.nodeid;
+    exportDir = exportDir || ws.exportDir;
 
     if (verbose) {
-      logger.debug(`Resolved workspace: ${ctx.alias} (${ctx.nodeid})`);
+      logger.debug(`Resolved workspace: ${ws.alias} (${ws.nodeid})`);
       logger.debug(`Export directory: ${exportDir}`);
     }
   }

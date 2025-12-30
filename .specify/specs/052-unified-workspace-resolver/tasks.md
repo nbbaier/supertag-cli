@@ -1,9 +1,9 @@
 ---
 feature: "Unified Workspace Resolver"
 plan: "./plan.md"
-status: "pending"
+status: "completed"
 total_tasks: 14
-completed: 0
+completed: 14
 ---
 
 # Tasks: Unified Workspace Resolver
@@ -18,79 +18,79 @@ completed: 0
 
 ### Group 1: Foundation - Error Types & Core Interfaces
 
-- [ ] **T-1.1** Create error types and interfaces [T]
+- [x] **T-1.1** Create error types and interfaces [T]
   - File: `src/config/workspace-resolver.ts`
   - Test: `tests/workspace-resolver.test.ts`
   - Description: Define `WorkspaceNotFoundError`, `WorkspaceDatabaseMissingError`, `ResolvedWorkspace`, and `ResolveOptions` interfaces. Tests verify error message formatting with workspace list and suggested commands.
 
-- [ ] **T-1.2** Implement `resolveWorkspaceContext()` [T] (depends: T-1.1)
+- [x] **T-1.2** Implement `resolveWorkspaceContext()` [T] (depends: T-1.1)
   - File: `src/config/workspace-resolver.ts`
   - Test: `tests/workspace-resolver.test.ts`
   - Description: Main resolver that wraps existing `resolveWorkspace()`, adds error handling for missing workspaces, and validates database existence when `requireDatabase: true`.
 
-- [ ] **T-1.3** Implement caching layer [T] (depends: T-1.2)
+- [x] **T-1.3** Implement caching layer [T] (depends: T-1.2)
   - File: `src/config/workspace-resolver.ts`
   - Test: `tests/workspace-resolver.test.ts`
   - Description: Add `Map<string, ResolvedWorkspace>` cache with `clearWorkspaceCache()`. Tests verify cache hits return same object, cache clear works correctly.
 
 ### Group 2: Core - Helper Functions
 
-- [ ] **T-2.1** Implement `listAvailableWorkspaces()` [T] [P]
+- [x] **T-2.1** Implement `listAvailableWorkspaces()` [T] [P]
   - File: `src/config/workspace-resolver.ts`
   - Test: `tests/workspace-resolver.test.ts`
   - Description: Returns array of all configured workspace aliases. Used by error messages and workspace list command.
 
-- [ ] **T-2.2** Implement `getDefaultWorkspace()` [T] [P]
+- [x] **T-2.2** Implement `getDefaultWorkspace()` [T] [P]
   - File: `src/config/workspace-resolver.ts`
   - Test: `tests/workspace-resolver.test.ts`
   - Description: Returns default workspace alias from config or 'main' as fallback.
 
-- [ ] **T-2.3** Implement `withWorkspace()` [T] (depends: T-1.2)
+- [x] **T-2.3** Implement `withWorkspace()` [T] (depends: T-1.2)
   - File: `src/config/workspace-resolver.ts`
   - Test: `tests/workspace-resolver.test.ts`
   - Description: Callback wrapper for workspace operations. Resolves workspace context and passes to callback function.
 
-- [ ] **T-2.4** Export from config index [P] (depends: T-1.3, T-2.1, T-2.2, T-2.3)
+- [x] **T-2.4** Export from config index [P] (depends: T-1.3, T-2.1, T-2.2, T-2.3)
   - File: `src/config/index.ts`
   - Test: N/A (re-export only)
   - Description: Create/update config index to re-export all workspace resolver functions.
 
 ### Group 3: Integration - Migrate CLI Commands
 
-- [ ] **T-3.1** Update `helpers.ts` to use resolver [T] (depends: T-2.4)
+- [x] **T-3.1** Update `helpers.ts` to use resolver [T] (depends: T-2.4)
   - File: `src/commands/helpers.ts`
   - Test: `tests/commands-helpers.test.ts`
   - Description: Update `resolveDbPath()` and `checkDb()` to use new resolver internally. Maintain backward compatibility.
 
-- [ ] **T-3.2** Migrate search command [T] (depends: T-3.1)
+- [x] **T-3.2** Migrate search command [T] (depends: T-3.1)
   - File: `src/commands/search.ts`
   - Test: Run existing search tests
   - Description: Replace manual workspace resolution with `resolveWorkspaceContext()`. Verify all search modes still work.
 
-- [ ] **T-3.3** Migrate MCP tools [T] [P] (depends: T-3.1)
-  - Files: `src/mcp/tools/search.ts`, `src/mcp/tools/create.ts`, `src/mcp/tools/node.ts`, `src/mcp/tools/stats.ts`, `src/mcp/tools/tagged.ts`, `src/mcp/tools/supertags.ts`
+- [x] **T-3.3** Migrate MCP tools [T] [P] (depends: T-3.1)
+  - Files: `src/mcp/tools/search.ts`, `src/mcp/tools/create.ts`, `src/mcp/tools/node.ts`, `src/mcp/tools/stats.ts`, `src/mcp/tools/tagged.ts`, `src/mcp/tools/supertags.ts`, `src/mcp/tools/sync.ts`, `src/mcp/tools/field-values.ts`, `src/mcp/tools/supertag-info.ts`, `src/mcp/tools/transcript.ts`, `src/mcp/tools/semantic-search.ts`
   - Test: Run existing MCP tests
   - Description: Replace manual workspace resolution in all MCP tools with `resolveWorkspaceContext()`.
 
-- [ ] **T-3.4** Migrate remaining CLI commands [T] [P] (depends: T-3.1)
-  - Files: `src/commands/stats.ts`, `src/commands/embed.ts`, `src/commands/show.ts`, `src/commands/fields.ts`, `src/commands/schema.ts`, `src/commands/codegen.ts`
+- [x] **T-3.4** Migrate remaining CLI commands [T] [P] (depends: T-3.1)
+  - Files: `src/commands/stats.ts`, `src/commands/embed.ts`, `src/commands/show.ts`, `src/commands/fields.ts`, `src/commands/schema.ts`, `src/commands/codegen.ts`, `src/commands/server.ts`, `src/commands/workspace.ts`, `src/commands/sync.ts`, `src/cli/tana-export.ts`
   - Test: Run existing command tests
   - Description: Replace manual workspace resolution with `resolveWorkspaceContext()`.
 
-- [ ] **T-3.5** Add cache clear to MCP server (depends: T-3.3)
-  - File: `src/mcp/index.ts`
-  - Test: `tests/mcp-cache.test.ts`
-  - Description: Call `clearWorkspaceCache()` at MCP request boundaries to prevent stale data.
+- [x] **T-3.5** Add cache clear to MCP server (depends: T-3.3)
+  - Files: `src/mcp/tools/cache.ts` (new), `src/mcp/index.ts`, `src/mcp/schemas.ts`
+  - Test: `src/mcp/tools/__tests__/cache.test.ts`
+  - Description: Add `tana_cache_clear` MCP tool exposing `clearWorkspaceCache()`.
 
 ### Group 4: Cleanup & Documentation
 
-- [ ] **T-4.1** Remove dead code (depends: T-3.2, T-3.3, T-3.4, T-3.5)
+- [x] **T-4.1** Remove dead code (depends: T-3.2, T-3.3, T-3.4, T-3.5)
   - Files: Various
   - Test: Run full test suite
   - Description: Remove any redundant workspace resolution code after all migrations complete.
 
-- [ ] **T-4.2** Update CLAUDE.md documentation (depends: T-4.1)
-  - File: `CLAUDE.md`
+- [x] **T-4.2** Update documentation (depends: T-4.1)
+  - File: `CLAUDE.md`, `.specify/specs/052-unified-workspace-resolver/tasks.md`
   - Test: N/A
   - Description: Document the new workspace resolution pattern for future development.
 

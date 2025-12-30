@@ -8,7 +8,12 @@
  */
 
 import { existsSync } from "fs";
-import { resolveWorkspace, getWorkspaceDatabasePath } from "./paths";
+import {
+  resolveWorkspace,
+  getWorkspaceDatabasePath,
+  getWorkspaceSchemaPath,
+  getWorkspaceExportDir,
+} from "./paths";
 import { ConfigManager } from "./manager";
 import type { TanaConfig, WorkspaceConfig, WorkspaceContext } from "../types";
 
@@ -26,6 +31,10 @@ export interface ResolvedWorkspace {
   config: WorkspaceConfig;
   /** Full path to SQLite database */
   dbPath: string;
+  /** Full path to schema cache file */
+  schemaPath: string;
+  /** Full path to export directory */
+  exportDir: string;
   /** Whether this is the default workspace */
   isDefault: boolean;
   /** Original nodeid (for API calls) */
@@ -172,6 +181,8 @@ export function resolveWorkspaceContext(options?: ResolveOptions): ResolvedWorks
 
     // Use found workspace
     const dbPath = getWorkspaceDatabasePath(foundAlias);
+    const schemaPath = getWorkspaceSchemaPath(foundAlias);
+    const exportDir = getWorkspaceExportDir(foundAlias);
     const isDefault = foundAlias === (config.defaultWorkspace ?? "main");
 
     if (requireDatabase && !existsSync(dbPath)) {
@@ -182,6 +193,8 @@ export function resolveWorkspaceContext(options?: ResolveOptions): ResolvedWorks
       alias: foundAlias,
       config: foundConfig,
       dbPath,
+      schemaPath,
+      exportDir,
       isDefault,
       nodeid: foundConfig.nodeid,
       rootFileId: foundConfig.rootFileId,
@@ -193,6 +206,8 @@ export function resolveWorkspaceContext(options?: ResolveOptions): ResolvedWorks
 
   // Workspace found by alias
   const dbPath = getWorkspaceDatabasePath(targetAlias);
+  const schemaPath = getWorkspaceSchemaPath(targetAlias);
+  const exportDir = getWorkspaceExportDir(targetAlias);
   const isDefault = targetAlias === (config.defaultWorkspace ?? "main");
 
   if (requireDatabase && !existsSync(dbPath)) {
@@ -203,6 +218,8 @@ export function resolveWorkspaceContext(options?: ResolveOptions): ResolvedWorks
     alias: targetAlias,
     config: workspaceConfig,
     dbPath,
+    schemaPath,
+    exportDir,
     isDefault,
     nodeid: workspaceConfig.nodeid,
     rootFileId: workspaceConfig.rootFileId,

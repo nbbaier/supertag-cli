@@ -135,6 +135,47 @@ When generating embeddings, content is filtered to focus on meaningful nodes:
 
 Always use the workspace-specific database, not the legacy path at `~/.local/share/supertag/tana-index.db`.
 
+### Unified Workspace Resolver (Spec 052)
+
+**ALWAYS use `resolveWorkspaceContext()` for workspace resolution** - never use `resolveWorkspace()` directly.
+
+```typescript
+import { resolveWorkspaceContext } from '../config/workspace-resolver';
+
+// Basic usage - uses default workspace
+const ws = resolveWorkspaceContext();
+console.log(ws.dbPath);  // ~/.local/share/supertag/workspaces/main/tana-index.db
+
+// Specific workspace
+const ws = resolveWorkspaceContext({ workspace: 'books' });
+
+// For commands that create databases (sync, export)
+const ws = resolveWorkspaceContext({
+  workspace: options.workspace,
+  requireDatabase: false,  // Don't throw if database doesn't exist
+});
+```
+
+**ResolvedWorkspace interface:**
+```typescript
+interface ResolvedWorkspace {
+  alias: string;           // 'main', 'books', etc.
+  config: WorkspaceConfig; // Full workspace config
+  dbPath: string;          // Full path to SQLite database
+  schemaPath: string;      // Full path to schema cache
+  exportDir: string;       // Full path to export directory
+  isDefault: boolean;      // Whether this is the default workspace
+  nodeid?: string;         // Tana nodeid for API calls
+  rootFileId: string;      // Tana rootFileId
+}
+```
+
+**Error handling:**
+- `WorkspaceNotFoundError` - Workspace alias not in configuration
+- `WorkspaceDatabaseMissingError` - Database file doesn't exist (when `requireDatabase: true`)
+
+**MCP cache clear:** Use `tana_cache_clear` tool or call `clearWorkspaceCache()` to refresh workspace data.
+
 ### Running from Source vs Binary
 - **Binary**: `./supertag` - Compiled, may not have latest schema changes
 - **Source**: `bun run src/index.ts` - Always has latest code

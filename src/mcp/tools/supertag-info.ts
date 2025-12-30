@@ -6,8 +6,7 @@
  */
 
 import { Database } from "bun:sqlite";
-import { resolveWorkspace } from "../../config/paths.js";
-import { ConfigManager } from "../../config/manager.js";
+import { resolveWorkspaceContext } from "../../config/workspace-resolver.js";
 import { SupertagMetadataService } from "../../services/supertag-metadata-service.js";
 import type { SupertagInfoInput } from "../schemas.js";
 
@@ -38,8 +37,7 @@ export async function supertagInfo(
   if (input._dbPath) {
     dbPath = input._dbPath;
   } else {
-    const config = ConfigManager.getInstance().getConfig();
-    const workspace = resolveWorkspace(input.workspace, config);
+    const workspace = resolveWorkspaceContext({ workspace: input.workspace });
     dbPath = workspace.dbPath;
   }
 

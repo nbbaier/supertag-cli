@@ -5,8 +5,7 @@
  */
 
 import { TanaQueryEngine } from '../../query/tana-query-engine.js';
-import { resolveWorkspace } from '../../config/paths.js';
-import { ConfigManager } from '../../config/manager.js';
+import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import { findMeaningfulAncestor } from '../../embeddings/ancestor-resolution.js';
 import type { SearchInput } from '../schemas.js';
 import { parseDateRange } from '../schemas.js';
@@ -34,8 +33,7 @@ export interface SearchResult {
 }
 
 export async function search(input: SearchInput): Promise<SearchResult> {
-  const config = ConfigManager.getInstance().getConfig();
-  const workspace = resolveWorkspace(input.workspace, config);
+  const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
   const engine = new TanaQueryEngine(workspace.dbPath);
 

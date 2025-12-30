@@ -12,8 +12,6 @@
 
 import { Command } from "commander";
 import { Database } from "bun:sqlite";
-import { resolveWorkspace } from "../config/paths";
-import { getConfig } from "../config/manager";
 import {
   addStandardOptions,
   resolveDbPath,

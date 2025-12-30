@@ -12,12 +12,12 @@
 import { Command } from 'commander';
 import { getConfig } from '../config/manager';
 import {
-  resolveWorkspace,
   getWorkspaceDir,
   getWorkspaceDatabasePath,
   getWorkspaceSchemaPath,
   getWorkspaceExportDir,
 } from '../config/paths';
+import { resolveWorkspaceContext } from '../config/workspace-resolver';
 import { existsSync } from 'fs';
 import {
   tsv,
@@ -275,7 +275,11 @@ export function createWorkspaceCommand(): Command {
       }
 
       const isDefault = targetAlias === config.getDefaultWorkspace();
-      const ctx = resolveWorkspace(targetAlias, configData);
+      const ws = resolveWorkspaceContext({
+        workspace: targetAlias,
+        requireDatabase: false,
+        config: configData,
+      });
 
       console.log(`Workspace: ${workspace.alias}${isDefault ? ' (default)' : ''}`);
       console.log(`  Display name: ${workspace.config.name || '(not set)'}`);
@@ -284,12 +288,12 @@ export function createWorkspaceCommand(): Command {
       console.log(`  Enabled: ${workspace.config.enabled}`);
       console.log('');
       console.log('Paths:');
-      console.log(`  Database: ${ctx.dbPath}`);
-      console.log(`    exists: ${existsSync(ctx.dbPath)}`);
-      console.log(`  Schema cache: ${ctx.schemaPath}`);
-      console.log(`    exists: ${existsSync(ctx.schemaPath)}`);
-      console.log(`  Export dir: ${ctx.exportDir}`);
-      console.log(`    exists: ${existsSync(ctx.exportDir)}`);
+      console.log(`  Database: ${ws.dbPath}`);
+      console.log(`    exists: ${existsSync(ws.dbPath)}`);
+      console.log(`  Schema cache: ${ws.schemaPath}`);
+      console.log(`    exists: ${existsSync(ws.schemaPath)}`);
+      console.log(`  Export dir: ${ws.exportDir}`);
+      console.log(`    exists: ${existsSync(ws.exportDir)}`);
       if (workspace.config.nodeid) {
         console.log('');
         console.log('Tana URL:');
