@@ -6,8 +6,7 @@
  */
 
 import { Database } from 'bun:sqlite';
-import { resolveWorkspace } from '../../config/paths.js';
-import { ConfigManager } from '../../config/manager.js';
+import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import type { NodeInput } from '../schemas.js';
 import { withDbRetrySync } from '../../db/retry.js';
 
@@ -266,8 +265,7 @@ function getNodeContentsWithDepth(
 }
 
 export async function showNode(input: NodeInput): Promise<NodeContents | null> {
-  const config = ConfigManager.getInstance().getConfig();
-  const workspace = resolveWorkspace(input.workspace, config);
+  const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
   const db = new Database(workspace.dbPath);
 

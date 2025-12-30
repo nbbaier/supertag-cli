@@ -16,10 +16,9 @@ import {
   DEFAULT_EXPORT_DIR,
   TANA_CACHE_DIR,
   SCHEMA_CACHE_FILE,
-  resolveWorkspace,
   ensureWorkspaceDir,
 } from '../config/paths';
-import { getConfig } from '../config/manager';
+import { resolveWorkspaceContext } from '../config/workspace-resolver';
 
 /**
  * Schema command options
@@ -36,9 +35,11 @@ export interface SchemaOptions {
  * @param workspace - Optional workspace alias or nodeid
  */
 export function getSchemaRegistry(workspace?: string): SchemaRegistry {
-  const config = getConfig().getConfig();
-  const ctx = resolveWorkspace(workspace, config);
-  const schemaPath = ctx.schemaPath;
+  const ws = resolveWorkspaceContext({
+    workspace,
+    requireDatabase: false,
+  });
+  const schemaPath = ws.schemaPath;
 
   if (existsSync(schemaPath)) {
     const json = readFileSync(schemaPath, 'utf-8');
@@ -46,7 +47,7 @@ export function getSchemaRegistry(workspace?: string): SchemaRegistry {
   }
 
   // Try to auto-sync from latest export
-  const latestExport = findLatestExport(ctx.exportDir);
+  const latestExport = findLatestExport(ws.exportDir);
   if (latestExport) {
     return syncSchemaToPath(latestExport, schemaPath, false);
   }
@@ -111,9 +112,11 @@ export function syncSchemaToPath(exportPath: string, schemaPath: string, verbose
  * @param workspace - Optional workspace alias or nodeid
  */
 export function syncSchema(exportPath: string, verbose: boolean, workspace?: string): SchemaRegistry {
-  const config = getConfig().getConfig();
-  const ctx = resolveWorkspace(workspace, config);
-  return syncSchemaToPath(exportPath, ctx.schemaPath, verbose);
+  const ws = resolveWorkspaceContext({
+    workspace,
+    requireDatabase: false,
+  });
+  return syncSchemaToPath(exportPath, ws.schemaPath, verbose);
 }
 
 /**
@@ -182,16 +185,18 @@ export async function schemaCommand(
  */
 async function syncCommand(path: string | undefined, options: SchemaOptions): Promise<void> {
   // Resolve workspace for export directory
-  const config = getConfig().getConfig();
-  const ctx = resolveWorkspace(options.workspace, config);
+  const ws = resolveWorkspaceContext({
+    workspace: options.workspace,
+    requireDatabase: false,
+  });
 
-  const exportPath = path || options.exportPath || findLatestExport(ctx.exportDir);
+  const exportPath = path || options.exportPath || findLatestExport(ws.exportDir);
 
   if (!exportPath) {
     console.error('❌ No Tana export found. Please provide a path:');
     console.error('   supertag schema sync /path/to/export.json');
     console.error('');
-    console.error(`Or place exports in: ${ctx.exportDir}`);
+    console.error(`Or place exports in: ${ws.exportDir}`);
     if (options.workspace) {
       console.error(`(workspace: ${options.workspace})`);
     }
@@ -200,13 +205,13 @@ async function syncCommand(path: string | undefined, options: SchemaOptions): Pr
 
   console.error(`🔄 Syncing schema from: ${exportPath}`);
   if (options.workspace) {
-    console.error(`   Workspace: ${ctx.alias}`);
+    console.error(`   Workspace: ${ws.alias}`);
   }
   const registry = syncSchema(exportPath, options.verbose ?? false, options.workspace);
   const supertags = registry.listSupertags();
 
   console.log(`✅ Synced ${supertags.length} supertags to cache`);
-  console.log(`   Cache: ${ctx.schemaPath}`);
+  console.log(`   Cache: ${ws.schemaPath}`);
 
   if (options.verbose) {
     console.log('');

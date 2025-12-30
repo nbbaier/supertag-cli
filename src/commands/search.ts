@@ -20,7 +20,7 @@ import { existsSync } from "fs";
 import { TanaQueryEngine } from "../query/tana-query-engine";
 import { findMeaningfulAncestor } from "../embeddings/ancestor-resolution";
 import { ConfigManager } from "../config/manager";
-import { resolveWorkspace } from "../config/paths";
+import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import {
   resolveDbPath,
   checkDb,
@@ -302,8 +302,10 @@ async function handleSemanticSearch(
 ): Promise<void> {
   const configManager = ConfigManager.getInstance();
   const embeddingConfig = configManager.getEmbeddingConfig();
-  const config = configManager.getConfig();
-  const wsContext = resolveWorkspace(options.workspace, config);
+  const wsContext = resolveWorkspaceContext({
+    workspace: options.workspace,
+    requireDatabase: false, // Check LanceDB separately below
+  });
   const outputOpts = resolveOutputOptions(options);
   const startTime = performance.now();
 

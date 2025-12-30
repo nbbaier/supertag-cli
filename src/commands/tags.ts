@@ -16,14 +16,33 @@ import { Command } from "commander";
 import { Database } from "bun:sqlite";
 import { existsSync } from "fs";
 import { TanaQueryEngine } from "../query/tana-query-engine";
-import { getSchemaRegistry } from "./schema";
+import { getSchemaRegistry, getSchemaRegistryFromDatabase } from "./schema";
 import { UnifiedSchemaService } from "../services/unified-schema-service";
+import { SchemaRegistry } from "../schema";
 import {
   resolveDbPath,
   checkDb,
   addStandardOptions,
   formatJsonOutput,
 } from "./helpers";
+
+/**
+ * Get schema registry, preferring workspace-based but falling back to database.
+ * This handles the case when --db-path is provided without workspace configuration.
+ */
+function getSchemaRegistrySafe(dbPath: string, workspace?: string): SchemaRegistry {
+  try {
+    return getSchemaRegistry(workspace);
+  } catch {
+    // Fall back to database-based registry when workspace resolution fails
+    try {
+      return getSchemaRegistryFromDatabase(dbPath);
+    } catch {
+      // Return empty registry if database doesn't have schema data
+      return new SchemaRegistry();
+    }
+  }
+}
 import type { StandardOptions } from "../types";
 import {
   tsv,
@@ -334,7 +353,7 @@ export function createTagsCommand(): Command {
         }));
       } else {
         // Own fields only - try schema registry first, fall back to service
-        const registry = getSchemaRegistry(options.workspace);
+        const registry = getSchemaRegistrySafe(dbPath, options.workspace);
         const tag = registry.getSupertagById(tagId) || registry.findTagByName(tagname);
 
         if (tag?.fields && tag.fields.length > 0) {
@@ -356,8 +375,8 @@ export function createTagsCommand(): Command {
       }
 
       // Get tag metadata (color) from schema registry if available
-      const registry = getSchemaRegistry(options.workspace);
-      const tagMeta = registry.getSupertagById(tagId);
+      const registryForMeta = getSchemaRegistrySafe(dbPath, options.workspace);
+      const tagMeta = registryForMeta.getSupertagById(tagId);
       const color = tagMeta?.color || null;
 
       if (options.json) {

@@ -8,7 +8,8 @@
 import { Command } from "commander";
 import { TanaWebhookServer } from "../server/tana-webhook-server";
 import { existsSync, writeFileSync, readFileSync, unlinkSync, openSync } from "fs";
-import { resolveWorkspace, getEnabledWorkspaces, PID_FILE, SERVER_CONFIG_FILE, ensureAllDirs, getWorkspaceDatabasePath } from "../config/paths";
+import { getEnabledWorkspaces, PID_FILE, SERVER_CONFIG_FILE, ensureAllDirs, getWorkspaceDatabasePath } from "../config/paths";
+import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import { ConfigManager } from "../config/manager";
 import {
   tsv,
@@ -50,7 +51,7 @@ export function registerServerCommands(program: Command): void {
 
       // If no workspaces configured, use default/legacy mode
       if (enabledWorkspaces.length === 0) {
-        const defaultWs = resolveWorkspace(undefined, config);
+        const defaultWs = resolveWorkspaceContext({ requireDatabase: false });
         if (existsSync(defaultWs.dbPath)) {
           workspacesMap.set(defaultWs.alias, defaultWs.dbPath);
         } else {

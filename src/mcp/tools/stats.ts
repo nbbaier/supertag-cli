@@ -5,8 +5,7 @@
  */
 
 import { TanaQueryEngine } from '../../query/tana-query-engine.js';
-import { resolveWorkspace } from '../../config/paths.js';
-import { ConfigManager } from '../../config/manager.js';
+import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import type { StatsInput } from '../schemas.js';
 
 export interface StatsResult {
@@ -18,8 +17,7 @@ export interface StatsResult {
 }
 
 export async function stats(input: StatsInput): Promise<StatsResult> {
-  const config = ConfigManager.getInstance().getConfig();
-  const workspace = resolveWorkspace(input.workspace, config);
+  const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
   const engine = new TanaQueryEngine(workspace.dbPath);
 

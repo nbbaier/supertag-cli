@@ -7,11 +7,8 @@
 
 import { existsSync } from 'fs';
 import { TanaExportWatcher } from '../../monitors/tana-export-monitor.js';
-import { ConfigManager } from '../../config/manager.js';
-import {
-  resolveWorkspace,
-  ensureWorkspaceDir,
-} from '../../config/paths.js';
+import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
+import { ensureWorkspaceDir } from '../../config/paths.js';
 import type { SyncInput } from '../schemas.js';
 
 export interface SyncResult {
@@ -30,9 +27,10 @@ export interface SyncResult {
 }
 
 export async function sync(input: SyncInput): Promise<SyncResult> {
-  const configManager = ConfigManager.getInstance();
-  const config = configManager.getConfig();
-  const workspace = resolveWorkspace(input.workspace, config);
+  const workspace = resolveWorkspaceContext({
+    workspace: input.workspace,
+    requireDatabase: false, // Sync creates/updates the database
+  });
 
   const baseResult: SyncResult = {
     workspace: workspace.alias,

@@ -5,8 +5,7 @@
  */
 
 import { TanaQueryEngine } from '../../query/tana-query-engine.js';
-import { resolveWorkspace } from '../../config/paths.js';
-import { ConfigManager } from '../../config/manager.js';
+import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import type { TaggedInput } from '../schemas.js';
 import { parseDateRange } from '../schemas.js';
 
@@ -25,8 +24,7 @@ export interface TaggedResult {
 }
 
 export async function tagged(input: TaggedInput): Promise<TaggedResult> {
-  const config = ConfigManager.getInstance().getConfig();
-  const workspace = resolveWorkspace(input.workspace, config);
+  const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
   const engine = new TanaQueryEngine(workspace.dbPath);
 

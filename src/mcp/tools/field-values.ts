@@ -6,8 +6,7 @@
  */
 
 import { Database } from "bun:sqlite";
-import { resolveWorkspace } from "../../config/paths.js";
-import { ConfigManager } from "../../config/manager.js";
+import { resolveWorkspaceContext } from "../../config/workspace-resolver.js";
 import {
   getAvailableFieldNames,
   queryFieldValuesByFieldName,
@@ -47,8 +46,7 @@ function parseDate(dateStr: string): number {
 }
 
 export async function fieldValues(input: FieldValuesInput): Promise<FieldValuesResult> {
-  const config = ConfigManager.getInstance().getConfig();
-  const workspace = resolveWorkspace(input.workspace, config);
+  const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
   const db = new Database(workspace.dbPath, { readonly: true });
 

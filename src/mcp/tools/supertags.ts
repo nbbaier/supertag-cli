@@ -5,8 +5,7 @@
  */
 
 import { TanaQueryEngine } from '../../query/tana-query-engine.js';
-import { resolveWorkspace } from '../../config/paths.js';
-import { ConfigManager } from '../../config/manager.js';
+import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import type { SupertagsInput } from '../schemas.js';
 
 export interface SupertagInfo {
@@ -22,8 +21,7 @@ export interface SupertagsResult {
 }
 
 export async function supertags(input: SupertagsInput): Promise<SupertagsResult> {
-  const config = ConfigManager.getInstance().getConfig();
-  const workspace = resolveWorkspace(input.workspace, config);
+  const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
   const engine = new TanaQueryEngine(workspace.dbPath);
 

@@ -29,6 +29,7 @@ import { semanticSearch } from './tools/semantic-search.js';
 import { fieldValues } from './tools/field-values.js';
 import { supertagInfo } from './tools/supertag-info.js';
 import { transcriptList, transcriptShow, transcriptSearch } from './tools/transcript.js';
+import { cacheClear } from './tools/cache.js';
 import { VERSION } from '../version.js';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'supertag-mcp';
@@ -165,6 +166,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           'Search within transcript content. Full-text search across all transcript lines. Returns matching lines with speaker info and meeting context.',
         inputSchema: schemas.zodToJsonSchema(schemas.transcriptSearchSchema),
       },
+      {
+        name: 'tana_cache_clear',
+        description:
+          'Clear the workspace resolver cache. Use when workspace configuration might have changed (e.g., after adding/removing workspaces or after sync).',
+        inputSchema: schemas.zodToJsonSchema(schemas.cacheClearSchema),
+      },
     ],
   };
 });
@@ -241,6 +248,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'tana_transcript_search': {
         const validated = schemas.transcriptSearchSchema.parse(args);
         result = await transcriptSearch(validated);
+        break;
+      }
+      case 'tana_cache_clear': {
+        const validated = schemas.cacheClearSchema.parse(args);
+        result = await cacheClear(validated);
         break;
       }
       default:

@@ -8,8 +8,8 @@ import { Command } from "commander";
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, resolve } from "path";
-import { getDatabasePath, resolveWorkspace, createSimpleLogger } from "../config/paths";
-import { getConfig } from "../config/manager";
+import { getDatabasePath, createSimpleLogger } from "../config/paths";
+import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import { generateSchemas } from "../codegen/index";
 import { UnifiedSchemaService } from "../services/unified-schema-service";
 import type { CodegenOptions, GenerationResult } from "../codegen/types";
@@ -46,12 +46,12 @@ export async function codegenCommand(
   let dbPath: string;
   if (dbPathOverride) {
     dbPath = dbPathOverride;
-  } else if (options.workspace) {
-    const config = getConfig().getConfig();
-    const ctx = resolveWorkspace(options.workspace, config);
-    dbPath = ctx.dbPath;
   } else {
-    dbPath = getDatabasePath();
+    const ws = resolveWorkspaceContext({
+      workspace: options.workspace,
+      requireDatabase: false,
+    });
+    dbPath = ws.dbPath;
   }
 
   if (!existsSync(dbPath)) {

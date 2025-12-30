@@ -18,8 +18,8 @@ import { Command } from "commander";
 import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
 import { TanaQueryEngine } from "../query/tana-query-engine";
+import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import { ConfigManager } from "../config/manager";
-import { resolveWorkspace } from "../config/paths";
 import {
   resolveDbPath,
   checkDb,
@@ -67,8 +67,10 @@ export function createStatsCommand(): Command {
     const showEmbed = showAll || options.embed;
     const showFilter = options.filter;
 
-    const config = ConfigManager.getInstance().getConfig();
-    const wsContext = resolveWorkspace(options.workspace, config);
+    const wsContext = resolveWorkspaceContext({
+      workspace: options.workspace,
+      requireDatabase: false, // Already checked via resolveDbPath
+    });
 
     const results: Record<string, unknown> = {};
 

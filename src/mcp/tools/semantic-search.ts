@@ -8,7 +8,7 @@
  */
 
 import { Database } from "bun:sqlite";
-import { getWorkspaceDatabasePath } from "../../config/paths.js";
+import { resolveWorkspaceContext } from "../../config/workspace-resolver.js";
 import { ConfigManager } from "../../config/manager.js";
 import { TanaEmbeddingService } from "../../embeddings/tana-embedding-service.js";
 import { getModelDimensionsFromResona } from "../../embeddings/embed-config-new.js";
@@ -115,20 +115,13 @@ function isNodeInTrash(db: Database, nodeId: string): boolean {
 export async function semanticSearch(
   input: SemanticSearchInput
 ): Promise<SemanticSearchResult> {
-  // Get workspace database path
-  const configManager = ConfigManager.getInstance();
-  const workspace = input.workspace || configManager.getDefaultWorkspace() || "main";
-  const dbPath = getWorkspaceDatabasePath(workspace);
-
-  // Check if SQLite database exists
-  if (!existsSync(dbPath)) {
-    throw new Error(
-      `Workspace "${workspace}" not found. Run: supertag sync`
-    );
-  }
+  // Resolve workspace using unified resolver
+  const ws = resolveWorkspaceContext({ workspace: input.workspace });
+  const workspace = ws.alias;
+  const dbPath = ws.dbPath;
 
   // Get embedding configuration from ConfigManager
-  const embeddingConfig = configManager.getEmbeddingConfig();
+  const embeddingConfig = ConfigManager.getInstance().getEmbeddingConfig();
 
   // Derive LanceDB path from SQLite path
   const lanceDbPath = dbPath.replace(/\.db$/, ".lance");
