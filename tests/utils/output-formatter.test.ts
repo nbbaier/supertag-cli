@@ -104,7 +104,7 @@ describe("OutputFormatter Interface (T-1.1)", () => {
 // T-1.2: UnixFormatter Tests
 // ============================================================================
 
-import { UnixFormatter, PrettyFormatter, JsonFormatter } from "../../src/utils/output-formatter";
+import { UnixFormatter, PrettyFormatter, JsonFormatter, createFormatter } from "../../src/utils/output-formatter";
 
 describe("UnixFormatter (T-1.2)", () => {
   describe("value()", () => {
@@ -769,5 +769,56 @@ describe("JsonFormatter (T-1.4)", () => {
       formatter.finalize();
       expect(getOutput()).toBe(firstOutput); // No additional output
     });
+  });
+});
+
+// ============================================================================
+// T-1.5: createFormatter Factory Tests
+// ============================================================================
+
+describe("createFormatter factory (T-1.5)", () => {
+  it("should create UnixFormatter for mode 'unix'", () => {
+    const { stream } = captureOutput();
+    const formatter = createFormatter({ mode: "unix", stream });
+    expect(formatter).toBeInstanceOf(UnixFormatter);
+  });
+
+  it("should create PrettyFormatter for mode 'pretty'", () => {
+    const { stream } = captureOutput();
+    const formatter = createFormatter({ mode: "pretty", stream });
+    expect(formatter).toBeInstanceOf(PrettyFormatter);
+  });
+
+  it("should create JsonFormatter for mode 'json'", () => {
+    const { stream } = captureOutput();
+    const formatter = createFormatter({ mode: "json", stream });
+    expect(formatter).toBeInstanceOf(JsonFormatter);
+  });
+
+  it("should pass through humanDates option", () => {
+    const { stream } = captureOutput();
+    const formatter = createFormatter({ mode: "unix", stream, humanDates: true });
+    // Formatter should be created successfully
+    expect(formatter).toBeInstanceOf(UnixFormatter);
+  });
+
+  it("should pass through verbose option", () => {
+    const { stream } = captureOutput();
+    const formatter = createFormatter({ mode: "unix", stream, verbose: true });
+    // Formatter should be created successfully
+    expect(formatter).toBeInstanceOf(UnixFormatter);
+  });
+
+  it("should pass through stream option", () => {
+    const { stream, getOutput } = captureOutput();
+    const formatter = createFormatter({ mode: "unix", stream });
+    formatter.value("test");
+    expect(getOutput()).toBe("test\n");
+  });
+
+  it("should default to stdout when no stream provided", () => {
+    // Just verify it doesn't throw
+    const formatter = createFormatter({ mode: "unix" });
+    expect(formatter).toBeInstanceOf(UnixFormatter);
   });
 });

@@ -420,3 +420,38 @@ export class JsonFormatter implements OutputFormatter {
     }
   }
 }
+
+// ============================================================================
+// Factory Function (T-1.5)
+// ============================================================================
+
+/**
+ * Create an output formatter based on options
+ *
+ * Factory function that returns the appropriate formatter instance
+ * based on the specified output mode.
+ *
+ * @param options - Formatter options including mode
+ * @returns OutputFormatter instance
+ *
+ * @example
+ * const formatter = createFormatter({ mode: 'pretty' });
+ * formatter.header('Results', 'search');
+ * formatter.table(['ID', 'Name'], [['abc', 'Node 1']]);
+ * formatter.finalize();
+ */
+export function createFormatter(options: FormatterOptions): OutputFormatter {
+  switch (options.mode) {
+    case "unix":
+      return new UnixFormatter(options);
+    case "pretty":
+      return new PrettyFormatter(options);
+    case "json":
+      return new JsonFormatter(options);
+    default: {
+      // TypeScript exhaustiveness check
+      const _exhaustive: never = options.mode;
+      throw new Error(`Unknown output mode: ${_exhaustive}`);
+    }
+  }
+}
