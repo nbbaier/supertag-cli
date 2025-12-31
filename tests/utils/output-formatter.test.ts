@@ -104,7 +104,8 @@ describe("OutputFormatter Interface (T-1.1)", () => {
 // T-1.2: UnixFormatter Tests
 // ============================================================================
 
-import { UnixFormatter, PrettyFormatter, JsonFormatter, createFormatter } from "../../src/utils/output-formatter";
+import { UnixFormatter, PrettyFormatter, JsonFormatter, createFormatter, resolveOutputMode } from "../../src/utils/output-formatter";
+import { setOutputConfig, clearOutputConfigOverride } from "../../src/utils/output-options";
 
 describe("UnixFormatter (T-1.2)", () => {
   describe("value()", () => {
@@ -820,5 +821,73 @@ describe("createFormatter factory (T-1.5)", () => {
     // Just verify it doesn't throw
     const formatter = createFormatter({ mode: "unix" });
     expect(formatter).toBeInstanceOf(UnixFormatter);
+  });
+});
+
+// ============================================================================
+// T-1.6: resolveOutputMode Helper Tests
+// ============================================================================
+
+import { afterEach } from "bun:test";
+
+describe("resolveOutputMode helper (T-1.6)", () => {
+  afterEach(() => {
+    clearOutputConfigOverride();
+  });
+
+  describe("CLI flag precedence", () => {
+    it("should return 'json' when --json flag is set", () => {
+      const mode = resolveOutputMode({ json: true });
+      expect(mode).toBe("json");
+    });
+
+    it("should return 'pretty' when --pretty flag is set", () => {
+      const mode = resolveOutputMode({ pretty: true });
+      expect(mode).toBe("pretty");
+    });
+
+    it("should prefer --json over --pretty when both set", () => {
+      const mode = resolveOutputMode({ json: true, pretty: true });
+      expect(mode).toBe("json");
+    });
+  });
+
+  describe("config precedence", () => {
+    it("should return 'pretty' when config.pretty is true", () => {
+      setOutputConfig({ pretty: true });
+      const mode = resolveOutputMode({});
+      expect(mode).toBe("pretty");
+    });
+
+    it("should return 'unix' when config.pretty is false", () => {
+      setOutputConfig({ pretty: false });
+      const mode = resolveOutputMode({});
+      expect(mode).toBe("unix");
+    });
+
+    it("should prefer CLI --json over config.pretty", () => {
+      setOutputConfig({ pretty: true });
+      const mode = resolveOutputMode({ json: true });
+      expect(mode).toBe("json");
+    });
+
+    it("should prefer CLI --pretty=false over config.pretty=true", () => {
+      setOutputConfig({ pretty: true });
+      const mode = resolveOutputMode({ pretty: false });
+      expect(mode).toBe("unix");
+    });
+  });
+
+  describe("defaults", () => {
+    it("should return 'unix' as default when no flags or config", () => {
+      clearOutputConfigOverride();
+      const mode = resolveOutputMode({});
+      expect(mode).toBe("unix");
+    });
+
+    it("should return 'unix' when passed undefined options", () => {
+      const mode = resolveOutputMode(undefined as unknown as {});
+      expect(mode).toBe("unix");
+    });
   });
 });

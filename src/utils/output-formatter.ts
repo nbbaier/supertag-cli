@@ -13,6 +13,7 @@
  */
 
 import { EMOJI } from "./format";
+import { getOutputConfig } from "./output-options";
 
 // ============================================================================
 // Types and Interfaces (T-1.1)
@@ -454,4 +455,61 @@ export function createFormatter(options: FormatterOptions): OutputFormatter {
       throw new Error(`Unknown output mode: ${_exhaustive}`);
     }
   }
+}
+
+// ============================================================================
+// Mode Resolution Helper (T-1.6)
+// ============================================================================
+
+/**
+ * CLI options that affect output mode
+ */
+export interface OutputModeOptions {
+  /** JSON output mode (--json flag) */
+  json?: boolean;
+  /** Pretty output mode (--pretty flag) */
+  pretty?: boolean;
+}
+
+/**
+ * Resolve output mode from CLI options and config
+ *
+ * Precedence: --json > --pretty > config > unix default
+ *
+ * @param options - CLI options (may include json and pretty flags)
+ * @returns Resolved output mode
+ *
+ * @example
+ * resolveOutputMode({ json: true }) // => 'json'
+ * resolveOutputMode({ pretty: true }) // => 'pretty'
+ * resolveOutputMode({}) // => 'unix' (or 'pretty' if config.pretty is true)
+ */
+export function resolveOutputMode(options?: OutputModeOptions): OutputMode {
+  // Handle undefined/null options
+  if (!options) {
+    options = {};
+  }
+
+  // CLI flags have highest priority
+  if (options.json === true) {
+    return "json";
+  }
+
+  if (options.pretty === true) {
+    return "pretty";
+  }
+
+  // Explicit --no-pretty (pretty: false) overrides config
+  if (options.pretty === false) {
+    return "unix";
+  }
+
+  // Check config for default pretty mode
+  const config = getOutputConfig();
+  if (config.pretty === true) {
+    return "pretty";
+  }
+
+  // Default to unix mode
+  return "unix";
 }
