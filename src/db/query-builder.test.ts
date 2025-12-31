@@ -321,3 +321,100 @@ describe("buildOrderBy", () => {
     expect(params).toEqual([]);
   });
 });
+
+// =============================================================================
+// T-3.1: buildSelectQuery()
+// =============================================================================
+
+describe("buildSelectQuery", () => {
+  it("should build simple SELECT *", () => {
+    const { sql, params } = buildSelectQuery("nodes", "*", {});
+    expect(sql).toBe("SELECT * FROM nodes");
+    expect(params).toEqual([]);
+  });
+
+  it("should build SELECT with specific columns", () => {
+    const { sql, params } = buildSelectQuery("nodes", ["id", "name", "created"], {});
+    expect(sql).toBe("SELECT id, name, created FROM nodes");
+    expect(params).toEqual([]);
+  });
+
+  it("should build SELECT with WHERE clause", () => {
+    const { sql, params } = buildSelectQuery("nodes", "*", {
+      filters: [{ column: "tag", operator: "=", value: "todo" }],
+    });
+    expect(sql).toBe("SELECT * FROM nodes WHERE tag = ?");
+    expect(params).toEqual(["todo"]);
+  });
+
+  it("should build SELECT with ORDER BY", () => {
+    const { sql, params } = buildSelectQuery("nodes", "*", {
+      sort: "created",
+      direction: "DESC",
+      sortableColumns: ["created", "name"],
+    });
+    expect(sql).toBe("SELECT * FROM nodes ORDER BY created DESC");
+    expect(params).toEqual([]);
+  });
+
+  it("should build SELECT with LIMIT", () => {
+    const { sql, params } = buildSelectQuery("nodes", "*", {
+      limit: 10,
+    });
+    expect(sql).toBe("SELECT * FROM nodes LIMIT ?");
+    expect(params).toEqual([10]);
+  });
+
+  it("should build SELECT with LIMIT and OFFSET", () => {
+    const { sql, params } = buildSelectQuery("nodes", "*", {
+      limit: 10,
+      offset: 20,
+    });
+    expect(sql).toBe("SELECT * FROM nodes LIMIT ? OFFSET ?");
+    expect(params).toEqual([10, 20]);
+  });
+
+  it("should build SELECT with all clauses", () => {
+    const { sql, params } = buildSelectQuery("nodes", ["id", "name"], {
+      filters: [
+        { column: "tag", operator: "=", value: "todo" },
+        { column: "status", operator: "!=", value: "done" },
+      ],
+      sort: "created",
+      direction: "DESC",
+      sortableColumns: ["created", "name"],
+      limit: 10,
+      offset: 5,
+    });
+    expect(sql).toBe(
+      "SELECT id, name FROM nodes WHERE tag = ? AND status != ? ORDER BY created DESC LIMIT ? OFFSET ?"
+    );
+    expect(params).toEqual(["todo", "done", 10, 5]);
+  });
+
+  it("should skip ORDER BY when sort column not in sortableColumns", () => {
+    expect(() =>
+      buildSelectQuery("nodes", "*", {
+        sort: "password",
+        sortableColumns: ["created", "name"],
+      })
+    ).toThrow("Invalid sort column: password");
+  });
+
+  it("should allow any sort column when sortableColumns not provided", () => {
+    const { sql, params } = buildSelectQuery("nodes", "*", {
+      sort: "any_column",
+    });
+    expect(sql).toBe("SELECT * FROM nodes ORDER BY any_column ASC");
+    expect(params).toEqual([]);
+  });
+
+  it("should handle empty filters array", () => {
+    const { sql, params } = buildSelectQuery("nodes", "*", {
+      filters: [],
+      limit: 10,
+    });
+    expect(sql).toBe("SELECT * FROM nodes LIMIT ?");
+    expect(params).toEqual([10]);
+  });
+});

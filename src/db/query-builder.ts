@@ -179,11 +179,26 @@ export function buildOrderBy(
 /**
  * Compose complete SELECT query with all clauses
  * Validates table/columns, combines where/order/pagination
+ *
+ * @param table - Table name
+ * @param columns - Columns to select (or '*')
+ * @param options - Query options (filters, sort, pagination)
+ * @returns Complete built query
+ *
+ * @example
+ * const { sql, params } = buildSelectQuery('nodes', ['id', 'name'], {
+ *   filters: [{ column: 'tag', operator: '=', value: 'todo' }],
+ *   sort: 'created',
+ *   direction: 'DESC',
+ *   limit: 10
+ * });
+ * // sql: "SELECT id, name FROM nodes WHERE tag = ? ORDER BY created DESC LIMIT ?"
+ * // params: ['todo', 10]
  */
 export function buildSelectQuery(
-  _table: string,
-  _columns: string[] | "*",
-  _options: {
+  table: string,
+  columns: string[] | "*",
+  options: {
     filters?: FilterCondition[];
     sort?: string;
     direction?: "ASC" | "DESC";
@@ -192,6 +207,42 @@ export function buildSelectQuery(
     offset?: number;
   }
 ): BuiltQuery {
-  // Stub - to be implemented in T-3.1
-  return { sql: "", params: [] };
+  const parts: string[] = [];
+  const params: unknown[] = [];
+
+  // SELECT clause
+  const columnList = columns === "*" ? "*" : columns.join(", ");
+  parts.push(`SELECT ${columnList} FROM ${table}`);
+
+  // WHERE clause
+  if (options.filters && options.filters.length > 0) {
+    const where = buildWhereClause(options.filters);
+    if (where.sql) {
+      parts.push(where.sql);
+      params.push(...where.params);
+    }
+  }
+
+  // ORDER BY clause
+  if (options.sort) {
+    const orderBy = buildOrderBy(
+      { sort: options.sort, direction: options.direction },
+      options.sortableColumns || []
+    );
+    if (orderBy.sql) {
+      parts.push(orderBy.sql);
+    }
+  }
+
+  // LIMIT/OFFSET clause
+  const pagination = buildPagination({
+    limit: options.limit,
+    offset: options.offset,
+  });
+  if (pagination.sql) {
+    parts.push(pagination.sql);
+    params.push(...pagination.params);
+  }
+
+  return { sql: parts.join(" "), params };
 }
