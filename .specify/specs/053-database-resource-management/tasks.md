@@ -106,18 +106,18 @@ T-1.1 ──> T-1.2 ──> T-1.3
 
 | Task | Status | Started | Completed | Notes |
 |------|--------|---------|-----------|-------|
-| T-1.1 | pending | - | - | Types & DatabaseNotFoundError |
-| T-1.2 | pending | - | - | Core withDatabase function |
-| T-1.3 | pending | - | - | withTransaction function |
-| T-2.1 | pending | - | - | withQueryEngine function |
-| T-2.2 | pending | - | - | withWorkspaceDatabase function |
-| T-2.3 | pending | - | - | withWorkspaceQuery function |
-| T-2.4 | pending | - | - | Re-exports from index.ts |
-| T-3.1 | pending | - | - | 9 CLI command files |
-| T-3.2 | pending | - | - | 10 MCP tool files |
-| T-3.3 | pending | - | - | 2 service files |
-| T-3.4 | pending | - | - | Full test suite |
-| T-3.5 | pending | - | - | Documentation |
+| T-1.1 | completed | 2025-12-31 | 2025-12-31 | Types & DatabaseNotFoundError |
+| T-1.2 | completed | 2025-12-31 | 2025-12-31 | Core withDatabase function |
+| T-1.3 | completed | 2025-12-31 | 2025-12-31 | withTransaction function |
+| T-2.1 | completed | 2025-12-31 | 2025-12-31 | withQueryEngine function |
+| T-2.2 | completed | 2025-12-31 | 2025-12-31 | withWorkspaceDatabase function |
+| T-2.3 | completed | 2025-12-31 | 2025-12-31 | withWorkspaceQuery function |
+| T-2.4 | completed | 2025-12-31 | 2025-12-31 | Re-exports from index.ts |
+| T-3.1 | completed | 2025-12-31 | 2025-12-31 | Migrated CLI commands: search.ts, stats.ts, tags.ts, embed.ts |
+| T-3.2 | completed | 2025-12-31 | 2025-12-31 | Migrated MCP tools: semantic-search.ts, node.ts, transcript.ts, supertag-info.ts, field-values.ts |
+| T-3.3 | completed | 2025-12-31 | 2025-12-31 | Migrated services: node-builder.ts |
+| T-3.4 | completed | 2025-12-31 | 2025-12-31 | Full test suite: 1388 tests pass |
+| T-3.5 | completed | 2025-12-31 | 2025-12-31 | Updated CHANGELOG |
 
 ## TDD Reminder
 

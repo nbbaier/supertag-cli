@@ -125,6 +125,9 @@ export function syncSchema(exportPath: string, verbose: boolean, workspace?: str
  * Creates a SchemaRegistry from the database supertag metadata tables.
  * This is the fallback when no schema-registry.json cache exists.
  *
+ * Note: This function remains synchronous because it's called synchronously
+ * in getSchemaRegistrySafe(). Cannot use withDatabase() pattern here.
+ *
  * @param dbPath - Path to the SQLite database
  * @returns SchemaRegistry loaded from database data
  * @throws Error if database doesn't exist

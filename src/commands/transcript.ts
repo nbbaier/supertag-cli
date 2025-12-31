@@ -15,7 +15,7 @@
  */
 
 import { Command } from "commander";
-import { Database } from "bun:sqlite";
+import { withDatabase } from "../db/with-database";
 import {
   getMeetingsWithTranscripts,
   getTranscriptForMeeting,
@@ -84,12 +84,11 @@ function createListCommand(): Command {
       process.exit(1);
     }
 
-    const db = new Database(dbPath, { readonly: true });
     const outputOpts = resolveOutputOptions(options);
     const limit = options.limit ? parseInt(String(options.limit)) : 20;
 
-    try {
-      const meetings = getMeetingsWithTranscripts(db, { limit });
+    await withDatabase({ dbPath, readonly: true }, (ctx) => {
+      const meetings = getMeetingsWithTranscripts(ctx.db, { limit });
 
       if (meetings.length === 0) {
         if (options.json) {
@@ -126,9 +125,7 @@ function createListCommand(): Command {
           console.log(tsv(meeting.meetingId, meeting.meetingName, String(meeting.lineCount), dateStr));
         }
       }
-    } finally {
-      db.close();
-    }
+    });
   });
 
   return list;
@@ -158,13 +155,12 @@ function createShowCommand(): Command {
       process.exit(1);
     }
 
-    const db = new Database(dbPath, { readonly: true });
     const outputOpts = resolveOutputOptions(options);
     const limit = options.limit ? parseInt(String(options.limit)) : 100;
 
-    try {
+    await withDatabase({ dbPath, readonly: true }, (ctx) => {
       // First, try to get transcript for meeting ID
-      let transcriptId = getTranscriptForMeeting(db, id);
+      let transcriptId = getTranscriptForMeeting(ctx.db, id);
 
       // If not found, assume ID is a transcript ID
       if (!transcriptId) {
@@ -172,7 +168,8 @@ function createShowCommand(): Command {
       }
 
       // Get transcript lines
-      let lines = getTranscriptLines(db, transcriptId);
+      let lines = getTranscriptLines(ctx.db, transcriptId);
+      const totalLines = lines.length;
 
       if (lines.length === 0) {
         if (options.json) {
@@ -190,7 +187,7 @@ function createShowCommand(): Command {
       }
 
       // Get meeting info
-      const meetingName = db
+      const meetingName = ctx.db
         .query(`SELECT name FROM nodes WHERE id = ?`)
         .get(id) as { name: string } | null;
 
@@ -228,7 +225,7 @@ function createShowCommand(): Command {
           console.log(`  ${timestamp} ${line.text}`);
         }
 
-        if (lines.length < (await getTranscriptLines(db, transcriptId)).length) {
+        if (lines.length < totalLines) {
           console.log(tip(`Showing ${lines.length} lines. Use --limit to see more.`));
         }
       } else {
@@ -239,9 +236,7 @@ function createShowCommand(): Command {
           console.log(tsv(String(line.order), line.speaker ?? "", timestamp, line.text));
         }
       }
-    } finally {
-      db.close();
-    }
+    });
   });
 
   return show;
@@ -271,12 +266,11 @@ function createSearchCommand(): Command {
       process.exit(1);
     }
 
-    const db = new Database(dbPath, { readonly: true });
     const outputOpts = resolveOutputOptions(options);
     const limit = options.limit ? parseInt(String(options.limit)) : 20;
 
-    try {
-      const results = searchTranscripts(db, query, { limit });
+    await withDatabase({ dbPath, readonly: true }, (ctx) => {
+      const results = searchTranscripts(ctx.db, query, { limit });
 
       if (results.length === 0) {
         if (options.json) {
@@ -318,9 +312,7 @@ function createSearchCommand(): Command {
           console.log(tsv(result.lineId, result.lineText, result.speaker ?? "", result.meetingName ?? ""));
         }
       }
-    } finally {
-      db.close();
-    }
+    });
   });
 
   return search;

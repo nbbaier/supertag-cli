@@ -15,12 +15,11 @@
  */
 
 import { Command } from "commander";
-import { Database } from "bun:sqlite";
 import { existsSync } from "fs";
-import { TanaQueryEngine } from "../query/tana-query-engine";
 import { findMeaningfulAncestor } from "../embeddings/ancestor-resolution";
 import { ConfigManager } from "../config/manager";
 import { resolveWorkspaceContext } from "../config/workspace-resolver";
+import { withDatabase, withQueryEngine } from "../db/with-database";
 import {
   resolveDbPath,
   checkDb,
@@ -142,14 +141,15 @@ async function handleFtsSearch(
   options: SearchOptions,
   dbPath: string
 ): Promise<void> {
-  const engine = new TanaQueryEngine(dbPath);
   const limit = options.limit ? parseInt(String(options.limit)) : 20;
   const depth = options.depth ? parseInt(String(options.depth)) : 0;
   const includeAncestor = options.ancestor !== false && !options.raw;
   const outputOpts = resolveOutputOptions(options);
   const startTime = performance.now();
 
-  try {
+  await withQueryEngine({ dbPath }, async (ctx) => {
+    const { engine } = ctx;
+
     // Ensure FTS index exists
     const hasFTS = await engine.hasFTSIndex();
     if (!hasFTS) {
@@ -287,9 +287,7 @@ async function handleFtsSearch(
         }
       }
     }
-  } finally {
-    engine.close();
-  }
+  });
 }
 
 /**
@@ -331,8 +329,6 @@ async function handleSemanticSearch(
     endpoint: embeddingConfig.endpoint,
   });
 
-  const db = new Database(dbPath);
-
   try {
     if (!options.json) {
       console.log(`🔍 Searching: "${query}" [${wsContext.alias}]`);
@@ -342,141 +338,144 @@ async function handleSemanticSearch(
     // Over-fetch for filtering
     const overfetchLimit = getOverfetchLimit(limit);
     const rawResults = await embeddingService.search(query, overfetchLimit);
-    const results = filterAndDeduplicateResults(db, rawResults, limit);
-    const searchTime = performance.now() - startTime;
 
-    if (results.length === 0) {
+    await withDatabase({ dbPath, readonly: true }, async (ctx) => {
+      const { db } = ctx;
+      const results = filterAndDeduplicateResults(db, rawResults, limit);
+      const searchTime = performance.now() - startTime;
+
+      if (results.length === 0) {
+        if (options.json) {
+          console.log("[]");
+        } else {
+          console.log("No results found");
+        }
+        return;
+      }
+
       if (options.json) {
-        console.log("[]");
-      } else {
-        console.log("No results found");
-      }
-      return;
-    }
-
-    if (options.json) {
-      const enriched = results.map((r) => {
-        let result: Record<string, unknown>;
-        if (options.show && depth > 0) {
-          const contents = getNodeContentsWithDepth(db, r.nodeId, 0, depth);
-          result = {
-            ...contents,
-            distance: r.distance,
-            similarity: r.similarity,
-          };
-        } else if (options.show) {
-          const contents = getNodeContents(db, r.nodeId);
-          result = {
-            ...contents,
-            distance: r.distance,
-            similarity: r.similarity,
-          };
-        } else {
-          result = {
-            nodeId: r.nodeId,
-            name: r.name,
-            tags: r.tags,
-            distance: r.distance,
-            similarity: r.similarity,
-          };
-        }
-
-        if (includeAncestor) {
-          const ancestorResult = findMeaningfulAncestor(db, r.nodeId);
-          if (ancestorResult && ancestorResult.depth > 0) {
-            result.ancestor = ancestorResult.ancestor;
-            result.pathFromAncestor = ancestorResult.path;
-            result.depthFromAncestor = ancestorResult.depth;
+        const enriched = results.map((r) => {
+          let result: Record<string, unknown>;
+          if (options.show && depth > 0) {
+            const contents = getNodeContentsWithDepth(db, r.nodeId, 0, depth);
+            result = {
+              ...contents,
+              distance: r.distance,
+              similarity: r.similarity,
+            };
+          } else if (options.show) {
+            const contents = getNodeContents(db, r.nodeId);
+            result = {
+              ...contents,
+              distance: r.distance,
+              similarity: r.similarity,
+            };
+          } else {
+            result = {
+              nodeId: r.nodeId,
+              name: r.name,
+              tags: r.tags,
+              distance: r.distance,
+              similarity: r.similarity,
+            };
           }
-        }
 
-        return result;
-      });
-      console.log(formatJsonOutput(enriched));
-    } else if (options.show) {
-      console.log(`Results (${results.length}):`);
-      console.log("");
-      for (let i = 0; i < results.length; i++) {
-        const r = results[i];
-        const similarity = (r.similarity * 100).toFixed(1);
-
-        console.log(`━━━ Result ${i + 1} ━━━  ${similarity}% similar`);
-
-        if (includeAncestor) {
-          const ancestorResult = findMeaningfulAncestor(db, r.nodeId);
-          if (ancestorResult && ancestorResult.depth > 0) {
-            const tagStr = ancestorResult.ancestor.tags.map(t => `#${t}`).join(" ");
-            console.log(`📂 Context: ${ancestorResult.ancestor.name} ${tagStr}`);
+          if (includeAncestor) {
+            const ancestorResult = findMeaningfulAncestor(db, r.nodeId);
+            if (ancestorResult && ancestorResult.depth > 0) {
+              result.ancestor = ancestorResult.ancestor;
+              result.pathFromAncestor = ancestorResult.path;
+              result.depthFromAncestor = ancestorResult.depth;
+            }
           }
-        }
 
-        if (depth > 0) {
-          const output = formatNodeWithDepth(db, r.nodeId, 0, depth, "");
-          if (output) {
-            console.log(output);
-          }
-        } else {
-          const contents = getNodeContents(db, r.nodeId);
-          if (contents) {
-            console.log(formatNodeOutput(contents));
-          }
-        }
+          return result;
+        });
+        console.log(formatJsonOutput(enriched));
+      } else if (options.show) {
+        console.log(`Results (${results.length}):`);
         console.log("");
-      }
-    } else {
-      if (outputOpts.pretty) {
-        // Pretty mode: results list with similarity percentage
-        const headerText = outputOpts.verbose
-          ? `Results (${results.length}) in ${searchTime.toFixed(0)}ms`
-          : `Results (${results.length})`;
-        console.log(headerText);
-        console.log("");
-        for (const r of results) {
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
           const similarity = (r.similarity * 100).toFixed(1);
-          const tagStr = r.tags ? ` #${r.tags.join(" #")}` : "";
-          console.log(`  ${similarity}%  ${r.name.substring(0, 50)}${tagStr}`);
-          console.log(`        ID: ${r.nodeId}`);
+
+          console.log(`━━━ Result ${i + 1} ━━━  ${similarity}% similar`);
 
           if (includeAncestor) {
             const ancestorResult = findMeaningfulAncestor(db, r.nodeId);
             if (ancestorResult && ancestorResult.depth > 0) {
-              const ancestorTagStr = ancestorResult.ancestor.tags.map(t => `#${t}`).join(" ");
-              console.log(`        📂 ${ancestorResult.ancestor.name} ${ancestorTagStr}`);
+              const tagStr = ancestorResult.ancestor.tags.map(t => `#${t}`).join(" ");
+              console.log(`📂 Context: ${ancestorResult.ancestor.name} ${tagStr}`);
             }
           }
-        }
-        if (outputOpts.verbose) {
+
+          if (depth > 0) {
+            const output = formatNodeWithDepth(db, r.nodeId, 0, depth, "");
+            if (output) {
+              console.log(output);
+            }
+          } else {
+            const contents = getNodeContents(db, r.nodeId);
+            if (contents) {
+              console.log(formatNodeOutput(contents));
+            }
+          }
           console.log("");
-          console.log(`Query time: ${searchTime.toFixed(1)}ms`);
         }
-        // Show tip in pretty mode (not when --show is used)
-        console.log(tip("Use --show for full node content"));
       } else {
-        // Unix mode: TSV output, pipe-friendly
-        // Format: similarity\tid\tname\ttags\tancestor_name
-        for (const r of results) {
-          const similarity = r.similarity.toFixed(3);
-          const tagStr = r.tags ? r.tags.join(",") : "";
-          let ancestorName = "";
+        if (outputOpts.pretty) {
+          // Pretty mode: results list with similarity percentage
+          const headerText = outputOpts.verbose
+            ? `Results (${results.length}) in ${searchTime.toFixed(0)}ms`
+            : `Results (${results.length})`;
+          console.log(headerText);
+          console.log("");
+          for (const r of results) {
+            const similarity = (r.similarity * 100).toFixed(1);
+            const tagStr = r.tags ? ` #${r.tags.join(" #")}` : "";
+            console.log(`  ${similarity}%  ${r.name.substring(0, 50)}${tagStr}`);
+            console.log(`        ID: ${r.nodeId}`);
 
-          if (includeAncestor) {
-            const ancestorResult = findMeaningfulAncestor(db, r.nodeId);
-            if (ancestorResult && ancestorResult.depth > 0) {
-              ancestorName = ancestorResult.ancestor.name;
+            if (includeAncestor) {
+              const ancestorResult = findMeaningfulAncestor(db, r.nodeId);
+              if (ancestorResult && ancestorResult.depth > 0) {
+                const ancestorTagStr = ancestorResult.ancestor.tags.map(t => `#${t}`).join(" ");
+                console.log(`        📂 ${ancestorResult.ancestor.name} ${ancestorTagStr}`);
+              }
             }
           }
+          if (outputOpts.verbose) {
+            console.log("");
+            console.log(`Query time: ${searchTime.toFixed(1)}ms`);
+          }
+          // Show tip in pretty mode (not when --show is used)
+          console.log(tip("Use --show for full node content"));
+        } else {
+          // Unix mode: TSV output, pipe-friendly
+          // Format: similarity\tid\tname\ttags\tancestor_name
+          for (const r of results) {
+            const similarity = r.similarity.toFixed(3);
+            const tagStr = r.tags ? r.tags.join(",") : "";
+            let ancestorName = "";
 
-          console.log(tsv(similarity, r.nodeId, r.name, tagStr, ancestorName));
-        }
-        // Verbose mode: add timing to stderr (to not interfere with TSV parsing)
-        if (outputOpts.verbose) {
-          console.error(`# Query time: ${searchTime.toFixed(1)}ms, Results: ${results.length}`);
+            if (includeAncestor) {
+              const ancestorResult = findMeaningfulAncestor(db, r.nodeId);
+              if (ancestorResult && ancestorResult.depth > 0) {
+                ancestorName = ancestorResult.ancestor.name;
+              }
+            }
+
+            console.log(tsv(similarity, r.nodeId, r.name, tagStr, ancestorName));
+          }
+          // Verbose mode: add timing to stderr (to not interfere with TSV parsing)
+          if (outputOpts.verbose) {
+            console.error(`# Query time: ${searchTime.toFixed(1)}ms, Results: ${results.length}`);
+          }
         }
       }
-    }
+    });
   } finally {
     embeddingService.close();
-    db.close();
   }
 }
 
@@ -568,7 +567,6 @@ async function handleTaggedSearch(
   options: SearchOptions,
   dbPath: string
 ): Promise<void> {
-  const engine = new TanaQueryEngine(dbPath);
   const limit = options.limit ? parseInt(String(options.limit)) : 10;
   const depth = options.depth ? parseInt(String(options.depth)) : 0;
   const dateRange = parseDateRangeOptions(options);
@@ -581,7 +579,9 @@ async function handleTaggedSearch(
     process.exit(1);
   }
 
-  try {
+  await withQueryEngine({ dbPath }, async (ctx) => {
+    const { engine } = ctx;
+
     // If we have a field filter, we need to query with field values
     let results: Array<{ id: string; name: string | null; created?: number | null }>;
 
@@ -688,7 +688,5 @@ async function handleTaggedSearch(
         }
       }
     }
-  } finally {
-    engine.close();
-  }
+  });
 }

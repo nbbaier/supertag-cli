@@ -25,11 +25,11 @@
  * });
  */
 
-import { Database } from 'bun:sqlite';
 import { existsSync } from 'fs';
 import type { SchemaRegistry, SupertagSchema } from '../schema/registry';
 import type { TanaApiNode, ChildNodeInput, CreateNodeInput, CreateNodeResult } from '../types';
 import { UnifiedSchemaService } from './unified-schema-service';
+import { withDatabase } from '../db/with-database';
 
 /**
  * Recursively parse a child node object from unknown input
@@ -228,17 +228,16 @@ export function buildNodePayload(
  * @returns TanaApiNode ready for posting
  * @throws Error if database doesn't exist or supertag not found
  */
-export function buildNodePayloadFromDatabase(
+export async function buildNodePayloadFromDatabase(
   dbPath: string,
   input: CreateNodeInput
-): TanaApiNode {
+): Promise<TanaApiNode> {
   if (!existsSync(dbPath)) {
     throw new Error(`Database not found: ${dbPath}`);
   }
 
-  const db = new Database(dbPath);
-  try {
-    const schemaService = new UnifiedSchemaService(db);
+  return withDatabase({ dbPath, readonly: true }, (ctx) => {
+    const schemaService = new UnifiedSchemaService(ctx.db);
 
     // Build base payload using UnifiedSchemaService
     const fieldValues: Record<string, string | string[]> = {};
@@ -265,9 +264,7 @@ export function buildNodePayloadFromDatabase(
     }
 
     return nodePayload;
-  } finally {
-    db.close();
-  }
+  });
 }
 
 /**
@@ -306,7 +303,7 @@ export async function createNode(
 
   if (dbPath && existsSync(dbPath)) {
     // Use database for explicit field types
-    payload = buildNodePayloadFromDatabase(dbPath, input);
+    payload = await buildNodePayloadFromDatabase(dbPath, input);
   }
 
   // Fall back to schema registry if database not available

@@ -11,7 +11,7 @@
  */
 
 import { Command } from "commander";
-import { Database } from "bun:sqlite";
+import { withDatabase } from "../db/with-database";
 import {
   addStandardOptions,
   resolveDbPath,
@@ -54,12 +54,11 @@ export function createFieldsCommand(): Command {
       process.exit(1);
     }
 
-    const db = new Database(dbPath, { readonly: true });
     const outputOpts = resolveOutputOptions(options);
+    const limit = options.limit ? parseInt(String(options.limit)) : 50;
 
-    try {
-      const allFields = getAvailableFieldNames(db);
-      const limit = options.limit ? parseInt(String(options.limit)) : 50;
+    await withDatabase({ dbPath, readonly: true }, (ctx) => {
+      const allFields = getAvailableFieldNames(ctx.db);
       const limitedFields = allFields.slice(0, limit);
 
       if (options.json) {
@@ -86,9 +85,7 @@ export function createFieldsCommand(): Command {
           console.log(tsv(field.fieldName, field.count));
         }
       }
-    } finally {
-      db.close();
-    }
+    });
   });
 
   // fields values <name> (T-6.3)
@@ -115,39 +112,39 @@ export function createFieldsCommand(): Command {
         process.exit(1);
       }
 
-      const db = new Database(dbPath, { readonly: true });
       const outputOpts = resolveOutputOptions(options);
 
-      try {
-        const queryOptions: {
-          limit?: number;
-          offset?: number;
-          createdAfter?: number;
-          createdBefore?: number;
-        } = {
-          limit: options.limit ? parseInt(String(options.limit)) : 100,
-          offset: options.offset ? parseInt(options.offset) : 0,
-        };
+      // Build query options before database access
+      const queryOptions: {
+        limit?: number;
+        offset?: number;
+        createdAfter?: number;
+        createdBefore?: number;
+      } = {
+        limit: options.limit ? parseInt(String(options.limit)) : 100,
+        offset: options.offset ? parseInt(options.offset) : 0,
+      };
 
-        if (options.after) {
-          const date = new Date(options.after);
-          if (isNaN(date.getTime())) {
-            console.error(`❌ Invalid date format: ${options.after}`);
-            process.exit(1);
-          }
-          queryOptions.createdAfter = date.getTime();
+      if (options.after) {
+        const date = new Date(options.after);
+        if (isNaN(date.getTime())) {
+          console.error(`❌ Invalid date format: ${options.after}`);
+          process.exit(1);
         }
+        queryOptions.createdAfter = date.getTime();
+      }
 
-        if (options.before) {
-          const date = new Date(options.before);
-          if (isNaN(date.getTime())) {
-            console.error(`❌ Invalid date format: ${options.before}`);
-            process.exit(1);
-          }
-          queryOptions.createdBefore = date.getTime();
+      if (options.before) {
+        const date = new Date(options.before);
+        if (isNaN(date.getTime())) {
+          console.error(`❌ Invalid date format: ${options.before}`);
+          process.exit(1);
         }
+        queryOptions.createdBefore = date.getTime();
+      }
 
-        const values = queryFieldValuesByFieldName(db, name, queryOptions);
+      await withDatabase({ dbPath, readonly: true }, (ctx) => {
+        const values = queryFieldValuesByFieldName(ctx.db, name, queryOptions);
 
         if (options.json) {
           console.log(formatJsonOutput(values));
@@ -194,9 +191,7 @@ export function createFieldsCommand(): Command {
             }
           }
         }
-      } finally {
-        db.close();
-      }
+      });
     }
   );
 
@@ -218,12 +213,11 @@ export function createFieldsCommand(): Command {
         process.exit(1);
       }
 
-      const db = new Database(dbPath, { readonly: true });
       const outputOpts = resolveOutputOptions(options);
+      const limit = options.limit ? parseInt(String(options.limit)) : 50;
 
-      try {
-        const limit = options.limit ? parseInt(String(options.limit)) : 50;
-        const results = queryFieldValuesFTS(db, query, {
+      await withDatabase({ dbPath, readonly: true }, (ctx) => {
+        const results = queryFieldValuesFTS(ctx.db, query, {
           fieldName: options.field,
           limit,
         });
@@ -265,9 +259,7 @@ export function createFieldsCommand(): Command {
             }
           }
         }
-      } finally {
-        db.close();
-      }
+      });
     }
   );
 

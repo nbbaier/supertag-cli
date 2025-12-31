@@ -5,11 +5,11 @@
  */
 
 import { Command } from "commander";
-import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, resolve } from "path";
 import { getDatabasePath, createSimpleLogger } from "../config/paths";
 import { resolveWorkspaceContext } from "../config/workspace-resolver";
+import { withDatabase } from "../db/with-database";
 import { generateSchemas } from "../codegen/index";
 import { UnifiedSchemaService } from "../services/unified-schema-service";
 import type { CodegenOptions, GenerationResult } from "../codegen/types";
@@ -58,58 +58,50 @@ export async function codegenCommand(
     throw new Error(`Database not found: ${dbPath}\nRun 'supertag sync index' first`);
   }
 
-  const db = new Database(dbPath, { readonly: true });
+  // Build codegen options
+  const codegenOptions: CodegenOptions = {
+    outputPath: resolve(options.output),
+    format: options.format,
+    tags: options.tags,
+    optionalStrategy: options.optional,
+    naming: options.naming,
+    includeMetadata: !options.noMetadata,
+    split: options.split,
+    includeInherited: true,
+  };
 
-  try {
-    // Get inheritance info and sort tags topologically
-    const service = new UnifiedSchemaService(db);
-    const supertags = service.listSupertags();
+  // Generate schemas within database context
+  const result = await withDatabase({ dbPath, readonly: true }, async (ctx) => {
+    return generateSchemas(ctx.db, codegenOptions);
+  });
 
-    // Build codegen options
-    const codegenOptions: CodegenOptions = {
-      outputPath: resolve(options.output),
-      format: options.format,
-      tags: options.tags,
-      optionalStrategy: options.optional,
-      naming: options.naming,
-      includeMetadata: !options.noMetadata,
-      split: options.split,
-      includeInherited: true,
-    };
-
-    // Generate schemas
-    const result = await generateSchemas(db, codegenOptions);
-
-    if (!options.dryRun) {
-      // Write files to disk
-      for (const file of result.files) {
-        const dir = dirname(file.path);
-        if (!existsSync(dir)) {
-          mkdirSync(dir, { recursive: true });
-        }
-        writeFileSync(file.path, file.content);
-        logger.info(`Generated: ${file.path}`);
+  // Write files outside database context (doesn't need db)
+  if (!options.dryRun) {
+    for (const file of result.files) {
+      const dir = dirname(file.path);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
       }
-
-      logger.info("");
-      logger.info(`✅ Generated ${result.stats.filesGenerated} file(s)`);
-      logger.info(`   ${result.stats.supertagsProcessed} supertags`);
-      logger.info(`   ${result.stats.fieldsProcessed} fields`);
-    } else {
-      logger.info("Dry-run mode - no files written");
-      logger.info("");
-      logger.info(`Would generate ${result.stats.filesGenerated} file(s):`);
-      for (const file of result.files) {
-        logger.info(`  - ${file.path}`);
-      }
-      logger.info(`   ${result.stats.supertagsProcessed} supertags`);
-      logger.info(`   ${result.stats.fieldsProcessed} fields`);
+      writeFileSync(file.path, file.content);
+      logger.info(`Generated: ${file.path}`);
     }
 
-    return result;
-  } finally {
-    db.close();
+    logger.info("");
+    logger.info(`✅ Generated ${result.stats.filesGenerated} file(s)`);
+    logger.info(`   ${result.stats.supertagsProcessed} supertags`);
+    logger.info(`   ${result.stats.fieldsProcessed} fields`);
+  } else {
+    logger.info("Dry-run mode - no files written");
+    logger.info("");
+    logger.info(`Would generate ${result.stats.filesGenerated} file(s):`);
+    for (const file of result.files) {
+      logger.info(`  - ${file.path}`);
+    }
+    logger.info(`   ${result.stats.supertagsProcessed} supertags`);
+    logger.info(`   ${result.stats.fieldsProcessed} fields`);
   }
+
+  return result;
 }
 
 /**

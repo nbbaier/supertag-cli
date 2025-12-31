@@ -14,11 +14,11 @@
  */
 
 import { Command } from "commander";
-import { Database } from "bun:sqlite";
 import {
   getDatabasePath,
   getEnabledWorkspaces,
 } from "../config/paths";
+import { withDatabase } from "../db/with-database";
 import { resolveWorkspaceContext, type ResolvedWorkspace } from "../config/workspace-resolver";
 import { ConfigManager } from "../config/manager";
 import {
@@ -268,37 +268,34 @@ export function createEmbedCommand(): Command {
       return;
     }
 
-    // Open SQLite database for querying nodes (content filtering uses SQLite)
-    const db = new Database(wsContext.dbPath);
+    // Build content filter options
+    const filterOptions: ContentFilterOptions = {
+      minLength: options.includeAll ? undefined : parseInt(options.minLength),
+      excludeTimestamps: !options.includeAll && !options.includeTimestamps,
+      excludeSystemTypes: !options.includeAll && !options.includeSystem,
+      includeTranscripts: options.includeTranscripts,
+      tag: options.tag,
+      limit: options.limit ? parseInt(options.limit) : undefined,
+      includeAll: options.includeAll,
+    };
 
-    try {
-      // Build content filter options
-      const filterOptions: ContentFilterOptions = {
-        minLength: options.includeAll ? undefined : parseInt(options.minLength),
-        excludeTimestamps: !options.includeAll && !options.includeTimestamps,
-        excludeSystemTypes: !options.includeAll && !options.includeSystem,
-        includeTranscripts: options.includeTranscripts,
-        tag: options.tag,
-        limit: options.limit ? parseInt(options.limit) : undefined,
-        includeAll: options.includeAll,
-      };
-
+    // Query nodes and contextualize within database context
+    const contextualizedNodes = await withDatabase({ dbPath: wsContext.dbPath, readonly: true }, (ctx) => {
       // Build query with content filters
       const { query, params } = buildContentFilterQuery(filterOptions);
 
-      const nodes = db.query(query).all(...params) as Array<{
+      const nodes = ctx.db.query(query).all(...params) as Array<{
         id: string;
         name: string;
       }>;
 
       if (nodes.length === 0) {
-        console.log("No nodes found to embed");
-        return;
+        return null;
       }
 
       // Show filter info
       if (options.verbose) {
-        const totalNamed = db
+        const totalNamed = ctx.db
           .query("SELECT COUNT(*) as count FROM nodes WHERE name IS NOT NULL")
           .get() as { count: number };
         console.log("📋 Content Filtering:");
@@ -323,13 +320,13 @@ export function createEmbedCommand(): Command {
 
       // Contextualize nodes - add ancestor context for better embeddings
       console.log("   Contextualizing nodes...");
-      const contextualizedNodes = options.includeFields
-        ? contextualizeNodesWithFields(db, nodes, { includeFields: true })
-        : batchContextualizeNodes(db, nodes);
+      const contextualized = options.includeFields
+        ? contextualizeNodesWithFields(ctx.db, nodes, { includeFields: true })
+        : batchContextualizeNodes(ctx.db, nodes);
 
       // Count how many have ancestor context
-      const withAncestor = contextualizedNodes.filter(n => n.ancestorId !== null).length;
-      const withOwnTag = contextualizedNodes.filter(n => n.ancestorId === null && n.ancestorTags.length > 0).length;
+      const withAncestor = contextualized.filter(n => n.ancestorId !== null).length;
+      const withOwnTag = contextualized.filter(n => n.ancestorId === null && n.ancestorTags.length > 0).length;
       console.log(`   With ancestor context: ${withAncestor.toLocaleString()}`);
       console.log(`   With own tag: ${withOwnTag.toLocaleString()}`);
       console.log(`   No context: ${(nodes.length - withAncestor - withOwnTag).toLocaleString()}`);
@@ -338,73 +335,78 @@ export function createEmbedCommand(): Command {
       }
       console.log("");
 
-      // Create TanaEmbeddingService (uses resona/LanceDB)
-      const { TanaEmbeddingService } = await import("../embeddings/tana-embedding-service");
-      const lanceDbPath = wsContext.dbPath.replace(/\.db$/, ".lance");
-      const embeddingService = new TanaEmbeddingService(lanceDbPath, {
-        model: embeddingConfig.model,
-        endpoint: embeddingConfig.endpoint,
+      return contextualized;
+    });
+
+    if (!contextualizedNodes) {
+      console.log("No nodes found to embed");
+      return;
+    }
+
+    // Create TanaEmbeddingService (uses resona/LanceDB) - separate from SQLite
+    const { TanaEmbeddingService } = await import("../embeddings/tana-embedding-service");
+    const lanceDbPath = wsContext.dbPath.replace(/\.db$/, ".lance");
+    const embeddingService = new TanaEmbeddingService(lanceDbPath, {
+      model: embeddingConfig.model,
+      endpoint: embeddingConfig.endpoint,
+    });
+
+    try {
+      // Process with progress reporting
+      const startTime = Date.now();
+      let lastLine = "";
+
+      console.log("   Starting embedding process...");
+
+      const result = await embeddingService.embedNodes(contextualizedNodes, {
+        forceAll: options.all,
+        progressInterval: 50, // More frequent updates
+        onProgress: (progress) => {
+          const pct = ((progress.processed + progress.errors + progress.skipped) / progress.total * 100).toFixed(1);
+          const rateStr = progress.rate ? `${progress.rate.toFixed(1)}/s` : "...";
+          const eta = progress.rate && progress.rate > 0
+            ? Math.ceil((progress.total - progress.processed - progress.errors - progress.skipped) / progress.rate)
+            : 0;
+          const etaStr = eta > 0 ? `ETA: ${Math.floor(eta / 60)}m${eta % 60}s` : "";
+
+          // Clear previous line and write progress
+          const errStr = progress.errors > 0 ? ` | Err: ${progress.errors}` : '';
+          const line = `   ⏳ ${pct}% | Processed: ${progress.processed.toLocaleString()}${errStr} | ${rateStr} | ${etaStr}`;
+          if (process.stdout.isTTY) {
+            process.stdout.write(`\r${line.padEnd(lastLine.length)}`);
+          } else if (progress.processed % 1000 === 0) {
+            // For non-TTY, print every 1000
+            console.log(line.trim());
+          }
+          lastLine = line;
+        },
       });
 
-      try {
-        // Process with progress reporting
-        const startTime = Date.now();
-        let lastLine = "";
+      // Clear progress line
+      if (process.stdout.isTTY) {
+        process.stdout.write("\r" + " ".repeat(lastLine.length) + "\r");
+      }
 
-        console.log("   Starting embedding process...");
+      const duration = Date.now() - startTime;
 
-        const result = await embeddingService.embedNodes(contextualizedNodes, {
-          forceAll: options.all,
-          progressInterval: 50, // More frequent updates
-          onProgress: (progress) => {
-            const pct = ((progress.processed + progress.errors + progress.skipped) / progress.total * 100).toFixed(1);
-            const rateStr = progress.rate ? `${progress.rate.toFixed(1)}/s` : "...";
-            const eta = progress.rate && progress.rate > 0
-              ? Math.ceil((progress.total - progress.processed - progress.errors - progress.skipped) / progress.rate)
-              : 0;
-            const etaStr = eta > 0 ? `ETA: ${Math.floor(eta / 60)}m${eta % 60}s` : "";
-
-            // Clear previous line and write progress
-            const errStr = progress.errors > 0 ? ` | Err: ${progress.errors}` : '';
-            const line = `   ⏳ ${pct}% | Processed: ${progress.processed.toLocaleString()}${errStr} | ${rateStr} | ${etaStr}`;
-            if (process.stdout.isTTY) {
-              process.stdout.write(`\r${line.padEnd(lastLine.length)}`);
-            } else if (progress.processed % 1000 === 0) {
-              // For non-TTY, print every 1000
-              console.log(line.trim());
-            }
-            lastLine = line;
-          },
-        });
-
-        // Clear progress line
-        if (process.stdout.isTTY) {
-          process.stdout.write("\r" + " ".repeat(lastLine.length) + "\r");
-        }
-
-        const duration = Date.now() - startTime;
-
-        console.log("✅ Embedding complete");
-        console.log(`   Processed: ${result.processed.toLocaleString()}`);
-        console.log(`   Skipped: ${result.skipped.toLocaleString()} (unchanged)`);
-        if (result.errors > 0) {
-          console.log(`   Errors: ${result.errors}`);
-          if (result.errorSamples && result.errorSamples.length > 0) {
-            console.log(`   Error samples:`);
-            for (const sample of result.errorSamples.slice(0, 5)) {
-              console.log(`     - ${sample}`);
-            }
+      console.log("✅ Embedding complete");
+      console.log(`   Processed: ${result.processed.toLocaleString()}`);
+      console.log(`   Skipped: ${result.skipped.toLocaleString()} (unchanged)`);
+      if (result.errors > 0) {
+        console.log(`   Errors: ${result.errors}`);
+        if (result.errorSamples && result.errorSamples.length > 0) {
+          console.log(`   Error samples:`);
+          for (const sample of result.errorSamples.slice(0, 5)) {
+            console.log(`     - ${sample}`);
           }
         }
-        console.log(`   Duration: ${(duration / 1000).toFixed(1)}s`);
-
-        const stats = await embeddingService.getStats();
-        console.log(`   Total embeddings: ${stats.totalEmbeddings.toLocaleString()}`);
-      } finally {
-        embeddingService.close();
       }
+      console.log(`   Duration: ${(duration / 1000).toFixed(1)}s`);
+
+      const stats = await embeddingService.getStats();
+      console.log(`   Total embeddings: ${stats.totalEmbeddings.toLocaleString()}`);
     } finally {
-      db.close();
+      embeddingService.close();
     }
   }
 
@@ -460,9 +462,6 @@ export function createEmbedCommand(): Command {
         endpoint: embeddingConfig.endpoint,
       });
 
-      // Open SQLite database for node stats
-      const db = new Database(wsContext.dbPath);
-
       try {
         const stats = await embeddingService.getStats();
         const diagnostics = await embeddingService.getDiagnostics();
@@ -477,38 +476,42 @@ export function createEmbedCommand(): Command {
         console.log("");
         console.log(`Total:        ${stats.totalEmbeddings.toLocaleString()}`);
 
-        // Get node count for coverage
-        const nodeCount = db
-          .query("SELECT COUNT(*) as count FROM nodes WHERE name IS NOT NULL")
-          .get() as { count: number };
-        const coverage = nodeCount.count > 0
-          ? ((stats.totalEmbeddings / nodeCount.count) * 100).toFixed(1)
+        // Get node stats from SQLite database
+        const dbStats = await withDatabase({ dbPath: wsContext.dbPath, readonly: true }, (ctx) => {
+          const nodeCount = ctx.db
+            .query("SELECT COUNT(*) as count FROM nodes WHERE name IS NOT NULL")
+            .get() as { count: number };
+          const filterStats = getFilterStats(ctx.db);
+          return { nodeCount, filterStats };
+        });
+
+        const coverage = dbStats.nodeCount.count > 0
+          ? ((stats.totalEmbeddings / dbStats.nodeCount.count) * 100).toFixed(1)
           : "0.0";
         console.log("");
         console.log(
-          `Coverage:     ${stats.totalEmbeddings}/${nodeCount.count} (${coverage}%)`
+          `Coverage:     ${stats.totalEmbeddings}/${dbStats.nodeCount.count} (${coverage}%)`
         );
 
         // Show content filter stats
-        const filterStats = getFilterStats(db);
         console.log("");
         console.log("Content Filter Stats:");
-        console.log(`  All named nodes:   ${filterStats.totalNamed.toLocaleString()}`);
-        console.log(`  After filtering:   ${filterStats.withDefaultFilters.toLocaleString()}`);
-        console.log(`  Reduction:         ${filterStats.reduction}`);
+        console.log(`  All named nodes:   ${dbStats.filterStats.totalNamed.toLocaleString()}`);
+        console.log(`  After filtering:   ${dbStats.filterStats.withDefaultFilters.toLocaleString()}`);
+        console.log(`  Reduction:         ${dbStats.filterStats.reduction}`);
 
         // Show entity stats
         console.log("");
-        const hasNativeFlags = filterStats.entityStats.entitiesWithOverride > 0 || filterStats.entityStats.entitiesAutomatic > 0;
+        const hasNativeFlags = dbStats.filterStats.entityStats.entitiesWithOverride > 0 || dbStats.filterStats.entityStats.entitiesAutomatic > 0;
         console.log(`Entity Detection (${hasNativeFlags ? '_flags from export' : 'inferred from tags/library'}):`);
         if (hasNativeFlags) {
-          console.log(`  With override:     ${filterStats.entityStats.entitiesWithOverride.toLocaleString()}`);
-          console.log(`  Automatic (_flags): ${filterStats.entityStats.entitiesAutomatic.toLocaleString()}`);
+          console.log(`  With override:     ${dbStats.filterStats.entityStats.entitiesWithOverride.toLocaleString()}`);
+          console.log(`  Automatic (_flags): ${dbStats.filterStats.entityStats.entitiesAutomatic.toLocaleString()}`);
         }
-        console.log(`  Tagged items:      ${filterStats.entityStats.entitiesTagged.toLocaleString()}`);
-        console.log(`  Library items:     ${filterStats.entityStats.entitiesLibrary.toLocaleString()}`);
-        console.log(`  Total entities:    ${filterStats.entityStats.totalEntities.toLocaleString()} (${filterStats.entityStats.entityPercentage} of nodes)`);
-        console.log(`  Entities + filters: ${filterStats.entitiesWithFilters.toLocaleString()}`);
+        console.log(`  Tagged items:      ${dbStats.filterStats.entityStats.entitiesTagged.toLocaleString()}`);
+        console.log(`  Library items:     ${dbStats.filterStats.entityStats.entitiesLibrary.toLocaleString()}`);
+        console.log(`  Total entities:    ${dbStats.filterStats.entityStats.totalEntities.toLocaleString()} (${dbStats.filterStats.entityStats.entityPercentage} of nodes)`);
+        console.log(`  Entities + filters: ${dbStats.filterStats.entitiesWithFilters.toLocaleString()}`);
 
         // Show database diagnostics
         console.log("");
@@ -525,7 +528,6 @@ export function createEmbedCommand(): Command {
         }
       } finally {
         embeddingService.close();
-        db.close();
       }
     });
 
@@ -547,11 +549,8 @@ export function createEmbedCommand(): Command {
         return;
       }
 
-      // Open SQLite database (no extensions needed for filter stats)
-      const db = new Database(wsContext.dbPath);
-
-      try {
-        const filterStats = getFilterStats(db);
+      await withDatabase({ dbPath: wsContext.dbPath, readonly: true }, (ctx) => {
+        const filterStats = getFilterStats(ctx.db);
 
         console.log(`📋 Content Filter Statistics [${wsContext.alias}]`);
         console.log("");
@@ -590,9 +589,7 @@ export function createEmbedCommand(): Command {
         console.log(`  Library items:     ${filterStats.entityStats.entitiesLibrary.toLocaleString()}`);
         console.log(`  Total entities:    ${filterStats.entityStats.totalEntities.toLocaleString()} (${filterStats.entityStats.entityPercentage} of nodes)`);
         console.log(`  Entities + filters: ${filterStats.entitiesWithFilters.toLocaleString()}`);
-      } finally {
-        db.close();
-      }
+      });
     });
 
   /**

@@ -13,9 +13,8 @@
  */
 
 import { Command } from "commander";
-import { Database } from "bun:sqlite";
 import { existsSync } from "fs";
-import { TanaQueryEngine } from "../query/tana-query-engine";
+import { withDatabase, withQueryEngine } from "../db/with-database";
 import { getSchemaRegistry, getSchemaRegistryFromDatabase } from "./schema";
 import { UnifiedSchemaService } from "../services/unified-schema-service";
 import { SchemaRegistry } from "../schema";
@@ -116,14 +115,13 @@ export interface TagFieldDetails {
  * @param tagName - Tag name to look up (exact or normalized)
  * @returns Tag details or null if not found
  */
-export function getTagDetailsFromDatabase(dbPath: string, tagName: string): TagDetails | null {
+export async function getTagDetailsFromDatabase(dbPath: string, tagName: string): Promise<TagDetails | null> {
   if (!existsSync(dbPath)) {
     throw new Error(`Database not found: ${dbPath}`);
   }
 
-  const db = new Database(dbPath);
-  try {
-    const schemaService = new UnifiedSchemaService(db);
+  return withDatabase({ dbPath, readonly: true }, (ctx) => {
+    const schemaService = new UnifiedSchemaService(ctx.db);
     const supertag = schemaService.getSupertag(tagName);
 
     if (!supertag) {
@@ -144,9 +142,7 @@ export function getTagDetailsFromDatabase(dbPath: string, tagName: string): TagD
         order: field.order,
       })),
     };
-  } finally {
-    db.close();
-  }
+  });
 }
 
 /**
@@ -227,11 +223,10 @@ export function createTagsCommand(): Command {
       process.exit(1);
     }
 
-    const engine = new TanaQueryEngine(dbPath);
     const limit = options.limit ? parseInt(String(options.limit)) : 50;
 
-    try {
-      const allTags = await engine.getTopSupertags(limit);
+    await withQueryEngine({ dbPath }, async (ctx) => {
+      const allTags = await ctx.engine.getTopSupertags(limit);
 
       if (options.json) {
         console.log(formatJsonOutput(allTags));
@@ -243,9 +238,7 @@ export function createTagsCommand(): Command {
           console.log();
         });
       }
-    } finally {
-      engine.close();
-    }
+    });
   });
 
   // tags top
@@ -261,12 +254,11 @@ export function createTagsCommand(): Command {
       process.exit(1);
     }
 
-    const engine = new TanaQueryEngine(dbPath);
     const limit = options.limit ? parseInt(String(options.limit)) : 20;
     const outputOpts = resolveOutputOptions(options);
 
-    try {
-      const topTags = await engine.getTopTagsByUsage(limit);
+    await withQueryEngine({ dbPath }, async (ctx) => {
+      const topTags = await ctx.engine.getTopTagsByUsage(limit);
 
       if (options.json) {
         console.log(formatJsonOutput(topTags));
@@ -303,9 +295,7 @@ export function createTagsCommand(): Command {
           }
         }
       }
-    } finally {
-      engine.close();
-    }
+    });
   });
 
   // tags show <tagname>
@@ -322,10 +312,9 @@ export function createTagsCommand(): Command {
       process.exit(1);
     }
 
-    const db = new Database(dbPath);
-    const service = new SupertagMetadataService(db);
+    await withDatabase({ dbPath, readonly: true }, async (ctx) => {
+      const service = new SupertagMetadataService(ctx.db);
 
-    try {
       // Resolve tag with duplicate warning
       const resolved = resolveTagWithDuplicateWarning(service, tagname, "show");
       if (!resolved) {
@@ -406,9 +395,7 @@ export function createTagsCommand(): Command {
         }
         console.log();
       }
-    } finally {
-      db.close();
-    }
+    });
   });
 
   // tags inheritance <tagname>
@@ -425,10 +412,9 @@ export function createTagsCommand(): Command {
       process.exit(1);
     }
 
-    const db = new Database(dbPath);
-    const service = new SupertagMetadataService(db);
+    await withDatabase({ dbPath, readonly: true }, async (ctx) => {
+      const service = new SupertagMetadataService(ctx.db);
 
-    try {
       // Resolve tag with duplicate warning
       const resolved = resolveTagWithDuplicateWarning(service, tagname, "inheritance");
       if (!resolved) {
@@ -460,9 +446,7 @@ export function createTagsCommand(): Command {
         printInheritanceTree(chain, 0);
         console.log();
       }
-    } finally {
-      db.close();
-    }
+    });
   });
 
   // tags fields <tagname>
@@ -481,10 +465,9 @@ export function createTagsCommand(): Command {
       process.exit(1);
     }
 
-    const db = new Database(dbPath);
-    const service = new SupertagMetadataService(db);
+    await withDatabase({ dbPath, readonly: true }, async (ctx) => {
+      const service = new SupertagMetadataService(ctx.db);
 
-    try {
       // Resolve tag with duplicate warning
       const resolved = resolveTagWithDuplicateWarning(service, tagname, "fields");
       if (!resolved) {
@@ -554,9 +537,7 @@ export function createTagsCommand(): Command {
         }
         console.log();
       }
-    } finally {
-      db.close();
-    }
+    });
   });
 
   // tags visualize
@@ -587,19 +568,17 @@ export function createTagsCommand(): Command {
       process.exit(1);
     }
 
-    const db = new Database(dbPath);
+    // Validate format before opening database
+    const format = (options.format || "mermaid") as VisualizationFormat;
+    if (!isFormatSupported(format)) {
+      console.error(`❌ Unsupported format: ${format}`);
+      console.error(`   Supported formats: ${supportedFormats.join(", ")}`);
+      process.exit(1);
+    }
 
-    try {
-      // Validate format
-      const format = (options.format || "mermaid") as VisualizationFormat;
-      if (!isFormatSupported(format)) {
-        console.error(`❌ Unsupported format: ${format}`);
-        console.error(`   Supported formats: ${supportedFormats.join(", ")}`);
-        process.exit(1);
-      }
-
+    const output = await withDatabase({ dbPath, readonly: true }, (ctx) => {
       // Get visualization data
-      const vizService = new VisualizationService(db);
+      const vizService = new VisualizationService(ctx.db);
       const vizOptions = {
         minUsageCount: options.minUsage,
         includeOrphans: options.orphans,
@@ -682,23 +661,21 @@ export function createTagsCommand(): Command {
       }
 
       // Render output
-      const output = render(format, data, renderOptions);
+      return render(format, data, renderOptions);
+    });
 
-      // Write to file or stdout
-      if (options.output) {
-        writeFileSync(options.output, output);
-        console.error(`✅ Output written to: ${options.output}`);
+    // Write to file or stdout (outside withDatabase since file I/O doesn't need db)
+    if (options.output) {
+      writeFileSync(options.output, output);
+      console.error(`✅ Output written to: ${options.output}`);
 
-        if (options.open) {
-          // Open file with default application
-          const { spawn } = await import("child_process");
-          spawn("open", [options.output], { detached: true, stdio: "ignore" }).unref();
-        }
-      } else {
-        console.log(output);
+      if (options.open) {
+        // Open file with default application
+        const { spawn } = await import("child_process");
+        spawn("open", [options.output], { detached: true, stdio: "ignore" }).unref();
       }
-    } finally {
-      db.close();
+    } else {
+      console.log(output);
     }
   });
 

@@ -5,8 +5,8 @@
  * Supports three modes: list (available fields), query (by field name), search (FTS).
  */
 
-import { Database } from "bun:sqlite";
 import { resolveWorkspaceContext } from "../../config/workspace-resolver.js";
+import { withDatabase } from "../../db/with-database.js";
 import {
   getAvailableFieldNames,
   queryFieldValuesByFieldName,
@@ -48,15 +48,13 @@ function parseDate(dateStr: string): number {
 export async function fieldValues(input: FieldValuesInput): Promise<FieldValuesResult> {
   const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
-  const db = new Database(workspace.dbPath, { readonly: true });
-
-  try {
+  return withDatabase({ dbPath: workspace.dbPath, readonly: true }, (ctx) => {
     const { mode } = input;
 
     switch (mode) {
       case "list": {
         // T-5.1: List available field names with counts
-        const fields = getAvailableFieldNames(db);
+        const fields = getAvailableFieldNames(ctx.db);
         return {
           workspace: workspace.alias,
           mode: "list",
@@ -88,7 +86,7 @@ export async function fieldValues(input: FieldValuesInput): Promise<FieldValuesR
           options.createdBefore = parseDate(input.createdBefore);
         }
 
-        const results = queryFieldValuesByFieldName(db, input.fieldName, options);
+        const results = queryFieldValuesByFieldName(ctx.db, input.fieldName, options);
         return {
           workspace: workspace.alias,
           mode: "query",
@@ -103,7 +101,7 @@ export async function fieldValues(input: FieldValuesInput): Promise<FieldValuesR
           throw new Error("query is required for search mode");
         }
 
-        const results = queryFieldValuesFTS(db, input.query, {
+        const results = queryFieldValuesFTS(ctx.db, input.query, {
           fieldName: input.fieldName,
           limit: input.limit ?? 50,
         });
@@ -119,7 +117,5 @@ export async function fieldValues(input: FieldValuesInput): Promise<FieldValuesR
       default:
         throw new Error(`Unknown mode: ${mode}`);
     }
-  } finally {
-    db.close();
-  }
+  });
 }
