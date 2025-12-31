@@ -149,3 +149,120 @@ describe("isBatchMode", () => {
     expect(isBatchMode({})).toBe(false);
   });
 });
+
+// T-2.1: processWorkspaces sequential tests
+describe("processWorkspaces", () => {
+  it("should process single workspace", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const result = await processWorkspaces(
+      { workspace: "main" },
+      async (ws) => `processed ${ws.alias}`
+    );
+
+    expect(result.successful).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(result.results[0].result).toBe("processed main");
+    expect(result.results[0].success).toBe(true);
+  });
+
+  it("should process all workspaces", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const processed: string[] = [];
+    const result = await processWorkspaces(
+      { all: true },
+      async (ws) => {
+        processed.push(ws.alias);
+        return `processed ${ws.alias}`;
+      }
+    );
+
+    expect(result.successful).toBeGreaterThan(0);
+    expect(result.failed).toBe(0);
+    expect(processed.length).toBeGreaterThan(0);
+    expect(processed).toContain("main");
+  });
+
+  it("should stop on error by default", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const processed: string[] = [];
+    const result = await processWorkspaces(
+      { workspaces: ["main", "nonexistent", "books"] },
+      async (ws) => {
+        processed.push(ws.alias);
+        return ws.alias;
+      }
+    );
+
+    // Should stop after first failure (nonexistent workspace)
+    // main succeeds, nonexistent fails, books never runs
+    expect(result.results.length).toBe(2);
+    expect(result.successful).toBe(1);
+    expect(result.failed).toBe(1);
+  });
+
+  it("should continue on error when configured", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const processed: string[] = [];
+    const result = await processWorkspaces(
+      { workspaces: ["main", "nonexistent", "books"], continueOnError: true },
+      async (ws) => {
+        processed.push(ws.alias);
+        return ws.alias;
+      }
+    );
+
+    // Should process all workspaces despite errors
+    // main succeeds, nonexistent fails (workspace not found), books - depends on if it exists
+    expect(result.results.length).toBe(3);
+    expect(result.successful).toBeGreaterThanOrEqual(1); // At least main
+    expect(result.failed).toBeGreaterThanOrEqual(1); // At least nonexistent
+  });
+
+  it("should call progress callback", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const calls: string[] = [];
+    await processWorkspaces(
+      { workspace: "main" },
+      async () => "done",
+      (alias, i, total, status) => {
+        calls.push(`${alias}:${status}`);
+      }
+    );
+
+    expect(calls).toContain("main:start");
+    expect(calls).toContain("main:success");
+  });
+
+  it("should track duration per workspace", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const result = await processWorkspaces(
+      { workspace: "main" },
+      async () => {
+        await new Promise((r) => setTimeout(r, 50));
+        return "done";
+      }
+    );
+
+    expect(result.results[0].duration).toBeGreaterThanOrEqual(50);
+    expect(result.totalDuration).toBeGreaterThanOrEqual(50);
+  });
+
+  it("should capture error in result", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const result = await processWorkspaces(
+      { workspaces: ["nonexistent"] },
+      async (ws) => ws.alias
+    );
+
+    expect(result.failed).toBe(1);
+    expect(result.results[0].success).toBe(false);
+    expect(result.results[0].error).toBeInstanceOf(Error);
+  });
+});
