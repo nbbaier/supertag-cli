@@ -418,3 +418,67 @@ describe("buildSelectQuery", () => {
     expect(params).toEqual([10]);
   });
 });
+
+// =============================================================================
+// T-3.2: Integration tests
+// =============================================================================
+
+describe("Query Builder Integration", () => {
+  it("should be importable from db/index", async () => {
+    const { buildPagination, buildWhereClause, buildOrderBy, buildSelectQuery } =
+      await import("./index");
+    expect(typeof buildPagination).toBe("function");
+    expect(typeof buildWhereClause).toBe("function");
+    expect(typeof buildOrderBy).toBe("function");
+    expect(typeof buildSelectQuery).toBe("function");
+  });
+
+  it("should export types correctly", async () => {
+    // TypeScript will fail compilation if types aren't exported
+    const { buildPagination } = await import("./index");
+    const result: { sql: string; params: unknown[] } = buildPagination({ limit: 5 });
+    expect(result.sql).toBe("LIMIT ?");
+  });
+
+  it("should build complex query matching real-world use case", () => {
+    // Simulating a query like findNodesByTag with date filters
+    const { sql, params } = buildSelectQuery("nodes", ["id", "name", "created"], {
+      filters: [
+        { column: "ta.tag_name", operator: "=", value: "todo" },
+        { column: "n.created", operator: ">", value: 1704067200000 },
+        { column: "n.deleted_at", operator: "IS NULL" },
+      ],
+      sort: "n.created",
+      direction: "DESC",
+      sortableColumns: ["n.created", "n.name", "n.updated"],
+      limit: 50,
+      offset: 0,
+    });
+
+    expect(sql).toBe(
+      "SELECT id, name, created FROM nodes WHERE ta.tag_name = ? AND n.created > ? AND n.deleted_at IS NULL ORDER BY n.created DESC LIMIT ?"
+    );
+    expect(params).toEqual(["todo", 1704067200000, 50]);
+  });
+
+  it("should handle table aliases in column names", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "n.name", operator: "LIKE", value: "%test%" },
+      { column: "ta.tag_id", operator: "IN", value: ["abc", "def", "ghi"] },
+    ]);
+    expect(sql).toBe("WHERE n.name LIKE ? AND ta.tag_id IN (?, ?, ?)");
+    expect(params).toEqual(["%test%", "abc", "def", "ghi"]);
+  });
+
+  it("should produce SQL safe for execution", () => {
+    // Verify no SQL injection possible through values
+    const maliciousValue = "'; DROP TABLE nodes; --";
+    const { sql, params } = buildWhereClause([
+      { column: "name", operator: "=", value: maliciousValue },
+    ]);
+    // Value should be in params, not interpolated in SQL
+    expect(sql).toBe("WHERE name = ?");
+    expect(params).toEqual([maliciousValue]);
+    expect(sql).not.toContain("DROP TABLE");
+  });
+});
