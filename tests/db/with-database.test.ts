@@ -15,6 +15,7 @@ import { Database } from "bun:sqlite";
 import {
   DatabaseNotFoundError,
   withDatabase,
+  withTransaction,
   type DatabaseContext,
   type QueryContext,
   type DatabaseOptions,
@@ -201,5 +202,100 @@ describe("withDatabase", () => {
     });
 
     expect(result).toBe("initial");
+  });
+});
+
+// =============================================================================
+// T-1.3: withTransaction()
+// =============================================================================
+
+describe("withTransaction", () => {
+  let testDir: string;
+  let testDbPath: string;
+
+  beforeEach(() => {
+    testDir = join(tmpdir(), `supertag-tx-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    mkdirSync(testDir, { recursive: true });
+    testDbPath = join(testDir, "test.db");
+
+    // Create a test database
+    const db = new Database(testDbPath);
+    db.exec("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)");
+    db.exec("INSERT INTO test (name) VALUES ('initial')");
+    db.close();
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it("should commit on success", async () => {
+    await withTransaction({ dbPath: testDbPath }, (ctx) => {
+      ctx.db.exec("INSERT INTO test (name) VALUES ('new')");
+    });
+
+    // Verify changes persisted
+    const db = new Database(testDbPath);
+    const rows = db.query("SELECT name FROM test ORDER BY name").all() as { name: string }[];
+    db.close();
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.name)).toEqual(["initial", "new"]);
+  });
+
+  it("should rollback on error", async () => {
+    await expect(
+      withTransaction({ dbPath: testDbPath }, (ctx) => {
+        ctx.db.exec("INSERT INTO test (name) VALUES ('new')");
+        throw new Error("Intentional rollback");
+      })
+    ).rejects.toThrow("Intentional rollback");
+
+    // Verify changes were rolled back
+    const db = new Database(testDbPath);
+    const rows = db.query("SELECT name FROM test").all() as { name: string }[];
+    db.close();
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe("initial");
+  });
+
+  it("should close database after transaction", async () => {
+    let dbFromCallback: Database | null = null;
+
+    await withTransaction({ dbPath: testDbPath }, (ctx) => {
+      dbFromCallback = ctx.db;
+    });
+
+    // Database should be closed
+    expect(() => dbFromCallback!.query("SELECT 1")).toThrow();
+  });
+
+  it("should handle multiple operations in transaction", async () => {
+    await withTransaction({ dbPath: testDbPath }, (ctx) => {
+      ctx.db.exec("INSERT INTO test (name) VALUES ('second')");
+      ctx.db.exec("INSERT INTO test (name) VALUES ('third')");
+      ctx.db.exec("UPDATE test SET name = 'updated' WHERE name = 'initial'");
+    });
+
+    const db = new Database(testDbPath);
+    const rows = db.query("SELECT name FROM test ORDER BY id").all() as { name: string }[];
+    db.close();
+
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.name)).toEqual(["updated", "second", "third"]);
+  });
+
+  it("should support async callbacks", async () => {
+    await withTransaction({ dbPath: testDbPath }, async (ctx) => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      ctx.db.exec("INSERT INTO test (name) VALUES ('async')");
+    });
+
+    const db = new Database(testDbPath);
+    const rows = db.query("SELECT name FROM test").all() as { name: string }[];
+    db.close();
+
+    expect(rows).toHaveLength(2);
   });
 });

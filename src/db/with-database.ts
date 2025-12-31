@@ -132,3 +132,50 @@ export async function withDatabase<T>(
     db.close();
   }
 }
+
+/**
+ * Execute a function within a database transaction.
+ *
+ * Opens a database, starts a transaction, executes the callback, and:
+ * - COMMIT on success
+ * - ROLLBACK on error
+ * - Always closes the database
+ *
+ * @example
+ * ```typescript
+ * await withTransaction({ dbPath: '/path/to/db' }, (ctx) => {
+ *   ctx.db.exec("INSERT INTO nodes ...");
+ *   ctx.db.exec("UPDATE references ...");
+ * });
+ * ```
+ *
+ * @param options - Database options (path, requireExists)
+ * @param fn - Callback function receiving DatabaseContext
+ * @returns Promise resolving to callback's return value
+ * @throws DatabaseNotFoundError if database doesn't exist and requireExists is true
+ */
+export async function withTransaction<T>(
+  options: Omit<DatabaseOptions, "readonly">,
+  fn: (ctx: DatabaseContext) => T | Promise<T>
+): Promise<T> {
+  const { dbPath, requireExists = true } = options;
+
+  // Check if database exists
+  if (requireExists && !existsSync(dbPath)) {
+    throw new DatabaseNotFoundError(dbPath);
+  }
+
+  const db = new Database(dbPath);
+
+  try {
+    db.exec("BEGIN TRANSACTION");
+    const result = await fn({ db, dbPath });
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  } finally {
+    db.close();
+  }
+}
