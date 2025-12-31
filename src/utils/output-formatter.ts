@@ -310,3 +310,113 @@ export class PrettyFormatter implements OutputFormatter {
     // Nothing to finalize in pretty mode
   }
 }
+
+// ============================================================================
+// JsonFormatter Implementation (T-1.4)
+// ============================================================================
+
+/**
+ * JSON-style formatter: Structured output for programmatic consumption
+ *
+ * Output characteristics:
+ * - Buffers all data until finalize() is called
+ * - Outputs JSON array for multiple items, single object for one item
+ * - Tables converted to array of objects using headers as keys
+ * - Headers, tips, dividers are ignored (no-op)
+ *
+ * @example
+ * const formatter = new JsonFormatter({ mode: 'json' });
+ * formatter.table(['ID', 'Name'], [['abc', 'Node 1']]);
+ * formatter.finalize();
+ * // Output: [{"ID":"abc","Name":"Node 1"}]
+ */
+export class JsonFormatter implements OutputFormatter {
+  private out: NodeJS.WriteStream;
+  private buffer: unknown[] = [];
+  private finalized = false;
+  private outputType: "value" | "array" | "none" = "none";
+
+  constructor(options: FormatterOptions) {
+    this.out = options.stream ?? process.stdout;
+  }
+
+  value(value: unknown): void {
+    this.buffer.push(value);
+    // value() uses special single-item logic
+    if (this.outputType === "none") {
+      this.outputType = "value";
+    }
+  }
+
+  header(_text: string, _emoji?: keyof typeof EMOJI): void {
+    // No headers in json mode
+  }
+
+  table(headers: string[], rows: (string | number | undefined)[][]): void {
+    // table() always outputs array
+    this.outputType = "array";
+    // Convert rows to objects using headers as keys
+    for (const row of rows) {
+      const obj: Record<string, unknown> = {};
+      headers.forEach((header, i) => {
+        obj[header] = row[i] === undefined ? null : row[i];
+      });
+      this.buffer.push(obj);
+    }
+  }
+
+  record(fields: Record<string, unknown>): void {
+    // Convert undefined values to null for JSON compatibility
+    const cleanedFields: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(fields)) {
+      cleanedFields[key] = value === undefined ? null : value;
+    }
+    this.buffer.push(cleanedFields);
+    // Multiple records = array output
+    if (this.outputType === "none") {
+      this.outputType = "value";
+    }
+  }
+
+  list(items: string[], _bullet?: string): void {
+    // list() always outputs array
+    this.outputType = "array";
+    // Add items to buffer
+    for (const item of items) {
+      this.buffer.push(item);
+    }
+  }
+
+  divider(): void {
+    // No dividers in json mode
+  }
+
+  tip(_message: string): void {
+    // No tips in json mode
+  }
+
+  error(message: string): void {
+    process.stderr.write(JSON.stringify({ error: message }) + "\n");
+  }
+
+  finalize(): void {
+    if (this.finalized) {
+      return; // Only output once
+    }
+    this.finalized = true;
+
+    // Output based on buffer contents and type
+    if (this.buffer.length === 0) {
+      this.out.write("[]\n");
+    } else if (this.outputType === "array") {
+      // table() and list() always output arrays
+      this.out.write(JSON.stringify(this.buffer) + "\n");
+    } else if (this.buffer.length === 1) {
+      // Single value() or record() outputs single item
+      this.out.write(JSON.stringify(this.buffer[0]) + "\n");
+    } else {
+      // Multiple items = array
+      this.out.write(JSON.stringify(this.buffer) + "\n");
+    }
+  }
+}

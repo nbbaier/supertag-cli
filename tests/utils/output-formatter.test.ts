@@ -104,7 +104,7 @@ describe("OutputFormatter Interface (T-1.1)", () => {
 // T-1.2: UnixFormatter Tests
 // ============================================================================
 
-import { UnixFormatter, PrettyFormatter } from "../../src/utils/output-formatter";
+import { UnixFormatter, PrettyFormatter, JsonFormatter } from "../../src/utils/output-formatter";
 
 describe("UnixFormatter (T-1.2)", () => {
   describe("value()", () => {
@@ -503,6 +503,271 @@ describe("PrettyFormatter (T-1.3)", () => {
       const beforeFinalize = getOutput();
       formatter.finalize();
       expect(getOutput()).toBe(beforeFinalize);
+    });
+  });
+});
+
+// ============================================================================
+// T-1.4: JsonFormatter Tests
+// ============================================================================
+
+describe("JsonFormatter (T-1.4)", () => {
+  describe("value()", () => {
+    it("should buffer single value and output on finalize", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.value("hello");
+      expect(getOutput()).toBe(""); // Nothing until finalize
+      formatter.finalize();
+      expect(getOutput()).toBe('"hello"\n');
+    });
+
+    it("should buffer multiple values and output array on finalize", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.value("one");
+      formatter.value("two");
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual(["one", "two"]);
+    });
+
+    it("should handle numeric values", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.value(42);
+      formatter.finalize();
+      expect(getOutput()).toBe("42\n");
+    });
+
+    it("should handle object values", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.value({ id: "abc", name: "Test" });
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual({ id: "abc", name: "Test" });
+    });
+  });
+
+  describe("header()", () => {
+    it("should be a no-op (skip headers in json mode)", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.header("Search Results", "search");
+      formatter.finalize();
+      expect(getOutput()).toBe("[]\n"); // Empty array, header was ignored
+    });
+  });
+
+  describe("table()", () => {
+    it("should buffer rows as objects using headers as keys", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.table(["ID", "Name"], [
+        ["abc", "Node 1"],
+        ["xyz", "Node 2"],
+      ]);
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual([
+        { ID: "abc", Name: "Node 1" },
+        { ID: "xyz", Name: "Node 2" },
+      ]);
+    });
+
+    it("should handle undefined values as null in JSON", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.table(["ID", "Name", "Tags"], [
+        ["abc", "Node 1", undefined],
+      ]);
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual([
+        { ID: "abc", Name: "Node 1", Tags: null },
+      ]);
+    });
+
+    it("should handle numeric values", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.table(["ID", "Count"], [
+        ["abc", 42],
+      ]);
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual([{ ID: "abc", Count: 42 }]);
+    });
+
+    it("should output empty array for empty rows", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.table(["ID", "Name"], []);
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual([]);
+    });
+  });
+
+  describe("record()", () => {
+    it("should buffer record object", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.record({ id: "abc", name: "Test" });
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual({ id: "abc", name: "Test" });
+    });
+
+    it("should handle undefined values as null in JSON", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.record({ id: "abc", name: undefined, count: 42 });
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual({ id: "abc", name: null, count: 42 });
+    });
+
+    it("should buffer multiple records as array", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.record({ id: "abc" });
+      formatter.record({ id: "xyz" });
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual([{ id: "abc" }, { id: "xyz" }]);
+    });
+
+    it("should handle empty record", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.record({});
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual({});
+    });
+  });
+
+  describe("list()", () => {
+    it("should buffer list items", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.list(["item1", "item2", "item3"]);
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual(["item1", "item2", "item3"]);
+    });
+
+    it("should ignore bullet parameter", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.list(["item1"], "•");
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual(["item1"]);
+    });
+
+    it("should output empty array for empty list", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.list([]);
+      formatter.finalize();
+
+      const output = JSON.parse(getOutput());
+      expect(output).toEqual([]);
+    });
+  });
+
+  describe("divider()", () => {
+    it("should be a no-op", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.divider();
+      formatter.finalize();
+      expect(getOutput()).toBe("[]\n"); // Empty array, divider was ignored
+    });
+  });
+
+  describe("tip()", () => {
+    it("should be a no-op", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.tip("Use --show for details");
+      formatter.finalize();
+      expect(getOutput()).toBe("[]\n"); // Empty array, tip was ignored
+    });
+  });
+
+  describe("error()", () => {
+    it("should output to stderr (not stdout)", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.error("Something went wrong");
+      // error() writes to stderr, not the provided stream
+      expect(getOutput()).toBe("");
+    });
+  });
+
+  describe("finalize()", () => {
+    it("should output buffered data as JSON", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.table(["Name"], [["Test"]]);
+      expect(getOutput()).toBe(""); // Nothing until finalize
+      formatter.finalize();
+      expect(getOutput()).not.toBe("");
+    });
+
+    it("should output empty array when no data buffered", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.finalize();
+      expect(getOutput()).toBe("[]\n");
+    });
+
+    it("should only output once (subsequent calls are no-ops)", () => {
+      const { stream, getOutput } = captureOutput();
+      const formatter = new JsonFormatter({ mode: "json", stream });
+
+      formatter.value("test");
+      formatter.finalize();
+      const firstOutput = getOutput();
+      formatter.finalize();
+      expect(getOutput()).toBe(firstOutput); // No additional output
     });
   });
 });
