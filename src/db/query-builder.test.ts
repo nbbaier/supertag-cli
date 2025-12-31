@@ -190,6 +190,78 @@ describe("buildWhereClause - basic operators", () => {
 });
 
 // =============================================================================
+// T-2.2: buildWhereClause() - special operators
+// =============================================================================
+
+describe("buildWhereClause - special operators", () => {
+  it("should handle LIKE operator", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "name", operator: "LIKE", value: "%search%" },
+    ]);
+    expect(sql).toBe("WHERE name LIKE ?");
+    expect(params).toEqual(["%search%"]);
+  });
+
+  it("should handle IS NULL operator", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "deleted_at", operator: "IS NULL" },
+    ]);
+    expect(sql).toBe("WHERE deleted_at IS NULL");
+    expect(params).toEqual([]);
+  });
+
+  it("should handle IS NOT NULL operator", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "updated", operator: "IS NOT NULL" },
+    ]);
+    expect(sql).toBe("WHERE updated IS NOT NULL");
+    expect(params).toEqual([]);
+  });
+
+  it("should handle IN operator with array", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "status", operator: "IN", value: ["open", "pending", "review"] },
+    ]);
+    expect(sql).toBe("WHERE status IN (?, ?, ?)");
+    expect(params).toEqual(["open", "pending", "review"]);
+  });
+
+  it("should handle IN operator with single value", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "id", operator: "IN", value: ["abc123"] },
+    ]);
+    expect(sql).toBe("WHERE id IN (?)");
+    expect(params).toEqual(["abc123"]);
+  });
+
+  it("should ignore IN operator with empty array", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "id", operator: "IN", value: [] },
+    ]);
+    expect(sql).toBe("");
+    expect(params).toEqual([]);
+  });
+
+  it("should combine special and basic operators", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "name", operator: "LIKE", value: "%test%" },
+      { column: "deleted_at", operator: "IS NULL" },
+      { column: "created", operator: ">", value: 1000 },
+    ]);
+    expect(sql).toBe("WHERE name LIKE ? AND deleted_at IS NULL AND created > ?");
+    expect(params).toEqual(["%test%", 1000]);
+  });
+
+  it("should handle IN with numeric values", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "priority", operator: "IN", value: [1, 2, 3] },
+    ]);
+    expect(sql).toBe("WHERE priority IN (?, ?, ?)");
+    expect(params).toEqual([1, 2, 3]);
+  });
+});
+
+// =============================================================================
 // T-2.3: buildOrderBy()
 // =============================================================================
 
