@@ -15,6 +15,7 @@
  */
 
 import { Command } from "commander";
+import type { Database } from "bun:sqlite";
 import { existsSync } from "fs";
 import { findMeaningfulAncestor } from "../embeddings/ancestor-resolution";
 import { ConfigManager } from "../config/manager";
