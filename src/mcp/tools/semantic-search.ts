@@ -7,7 +7,7 @@
  * Uses resona/LanceDB for vector storage and search.
  */
 
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 import { resolveWorkspaceContext } from "../../config/workspace-resolver.js";
 import { ConfigManager } from "../../config/manager.js";
 import { TanaEmbeddingService } from "../../embeddings/tana-embedding-service.js";
@@ -24,6 +24,7 @@ import { isReferenceSyntax, deduplicateResults, getOverfetchLimit, type Enriched
 import type { SemanticSearchInput } from "../schemas.js";
 import { existsSync } from "node:fs";
 import { withDbRetrySync } from "../../db/retry.js";
+import { withDatabase } from "../../db/with-database.js";
 
 export interface SemanticSearchResultItem {
   nodeId: string;
@@ -139,9 +140,6 @@ export async function semanticSearch(
     endpoint: embeddingConfig.endpoint,
   });
 
-  // Open SQLite database for node enrichment (no extensions needed)
-  const db = new Database(dbPath);
-
   try {
     // Check if we have any embeddings
     const stats = await embeddingService.getStats();
@@ -164,163 +162,167 @@ export async function semanticSearch(
       ? searchResults.filter(r => r.similarity >= minSimilarity)
       : searchResults;
 
-    // Enrich results with node names and tags (or full contents if requested)
-    const results: SemanticSearchResultItem[] = [];
-    const includeContents = input.includeContents ?? false;
-    const includeAncestor = input.includeAncestor ?? true;
-    const depth = Math.min(input.depth ?? 0, 3); // Cap at 3 to prevent huge responses
+    // Enrich results with node names and tags within database context
+    const results = await withDatabase({ dbPath, readonly: true }, (ctx) => {
+      const enrichedResults: SemanticSearchResultItem[] = [];
+      const includeContents = input.includeContents ?? false;
+      const includeAncestor = input.includeAncestor ?? true;
+      const depth = Math.min(input.depth ?? 0, 3); // Cap at 3 to prevent huge responses
 
-    // Helper to add entity and ancestor info to an item
-    const addEntityAndAncestorInfo = (item: SemanticSearchResultItem, nodeId: string) => {
-      // Check if this node is an entity
-      item.isEntity = isEntityById(db, nodeId);
+      // Helper to add entity and ancestor info to an item
+      const addEntityAndAncestorInfo = (item: SemanticSearchResultItem, nodeId: string) => {
+        // Check if this node is an entity
+        item.isEntity = isEntityById(ctx.db, nodeId);
 
-      if (includeAncestor && !input.raw) {
-        // First, try to find nearest entity ancestor (more reliable than just tagged)
-        const entityAncestor = findNearestEntityAncestor(db, nodeId);
+        if (includeAncestor && !input.raw) {
+          // First, try to find nearest entity ancestor (more reliable than just tagged)
+          const entityAncestor = findNearestEntityAncestor(ctx.db, nodeId);
 
-        if (entityAncestor && entityAncestor.depth > 0) {
-          // Found an entity ancestor above us
-          // Get tags for the entity ancestor
-          const tags = withDbRetrySync(
-            () => db
-              .query(
-                `SELECT DISTINCT tag_name as name
-                 FROM tag_applications
-                 WHERE data_node_id = ?`
-              )
-              .all(entityAncestor.id) as { name: string }[],
-            "getEntityAncestorTags"
-          );
-
-          item.ancestor = {
-            id: entityAncestor.id,
-            name: entityAncestor.name,
-            tags: tags.map((t) => t.name),
-            isEntity: true,
-          };
-          item.depthFromAncestor = entityAncestor.depth;
-        } else {
-          // No entity ancestor, fall back to tagged ancestor
-          const ancestorResult = findMeaningfulAncestor(db, nodeId);
-          if (ancestorResult && ancestorResult.depth > 0) {
-            // Check if this tagged ancestor is also an entity
-            const ancestorIsEntity = isEntityById(db, ancestorResult.ancestor.id);
-            item.ancestor = {
-              ...ancestorResult.ancestor,
-              isEntity: ancestorIsEntity,
-            };
-            item.pathFromAncestor = ancestorResult.path;
-            item.depthFromAncestor = ancestorResult.depth;
-          } else {
-            // No tagged ancestor found, use direct parent instead
-            const parentNode = withDbRetrySync(
-              () => db
-                .query(`
-                  SELECT n.id, n.name
-                  FROM nodes n
-                  INNER JOIN nodes child ON child.parent_id = n.id
-                  WHERE child.id = ?
-                `)
-                .get(nodeId) as { id: string; name: string } | null,
-              "getParentNode"
-            );
-
-            if (parentNode && parentNode.name) {
-              const parentIsEntity = isEntityById(db, parentNode.id);
-              item.ancestor = {
-                id: parentNode.id,
-                name: parentNode.name,
-                tags: [],
-                isEntity: parentIsEntity,
-              };
-              item.depthFromAncestor = 1;
-            }
-          }
-        }
-      }
-    };
-
-    for (const r of thresholdedResults) {
-      // Skip deleted nodes (nodes with trash ancestor)
-      if (isNodeInTrash(db, r.nodeId)) {
-        continue;
-      }
-
-      if (includeContents) {
-        // Get full node contents using show.ts functions
-        if (depth > 0) {
-          const contents = getNodeContentsWithDepth(db, r.nodeId, 0, depth);
-          if (contents) {
-            const item: SemanticSearchResultItem = {
-              nodeId: r.nodeId,
-              name: contents.name,
-              similarity: r.similarity,
-              distance: r.distance,
-              tags: contents.tags.length > 0 ? contents.tags : undefined,
-              created: contents.created,
-              fields: contents.fields.length > 0 ? contents.fields : undefined,
-              children: contents.children.length > 0 ? contents.children : undefined,
-            };
-            addEntityAndAncestorInfo(item, r.nodeId);
-            results.push(item);
-          }
-        } else {
-          const contents = getNodeContents(db, r.nodeId);
-          if (contents) {
-            const item: SemanticSearchResultItem = {
-              nodeId: r.nodeId,
-              name: contents.name,
-              similarity: r.similarity,
-              distance: r.distance,
-              tags: contents.tags.length > 0 ? contents.tags : undefined,
-              created: contents.created,
-              fields: contents.fields.length > 0 ? contents.fields : undefined,
-              children: contents.children.length > 0 ? contents.children : undefined,
-            };
-            addEntityAndAncestorInfo(item, r.nodeId);
-            results.push(item);
-          }
-        }
-      } else {
-        // Basic mode - just name and tags
-        const node = withDbRetrySync(
-          () => db
-            .query("SELECT name FROM nodes WHERE id = ?")
-            .get(r.nodeId) as { name: string } | null,
-          "semanticSearch getNode"
-        );
-
-        if (node) {
-          const item: SemanticSearchResultItem = {
-            nodeId: r.nodeId,
-            name: node.name,
-            similarity: r.similarity,
-            distance: r.distance,
-          };
-
-          // Get tags if not raw mode
-          if (!input.raw) {
+          if (entityAncestor && entityAncestor.depth > 0) {
+            // Found an entity ancestor above us
+            // Get tags for the entity ancestor
             const tags = withDbRetrySync(
-              () => db
+              () => ctx.db
                 .query(
                   `SELECT DISTINCT tag_name as name
                    FROM tag_applications
                    WHERE data_node_id = ?`
                 )
-                .all(r.nodeId) as { name: string }[],
-              "semanticSearch getTags"
+                .all(entityAncestor.id) as { name: string }[],
+              "getEntityAncestorTags"
             );
-            if (tags.length > 0) {
-              item.tags = tags.map((t) => t.name);
+
+            item.ancestor = {
+              id: entityAncestor.id,
+              name: entityAncestor.name,
+              tags: tags.map((t) => t.name),
+              isEntity: true,
+            };
+            item.depthFromAncestor = entityAncestor.depth;
+          } else {
+            // No entity ancestor, fall back to tagged ancestor
+            const ancestorResult = findMeaningfulAncestor(ctx.db, nodeId);
+            if (ancestorResult && ancestorResult.depth > 0) {
+              // Check if this tagged ancestor is also an entity
+              const ancestorIsEntity = isEntityById(ctx.db, ancestorResult.ancestor.id);
+              item.ancestor = {
+                ...ancestorResult.ancestor,
+                isEntity: ancestorIsEntity,
+              };
+              item.pathFromAncestor = ancestorResult.path;
+              item.depthFromAncestor = ancestorResult.depth;
+            } else {
+              // No tagged ancestor found, use direct parent instead
+              const parentNode = withDbRetrySync(
+                () => ctx.db
+                  .query(`
+                    SELECT n.id, n.name
+                    FROM nodes n
+                    INNER JOIN nodes child ON child.parent_id = n.id
+                    WHERE child.id = ?
+                  `)
+                  .get(nodeId) as { id: string; name: string } | null,
+                "getParentNode"
+              );
+
+              if (parentNode && parentNode.name) {
+                const parentIsEntity = isEntityById(ctx.db, parentNode.id);
+                item.ancestor = {
+                  id: parentNode.id,
+                  name: parentNode.name,
+                  tags: [],
+                  isEntity: parentIsEntity,
+                };
+                item.depthFromAncestor = 1;
+              }
             }
           }
+        }
+      };
 
-          addEntityAndAncestorInfo(item, r.nodeId);
-          results.push(item);
+      for (const r of thresholdedResults) {
+        // Skip deleted nodes (nodes with trash ancestor)
+        if (isNodeInTrash(ctx.db, r.nodeId)) {
+          continue;
+        }
+
+        if (includeContents) {
+          // Get full node contents using show.ts functions
+          if (depth > 0) {
+            const contents = getNodeContentsWithDepth(ctx.db, r.nodeId, 0, depth);
+            if (contents) {
+              const item: SemanticSearchResultItem = {
+                nodeId: r.nodeId,
+                name: contents.name,
+                similarity: r.similarity,
+                distance: r.distance,
+                tags: contents.tags.length > 0 ? contents.tags : undefined,
+                created: contents.created,
+                fields: contents.fields.length > 0 ? contents.fields : undefined,
+                children: contents.children.length > 0 ? contents.children : undefined,
+              };
+              addEntityAndAncestorInfo(item, r.nodeId);
+              enrichedResults.push(item);
+            }
+          } else {
+            const contents = getNodeContents(ctx.db, r.nodeId);
+            if (contents) {
+              const item: SemanticSearchResultItem = {
+                nodeId: r.nodeId,
+                name: contents.name,
+                similarity: r.similarity,
+                distance: r.distance,
+                tags: contents.tags.length > 0 ? contents.tags : undefined,
+                created: contents.created,
+                fields: contents.fields.length > 0 ? contents.fields : undefined,
+                children: contents.children.length > 0 ? contents.children : undefined,
+              };
+              addEntityAndAncestorInfo(item, r.nodeId);
+              enrichedResults.push(item);
+            }
+          }
+        } else {
+          // Basic mode - just name and tags
+          const node = withDbRetrySync(
+            () => ctx.db
+              .query("SELECT name FROM nodes WHERE id = ?")
+              .get(r.nodeId) as { name: string } | null,
+            "semanticSearch getNode"
+          );
+
+          if (node) {
+            const item: SemanticSearchResultItem = {
+              nodeId: r.nodeId,
+              name: node.name,
+              similarity: r.similarity,
+              distance: r.distance,
+            };
+
+            // Get tags if not raw mode
+            if (!input.raw) {
+              const tags = withDbRetrySync(
+                () => ctx.db
+                  .query(
+                    `SELECT DISTINCT tag_name as name
+                     FROM tag_applications
+                     WHERE data_node_id = ?`
+                  )
+                  .all(r.nodeId) as { name: string }[],
+                "semanticSearch getTags"
+              );
+              if (tags.length > 0) {
+                item.tags = tags.map((t) => t.name);
+              }
+            }
+
+            addEntityAndAncestorInfo(item, r.nodeId);
+            enrichedResults.push(item);
+          }
         }
       }
-    }
+
+      return enrichedResults;
+    });
 
     // Filter out reference-syntax text nodes (names like "[[Something]]")
     // These are text artifacts, not actual content - the real nodes have plain names
@@ -356,6 +358,5 @@ export async function semanticSearch(
     };
   } finally {
     embeddingService.close();
-    db.close();
   }
 }

@@ -5,9 +5,9 @@
  * Supports three modes: fields, inheritance, full.
  */
 
-import { Database } from "bun:sqlite";
 import { resolveWorkspaceContext } from "../../config/workspace-resolver.js";
 import { SupertagMetadataService } from "../../services/supertag-metadata-service.js";
+import { withDatabase } from "../../db/with-database.js";
 import type { SupertagInfoInput } from "../schemas.js";
 
 export interface FieldInfo {
@@ -41,10 +41,9 @@ export async function supertagInfo(
     dbPath = workspace.dbPath;
   }
 
-  const db = new Database(dbPath, { readonly: true });
-  const service = new SupertagMetadataService(db);
+  return withDatabase({ dbPath, readonly: true }, (ctx) => {
+    const service = new SupertagMetadataService(ctx.db);
 
-  try {
     const tagId = service.findTagIdByName(input.tagname);
     const result: SupertagInfoResult = {
       tagname: input.tagname,
@@ -105,7 +104,5 @@ export async function supertagInfo(
     }
 
     return result;
-  } finally {
-    db.close();
-  }
+  });
 }

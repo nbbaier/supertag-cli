@@ -5,10 +5,11 @@
  * Supports depth traversal for nested content.
  */
 
-import { Database } from 'bun:sqlite';
+import type { Database } from 'bun:sqlite';
 import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import type { NodeInput } from '../schemas.js';
 import { withDbRetrySync } from '../../db/retry.js';
+import { withDatabase } from '../../db/with-database.js';
 
 interface NodeData {
   id: string;
@@ -266,18 +267,13 @@ function getNodeContentsWithDepth(
 
 export async function showNode(input: NodeInput): Promise<NodeContents | null> {
   const workspace = resolveWorkspaceContext({ workspace: input.workspace });
+  const depth = input.depth || 0;
 
-  const db = new Database(workspace.dbPath);
-
-  try {
-    const depth = input.depth || 0;
-
+  return withDatabase({ dbPath: workspace.dbPath, readonly: true }, (ctx) => {
     if (depth > 0) {
-      return getNodeContentsWithDepth(db, input.nodeId, 0, depth);
+      return getNodeContentsWithDepth(ctx.db, input.nodeId, 0, depth);
     } else {
-      return getNodeContentsBasic(db, input.nodeId);
+      return getNodeContentsBasic(ctx.db, input.nodeId);
     }
-  } finally {
-    db.close();
-  }
+  });
 }

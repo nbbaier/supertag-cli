@@ -54,7 +54,7 @@ describe("buildNodePayloadFromDatabase (T-5.3)", () => {
   it("should build node payload with supertag from database", async () => {
     const { buildNodePayloadFromDatabase } = await import("../../src/services/node-builder");
 
-    const payload = buildNodePayloadFromDatabase(dbPath, {
+    const payload = await buildNodePayloadFromDatabase(dbPath, {
       supertag: "todo",
       name: "Buy groceries",
       fields: {},
@@ -69,7 +69,7 @@ describe("buildNodePayloadFromDatabase (T-5.3)", () => {
   it("should build node payload with fields mapped to tuples", async () => {
     const { buildNodePayloadFromDatabase } = await import("../../src/services/node-builder");
 
-    const payload = buildNodePayloadFromDatabase(dbPath, {
+    const payload = await buildNodePayloadFromDatabase(dbPath, {
       supertag: "todo",
       name: "Buy groceries",
       fields: { status: "pending" },
@@ -84,13 +84,13 @@ describe("buildNodePayloadFromDatabase (T-5.3)", () => {
   it("should throw for unknown supertag", async () => {
     const { buildNodePayloadFromDatabase } = await import("../../src/services/node-builder");
 
-    expect(() => {
+    await expect(
       buildNodePayloadFromDatabase(dbPath, {
         supertag: "nonexistent",
         name: "Test",
         fields: {},
-      });
-    }).toThrow("Unknown supertag");
+      })
+    ).rejects.toThrow("Unknown supertag");
   });
 
   it("should handle multiple supertags", async () => {
@@ -102,7 +102,7 @@ describe("buildNodePayloadFromDatabase (T-5.3)", () => {
 
     const { buildNodePayloadFromDatabase } = await import("../../src/services/node-builder");
 
-    const payload = buildNodePayloadFromDatabase(dbPath, {
+    const payload = await buildNodePayloadFromDatabase(dbPath, {
       supertag: "todo,project",
       name: "Project Task",
       fields: {},
@@ -117,7 +117,7 @@ describe("buildNodePayloadFromDatabase (T-5.3)", () => {
   it("should include children in payload", async () => {
     const { buildNodePayloadFromDatabase } = await import("../../src/services/node-builder");
 
-    const payload = buildNodePayloadFromDatabase(dbPath, {
+    const payload = await buildNodePayloadFromDatabase(dbPath, {
       supertag: "todo",
       name: "Parent Task",
       fields: {},

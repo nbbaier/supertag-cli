@@ -212,7 +212,7 @@ describe("tags show with UnifiedSchemaService (T-5.2)", () => {
     `);
 
     const { getTagDetailsFromDatabase } = await import("../../src/commands/tags");
-    const details = getTagDetailsFromDatabase(dbPath, "contact");
+    const details = await getTagDetailsFromDatabase(dbPath, "contact");
 
     expect(details).toBeDefined();
     expect(details!.id).toBe("contact-id");
@@ -228,7 +228,7 @@ describe("tags show with UnifiedSchemaService (T-5.2)", () => {
 
   it("should return null for non-existent tag", async () => {
     const { getTagDetailsFromDatabase } = await import("../../src/commands/tags");
-    const details = getTagDetailsFromDatabase(dbPath, "nonexistent");
+    const details = await getTagDetailsFromDatabase(dbPath, "nonexistent");
 
     expect(details).toBeNull();
   });
@@ -240,7 +240,7 @@ describe("tags show with UnifiedSchemaService (T-5.2)", () => {
     `);
 
     const { getTagDetailsFromDatabase } = await import("../../src/commands/tags");
-    const details = getTagDetailsFromDatabase(dbPath, "empty");
+    const details = await getTagDetailsFromDatabase(dbPath, "empty");
 
     expect(details).toBeDefined();
     expect(details!.name).toBe("empty");
@@ -256,8 +256,8 @@ describe("tags show with UnifiedSchemaService (T-5.2)", () => {
     const { getTagDetailsFromDatabase } = await import("../../src/commands/tags");
 
     // Both original and lowercase should work
-    const byOriginal = getTagDetailsFromDatabase(dbPath, "Contact");
-    const byLower = getTagDetailsFromDatabase(dbPath, "contact");
+    const byOriginal = await getTagDetailsFromDatabase(dbPath, "Contact");
+    const byLower = await getTagDetailsFromDatabase(dbPath, "contact");
 
     expect(byOriginal).toBeDefined();
     expect(byLower).toBeDefined();

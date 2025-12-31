@@ -7,7 +7,6 @@
  * - tana_transcript_search: Search within transcript content
  */
 
-import { Database } from "bun:sqlite";
 import { resolveWorkspaceContext } from "../../config/workspace-resolver.js";
 import {
   getMeetingsWithTranscripts,
@@ -23,6 +22,7 @@ import type {
   TranscriptShowInput,
   TranscriptSearchInput,
 } from "../schemas.js";
+import { withDatabase } from "../../db/with-database.js";
 
 // Response types
 export interface TranscriptListResult {
@@ -69,10 +69,8 @@ export async function transcriptList(
 ): Promise<TranscriptListResult> {
   const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
-  const db = new Database(workspace.dbPath, { readonly: true });
-
-  try {
-    const meetings = getMeetingsWithTranscripts(db, {
+  return withDatabase({ dbPath: workspace.dbPath, readonly: true }, (ctx) => {
+    const meetings = getMeetingsWithTranscripts(ctx.db, {
       limit: input.limit || 20,
     });
 
@@ -81,9 +79,7 @@ export async function transcriptList(
       meetings,
       count: meetings.length,
     };
-  } finally {
-    db.close();
-  }
+  });
 }
 
 /**
@@ -94,17 +90,15 @@ export async function transcriptShow(
 ): Promise<TranscriptShowResult> {
   const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
-  const db = new Database(workspace.dbPath, { readonly: true });
-
-  try {
+  return withDatabase({ dbPath: workspace.dbPath, readonly: true }, (ctx) => {
     // Try to get transcript for meeting ID, or use ID directly as transcript ID
-    let transcriptId = getTranscriptForMeeting(db, input.id);
+    let transcriptId = getTranscriptForMeeting(ctx.db, input.id);
     if (!transcriptId) {
       transcriptId = input.id;
     }
 
     // Get transcript lines
-    let lines = getTranscriptLines(db, transcriptId);
+    let lines = getTranscriptLines(ctx.db, transcriptId);
 
     // Apply limit
     const limit = input.limit || 100;
@@ -113,7 +107,7 @@ export async function transcriptShow(
     }
 
     // Get meeting info
-    const meetingInfo = db
+    const meetingInfo = ctx.db
       .query(`SELECT name FROM nodes WHERE id = ?`)
       .get(input.id) as { name: string } | null;
 
@@ -136,9 +130,7 @@ export async function transcriptShow(
       lines: formattedLines,
       count: formattedLines.length,
     };
-  } finally {
-    db.close();
-  }
+  });
 }
 
 /**
@@ -149,10 +141,8 @@ export async function transcriptSearch(
 ): Promise<TranscriptSearchResult> {
   const workspace = resolveWorkspaceContext({ workspace: input.workspace });
 
-  const db = new Database(workspace.dbPath, { readonly: true });
-
-  try {
-    const results = searchTranscripts(db, input.query, {
+  return withDatabase({ dbPath: workspace.dbPath, readonly: true }, (ctx) => {
+    const results = searchTranscripts(ctx.db, input.query, {
       limit: input.limit || 20,
     });
 
@@ -168,7 +158,5 @@ export async function transcriptSearch(
       })),
       count: results.length,
     };
-  } finally {
-    db.close();
-  }
+  });
 }

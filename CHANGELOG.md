@@ -5,6 +5,19 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Database Resource Management (Spec 053)** - Refactored database connection handling using RAII-style higher-order functions
+  - New `withDatabase()` function for auto-closing database connections
+  - New `withQueryEngine()` function for combined database + query engine handling
+  - New `withTransaction()` function for automatic commit/rollback
+  - New `withWorkspaceDatabase()` and `withWorkspaceQuery()` for workspace-resolved paths
+  - Eliminates try-finally boilerplate across CLI commands, MCP tools, and services
+  - Prevents resource leaks with guaranteed cleanup even on errors
+  - Custom `DatabaseNotFoundError` for better error messages
+
 ## [1.3.2] - 2025-12-30
 
 ### Fixed

@@ -14,8 +14,7 @@
  */
 
 import { Command } from "commander";
-import { Database } from "bun:sqlite";
-import { TanaQueryEngine } from "../query/tana-query-engine";
+import { withDatabase, withQueryEngine } from "../db/with-database";
 import {
   resolveDbPath,
   checkDb,
@@ -70,27 +69,26 @@ export function createNodesCommand(): Command {
     defaultLimit: "1",
   });
 
-  showCmd.action((nodeId: string, options: NodeShowOptions) => {
+  showCmd.action(async (nodeId: string, options: NodeShowOptions) => {
     const dbPath = resolveDbPath(options);
     if (!checkDb(dbPath, options.workspace)) {
       process.exit(1);
     }
 
-    const db = new Database(dbPath);
     const depth = options.depth ? parseInt(String(options.depth)) : 0;
     const outputOpts = resolveOutputOptions(options);
 
-    try {
+    await withDatabase({ dbPath, readonly: true }, (ctx) => {
       if (depth > 0) {
         if (options.json) {
-          const contents = getNodeContentsWithDepth(db, nodeId, 0, depth);
+          const contents = getNodeContentsWithDepth(ctx.db, nodeId, 0, depth);
           if (!contents) {
             console.error(`❌ Node not found: ${nodeId}`);
             process.exit(1);
           }
           console.log(formatJsonOutput(contents));
         } else {
-          const output = formatNodeWithDepth(db, nodeId, 0, depth);
+          const output = formatNodeWithDepth(ctx.db, nodeId, 0, depth);
           if (!output) {
             console.error(`❌ Node not found: ${nodeId}`);
             process.exit(1);
@@ -98,7 +96,7 @@ export function createNodesCommand(): Command {
           console.log(output);
         }
       } else {
-        const contents = getNodeContents(db, nodeId);
+        const contents = getNodeContents(ctx.db, nodeId);
         if (!contents) {
           console.error(`❌ Node not found: ${nodeId}`);
           process.exit(1);
@@ -129,9 +127,7 @@ export function createNodesCommand(): Command {
           }
         }
       }
-    } finally {
-      db.close();
-    }
+    });
   });
 
   // nodes refs <node-id>
@@ -147,43 +143,42 @@ export function createNodesCommand(): Command {
       process.exit(1);
     }
 
-    const engine = new TanaQueryEngine(dbPath);
     const outputOpts = resolveOutputOptions(options);
 
     try {
-      const graph = await engine.getReferenceGraph(nodeId, 1);
+      await withQueryEngine({ dbPath }, async (ctx) => {
+        const graph = await ctx.engine.getReferenceGraph(nodeId, 1);
 
-      if (options.json) {
-        console.log(formatJsonOutput(graph));
-      } else if (outputOpts.pretty) {
-        console.log(`\n${header(EMOJI.link, `References for: ${graph.node.name || nodeId}`)}:\n`);
+        if (options.json) {
+          console.log(formatJsonOutput(graph));
+        } else if (outputOpts.pretty) {
+          console.log(`\n${header(EMOJI.link, `References for: ${graph.node.name || nodeId}`)}:\n`);
 
-        console.log(`📤 Outbound references (${graph.outbound.length}):`);
-        graph.outbound.forEach((ref) => {
-          console.log(`  → ${ref.node?.name || ref.reference.toNode}`);
-          console.log(`     Type: ${ref.reference.referenceType}`);
-        });
+          console.log(`📤 Outbound references (${graph.outbound.length}):`);
+          graph.outbound.forEach((ref) => {
+            console.log(`  → ${ref.node?.name || ref.reference.toNode}`);
+            console.log(`     Type: ${ref.reference.referenceType}`);
+          });
 
-        console.log(`\n📥 Inbound references (${graph.inbound.length}):`);
-        graph.inbound.forEach((ref) => {
-          console.log(`  ← ${ref.node?.name || ref.reference.fromNode}`);
-          console.log(`     Type: ${ref.reference.referenceType}`);
-        });
-      } else {
-        // Unix mode: TSV output
-        // Format: direction\tfrom_id\tto_id\ttype\tname
-        for (const ref of graph.outbound) {
-          console.log(tsv("out", nodeId, ref.reference.toNode, ref.reference.referenceType, ref.node?.name || ""));
+          console.log(`\n📥 Inbound references (${graph.inbound.length}):`);
+          graph.inbound.forEach((ref) => {
+            console.log(`  ← ${ref.node?.name || ref.reference.fromNode}`);
+            console.log(`     Type: ${ref.reference.referenceType}`);
+          });
+        } else {
+          // Unix mode: TSV output
+          // Format: direction\tfrom_id\tto_id\ttype\tname
+          for (const ref of graph.outbound) {
+            console.log(tsv("out", nodeId, ref.reference.toNode, ref.reference.referenceType, ref.node?.name || ""));
+          }
+          for (const ref of graph.inbound) {
+            console.log(tsv("in", ref.reference.fromNode, nodeId, ref.reference.referenceType, ref.node?.name || ""));
+          }
         }
-        for (const ref of graph.inbound) {
-          console.log(tsv("in", ref.reference.fromNode, nodeId, ref.reference.referenceType, ref.node?.name || ""));
-        }
-      }
+      });
     } catch (error) {
       console.error(`❌ Error: ${(error as Error).message}`);
       process.exit(1);
-    } finally {
-      engine.close();
     }
   });
 
@@ -204,13 +199,12 @@ export function createNodesCommand(): Command {
       process.exit(1);
     }
 
-    const engine = new TanaQueryEngine(dbPath);
     const limit = options.limit ? parseInt(String(options.limit)) : 10;
     const dateRange = parseDateRangeOptions(options);
     const outputOpts = resolveOutputOptions(options);
 
-    try {
-      const results = await engine.findRecentlyUpdated(limit, dateRange);
+    await withQueryEngine({ dbPath }, async (ctx) => {
+      const results = await ctx.engine.findRecentlyUpdated(limit, dateRange);
 
       if (options.json) {
         console.log(formatJsonOutput(results));
@@ -232,9 +226,7 @@ export function createNodesCommand(): Command {
           console.log(tsv(node.id, node.name || "", updated));
         }
       }
-    } finally {
-      engine.close();
-    }
+    });
   });
 
   return nodes;
