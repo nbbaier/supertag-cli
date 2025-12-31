@@ -8,6 +8,7 @@
  */
 
 import { Database } from "bun:sqlite";
+import { existsSync } from "fs";
 import type { TanaQueryEngine } from "../query/tana-query-engine";
 import type { ResolvedWorkspace } from "../config/workspace-resolver";
 
@@ -83,5 +84,51 @@ export class DatabaseNotFoundError extends Error {
 
   constructor(public readonly dbPath: string) {
     super(`Database not found: ${dbPath}`);
+  }
+}
+
+// =============================================================================
+// Core Functions
+// =============================================================================
+
+/**
+ * Execute a function with an auto-closing database connection.
+ *
+ * Opens a SQLite database, executes the callback, and guarantees the database
+ * is closed afterwards (even if an error occurs).
+ *
+ * @example
+ * ```typescript
+ * const result = await withDatabase({ dbPath: '/path/to/db' }, (ctx) => {
+ *   return ctx.db.query('SELECT * FROM nodes').all();
+ * });
+ * ```
+ *
+ * @param options - Database options (path, readonly, requireExists)
+ * @param fn - Callback function receiving DatabaseContext
+ * @returns Promise resolving to callback's return value
+ * @throws DatabaseNotFoundError if database doesn't exist and requireExists is true
+ */
+export async function withDatabase<T>(
+  options: DatabaseOptions,
+  fn: (ctx: DatabaseContext) => T | Promise<T>
+): Promise<T> {
+  const { dbPath, readonly = false, requireExists = true } = options;
+
+  // Check if database exists (unless creating new)
+  if (requireExists && !existsSync(dbPath)) {
+    throw new DatabaseNotFoundError(dbPath);
+  }
+
+  // Open database (only pass readonly option if true)
+  const db = readonly ? new Database(dbPath, { readonly: true }) : new Database(dbPath);
+
+  try {
+    // Execute callback (may be sync or async)
+    const result = await fn({ db, dbPath });
+    return result;
+  } finally {
+    // Always close database
+    db.close();
   }
 }
