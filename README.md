@@ -351,27 +351,37 @@ See [examples/tui-todo/README.md](./examples/tui-todo/README.md) for full docume
 
 ## Installation
 
-### Option A: Symlink (Recommended)
+**Detailed installation guides:**
+
+| Platform | Guide |
+|----------|-------|
+| **Windows** | [Windows Installation Guide](./docs/INSTALL-WINDOWS.md) |
+| **macOS** | [macOS Installation Guide](./docs/INSTALL-MACOS.md) |
+| **Linux** | [Linux Installation Guide](./docs/INSTALL-LINUX.md) |
+
+### Quick Install (macOS/Linux)
 
 ```bash
+# Download and extract from GitHub Releases
+unzip supertag-cli-vX.Y.Z-*.zip
+cd supertag-cli-*
+
+# macOS: Remove quarantine
+xattr -d com.apple.quarantine ./supertag ./supertag-mcp ./supertag-export
+
+# Symlink to PATH
 sudo ln -s $(pwd)/supertag /usr/local/bin/supertag
 sudo ln -s $(pwd)/supertag-export /usr/local/bin/supertag-export
 sudo ln -s $(pwd)/supertag-mcp /usr/local/bin/supertag-mcp
-```
 
-### Option B: Add to PATH
-
-```bash
-echo 'export PATH="$PATH:/path/to/supertag-cli"' >> ~/.zshrc
-source ~/.zshrc
+# Install Playwright for browser automation
+curl -fsSL https://bun.sh/install | bash
+bunx playwright install chromium
 ```
 
 ### Playwright (Required for Export)
 
-```bash
-bun install
-# Chromium auto-installs on first supertag-export run
-```
+The `supertag-export` tool requires Playwright for browser automation. See the platform-specific guides above for detailed instructions.
 
 ---
 
@@ -380,6 +390,9 @@ bun install
 | Document | Description |
 |----------|-------------|
 | [Getting Started](./docs/GETTING-STARTED.md) | Visual guide with step-by-step screenshots |
+| [Windows Install](./docs/INSTALL-WINDOWS.md) | Detailed Windows installation with Bun/Playwright |
+| [macOS Install](./docs/INSTALL-MACOS.md) | macOS installation with launchd automation |
+| [Linux Install](./docs/INSTALL-LINUX.md) | Linux installation with systemd automation |
 | [MCP Integration](./docs/mcp.md) | AI tool setup (Claude, ChatGPT, Cursor, etc.) |
 | [Embeddings](./docs/embeddings.md) | Semantic search configuration |
 | [Field Values](./docs/fields.md) | Query and search field data from nodes |
