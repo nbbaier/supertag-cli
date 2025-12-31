@@ -86,22 +86,94 @@ export function buildPagination(options: PaginationOptions): BuiltQuery {
 /**
  * Build WHERE clause from filter conditions
  * Handles all operator types, returns empty for no conditions
+ *
+ * @param conditions - Array of filter conditions
+ * @returns Built query fragment
+ *
+ * @example
+ * const { sql, params } = buildWhereClause([
+ *   { column: 'tag', operator: '=', value: 'todo' },
+ *   { column: 'status', operator: '!=', value: 'done' }
+ * ]);
+ * // sql: "WHERE tag = ? AND status != ?"
+ * // params: ['todo', 'done']
  */
-export function buildWhereClause(_conditions: FilterCondition[]): BuiltQuery {
-  // Stub - to be implemented in T-2.1
-  return { sql: "", params: [] };
+export function buildWhereClause(conditions: FilterCondition[]): BuiltQuery {
+  if (conditions.length === 0) {
+    return { sql: "", params: [] };
+  }
+
+  const parts: string[] = [];
+  const params: unknown[] = [];
+
+  for (const cond of conditions) {
+    switch (cond.operator) {
+      case "IS NULL":
+        parts.push(`${cond.column} IS NULL`);
+        break;
+      case "IS NOT NULL":
+        parts.push(`${cond.column} IS NOT NULL`);
+        break;
+      case "IN":
+        if (Array.isArray(cond.value) && cond.value.length > 0) {
+          const placeholders = cond.value.map(() => "?").join(", ");
+          parts.push(`${cond.column} IN (${placeholders})`);
+          params.push(...cond.value);
+        }
+        break;
+      default:
+        // Basic operators: =, !=, >, <, >=, <=, LIKE
+        parts.push(`${cond.column} ${cond.operator} ?`);
+        params.push(cond.value);
+    }
+  }
+
+  if (parts.length === 0) {
+    return { sql: "", params: [] };
+  }
+
+  return {
+    sql: `WHERE ${parts.join(" AND ")}`,
+    params,
+  };
 }
 
 /**
  * Build ORDER BY clause with column validation
- * Throws Error if column not in allowedColumns
+ * Throws Error if column not in allowedColumns (unless allowedColumns is empty)
+ *
+ * @param options - Sort options
+ * @param allowedColumns - Columns that can be sorted (empty = no validation)
+ * @returns Built query fragment
+ * @throws Error if sort column not in allowedColumns
+ *
+ * @example
+ * const { sql } = buildOrderBy(
+ *   { sort: 'created', direction: 'DESC' },
+ *   ['created', 'name', 'updated']
+ * );
+ * // sql: "ORDER BY created DESC"
  */
 export function buildOrderBy(
-  _options: SortOptions,
-  _allowedColumns: string[]
+  options: SortOptions,
+  allowedColumns: string[]
 ): BuiltQuery {
-  // Stub - to be implemented in T-2.3
-  return { sql: "", params: [] };
+  if (!options.sort) {
+    return { sql: "", params: [] };
+  }
+
+  // Validate column if allowedColumns is not empty
+  if (allowedColumns.length > 0 && !allowedColumns.includes(options.sort)) {
+    throw new Error(
+      `Invalid sort column: ${options.sort}. Allowed: ${allowedColumns.join(", ")}`
+    );
+  }
+
+  const direction = options.direction === "DESC" ? "DESC" : "ASC";
+  return {
+    sql: `ORDER BY ${options.sort} ${direction}`,
+    params: [],
+  };
 }
 
 /**

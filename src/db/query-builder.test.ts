@@ -119,3 +119,133 @@ describe("buildPagination", () => {
     expect(params).toEqual([]);
   });
 });
+
+// =============================================================================
+// T-2.1: buildWhereClause() - basic operators
+// =============================================================================
+
+describe("buildWhereClause - basic operators", () => {
+  it("should build single = condition", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "name", operator: "=", value: "test" },
+    ]);
+    expect(sql).toBe("WHERE name = ?");
+    expect(params).toEqual(["test"]);
+  });
+
+  it("should build single != condition", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "status", operator: "!=", value: "deleted" },
+    ]);
+    expect(sql).toBe("WHERE status != ?");
+    expect(params).toEqual(["deleted"]);
+  });
+
+  it("should build > condition", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "created", operator: ">", value: 1000 },
+    ]);
+    expect(sql).toBe("WHERE created > ?");
+    expect(params).toEqual([1000]);
+  });
+
+  it("should build < condition", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "age", operator: "<", value: 30 },
+    ]);
+    expect(sql).toBe("WHERE age < ?");
+    expect(params).toEqual([30]);
+  });
+
+  it("should build >= condition", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "score", operator: ">=", value: 80 },
+    ]);
+    expect(sql).toBe("WHERE score >= ?");
+    expect(params).toEqual([80]);
+  });
+
+  it("should build <= condition", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "priority", operator: "<=", value: 5 },
+    ]);
+    expect(sql).toBe("WHERE priority <= ?");
+    expect(params).toEqual([5]);
+  });
+
+  it("should build multiple conditions with AND", () => {
+    const { sql, params } = buildWhereClause([
+      { column: "tag", operator: "=", value: "todo" },
+      { column: "status", operator: "!=", value: "done" },
+    ]);
+    expect(sql).toBe("WHERE tag = ? AND status != ?");
+    expect(params).toEqual(["todo", "done"]);
+  });
+
+  it("should return empty for no conditions", () => {
+    const { sql, params } = buildWhereClause([]);
+    expect(sql).toBe("");
+    expect(params).toEqual([]);
+  });
+});
+
+// =============================================================================
+// T-2.3: buildOrderBy()
+// =============================================================================
+
+describe("buildOrderBy", () => {
+  it("should build ORDER BY with valid column DESC", () => {
+    const { sql, params } = buildOrderBy(
+      { sort: "created", direction: "DESC" },
+      ["created", "name", "updated"]
+    );
+    expect(sql).toBe("ORDER BY created DESC");
+    expect(params).toEqual([]);
+  });
+
+  it("should build ORDER BY with valid column ASC", () => {
+    const { sql, params } = buildOrderBy(
+      { sort: "name", direction: "ASC" },
+      ["created", "name"]
+    );
+    expect(sql).toBe("ORDER BY name ASC");
+    expect(params).toEqual([]);
+  });
+
+  it("should default to ASC when direction not specified", () => {
+    const { sql, params } = buildOrderBy({ sort: "name" }, ["name"]);
+    expect(sql).toBe("ORDER BY name ASC");
+    expect(params).toEqual([]);
+  });
+
+  it("should return empty when no sort specified", () => {
+    const { sql, params } = buildOrderBy({}, ["name", "created"]);
+    expect(sql).toBe("");
+    expect(params).toEqual([]);
+  });
+
+  it("should return empty when sort is undefined", () => {
+    const { sql, params } = buildOrderBy({ sort: undefined }, ["name"]);
+    expect(sql).toBe("");
+    expect(params).toEqual([]);
+  });
+
+  it("should throw on invalid column", () => {
+    expect(() =>
+      buildOrderBy({ sort: "password" }, ["name", "created"])
+    ).toThrow("Invalid sort column: password");
+  });
+
+  it("should throw with helpful message listing allowed columns", () => {
+    expect(() =>
+      buildOrderBy({ sort: "evil_column" }, ["name", "created", "updated"])
+    ).toThrow("Allowed: name, created, updated");
+  });
+
+  it("should allow any column when allowedColumns is empty", () => {
+    // Empty allowedColumns = no validation (opt-out)
+    const { sql, params } = buildOrderBy({ sort: "any_column" }, []);
+    expect(sql).toBe("ORDER BY any_column ASC");
+    expect(params).toEqual([]);
+  });
+});
