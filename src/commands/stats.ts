@@ -15,11 +15,10 @@
  */
 
 import { Command } from "commander";
-import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
-import { TanaQueryEngine } from "../query/tana-query-engine";
 import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import { ConfigManager } from "../config/manager";
+import { withDatabase, withQueryEngine } from "../db/with-database";
 import {
   resolveDbPath,
   checkDb,
@@ -78,29 +77,24 @@ export function createStatsCommand(): Command {
 
     // Database stats
     if (showDb) {
-      const engine = new TanaQueryEngine(dbPath);
-      try {
-        const dbStats = await engine.getStatistics();
-        results.database = dbStats;
+      const dbStats = await withQueryEngine({ dbPath }, (ctx) => ctx.engine.getStatistics());
+      results.database = dbStats;
 
-        if (!options.json) {
-          if (outputOpts.pretty) {
-            // Pretty mode: emoji header, formatted numbers
-            console.log(`\n${header(EMOJI.stats, `Database Statistics [${wsContext.alias}]`)}:\n`);
-            console.log(`   Total Nodes: ${formatNumber(dbStats.totalNodes, true)}`);
-            console.log(`   Total Supertags: ${formatNumber(dbStats.totalSupertags, true)}`);
-            console.log(`   Total Fields: ${formatNumber(dbStats.totalFields, true)}`);
-            console.log(`   Total References: ${formatNumber(dbStats.totalReferences, true)}`);
-          } else {
-            // Unix mode: TSV key-value output
-            console.log(tsv("nodes", dbStats.totalNodes));
-            console.log(tsv("supertags", dbStats.totalSupertags));
-            console.log(tsv("fields", dbStats.totalFields));
-            console.log(tsv("references", dbStats.totalReferences));
-          }
+      if (!options.json) {
+        if (outputOpts.pretty) {
+          // Pretty mode: emoji header, formatted numbers
+          console.log(`\n${header(EMOJI.stats, `Database Statistics [${wsContext.alias}]`)}:\n`);
+          console.log(`   Total Nodes: ${formatNumber(dbStats.totalNodes, true)}`);
+          console.log(`   Total Supertags: ${formatNumber(dbStats.totalSupertags, true)}`);
+          console.log(`   Total Fields: ${formatNumber(dbStats.totalFields, true)}`);
+          console.log(`   Total References: ${formatNumber(dbStats.totalReferences, true)}`);
+        } else {
+          // Unix mode: TSV key-value output
+          console.log(tsv("nodes", dbStats.totalNodes));
+          console.log(tsv("supertags", dbStats.totalSupertags));
+          console.log(tsv("fields", dbStats.totalFields));
+          console.log(tsv("references", dbStats.totalReferences));
         }
-      } finally {
-        engine.close();
       }
     }
 
@@ -133,16 +127,14 @@ export function createStatsCommand(): Command {
           endpoint: embeddingConfig.endpoint,
         });
 
-        const db = new Database(dbPath);
-
         try {
           const embedStats = await embeddingService.getStats();
           const diagnostics = await embeddingService.getDiagnostics();
 
           // Get node count for coverage
-          const nodeCount = db
-            .query("SELECT COUNT(*) as count FROM nodes WHERE name IS NOT NULL")
-            .get() as { count: number };
+          const nodeCount = await withDatabase({ dbPath, readonly: true }, (ctx) =>
+            ctx.db.query("SELECT COUNT(*) as count FROM nodes WHERE name IS NOT NULL").get() as { count: number }
+          );
           const coverage = nodeCount.count > 0
             ? ((embedStats.totalEmbeddings / nodeCount.count) * 100).toFixed(1)
             : "0.0";
@@ -186,56 +178,50 @@ export function createStatsCommand(): Command {
           }
         } finally {
           embeddingService.close();
-          db.close();
         }
       }
     }
 
     // Filter stats
     if (showFilter) {
-      const db = new Database(dbPath);
-      try {
-        const filterStats = getFilterStats(db);
-        results.filter = filterStats;
+      const filterStats = await withDatabase({ dbPath, readonly: true }, (ctx) => getFilterStats(ctx.db));
+      results.filter = filterStats;
 
-        if (!options.json) {
-          if (outputOpts.pretty) {
-            if (showDb || showEmbed) console.log("");
-            console.log(`📋 Content Filter Statistics [${wsContext.alias}]:\n`);
-            console.log(`   Total named nodes: ${formatNumber(filterStats.totalNamed, true)}`);
-            console.log(`   After default filters: ${formatNumber(filterStats.withDefaultFilters, true)}`);
-            console.log(`   Reduction: ${filterStats.reduction}`);
-            console.log("");
-            console.log("   Default filters applied:");
-            console.log("     - Minimum length: 15 characters");
-            console.log("     - Exclude timestamp artifacts");
-            console.log("     - Exclude system docTypes");
-            console.log("");
-            console.log("   Entity Detection:");
-            console.log(`     Tagged items: ${formatNumber(filterStats.entityStats.entitiesTagged, true)}`);
-            console.log(`     Library items: ${formatNumber(filterStats.entityStats.entitiesLibrary, true)}`);
-            console.log(`     Total entities: ${formatNumber(filterStats.entityStats.totalEntities, true)} (${filterStats.entityStats.entityPercentage})`);
-            console.log("");
-            console.log("   Nodes by docType:");
-            for (const { docType, count } of filterStats.byDocType.slice(0, 10)) {
-              const label = docType || "(no docType)";
-              console.log(`     ${label.padEnd(20)} ${formatNumber(count, true).padStart(10)}`);
-            }
-            if (filterStats.byDocType.length > 10) {
-              console.log(`     ... and ${filterStats.byDocType.length - 10} more`);
-            }
-          } else {
-            // Unix mode: TSV key-value output
-            console.log(tsv("filter_total_named", filterStats.totalNamed));
-            console.log(tsv("filter_after_default", filterStats.withDefaultFilters));
-            console.log(tsv("filter_reduction", filterStats.reduction));
-            console.log(tsv("filter_entities_tagged", filterStats.entityStats.entitiesTagged));
-            console.log(tsv("filter_entities_library", filterStats.entityStats.entitiesLibrary));
-            console.log(tsv("filter_entities_total", filterStats.entityStats.totalEntities));
+      if (!options.json) {
+        if (outputOpts.pretty) {
+          if (showDb || showEmbed) console.log("");
+          console.log(`📋 Content Filter Statistics [${wsContext.alias}]:\n`);
+          console.log(`   Total named nodes: ${formatNumber(filterStats.totalNamed, true)}`);
+          console.log(`   After default filters: ${formatNumber(filterStats.withDefaultFilters, true)}`);
+          console.log(`   Reduction: ${filterStats.reduction}`);
+          console.log("");
+          console.log("   Default filters applied:");
+          console.log("     - Minimum length: 15 characters");
+          console.log("     - Exclude timestamp artifacts");
+          console.log("     - Exclude system docTypes");
+          console.log("");
+          console.log("   Entity Detection:");
+          console.log(`     Tagged items: ${formatNumber(filterStats.entityStats.entitiesTagged, true)}`);
+          console.log(`     Library items: ${formatNumber(filterStats.entityStats.entitiesLibrary, true)}`);
+          console.log(`     Total entities: ${formatNumber(filterStats.entityStats.totalEntities, true)} (${filterStats.entityStats.entityPercentage})`);
+          console.log("");
+          console.log("   Nodes by docType:");
+          for (const { docType, count } of filterStats.byDocType.slice(0, 10)) {
+            const label = docType || "(no docType)";
+            console.log(`     ${label.padEnd(20)} ${formatNumber(count, true).padStart(10)}`);
           }
+          if (filterStats.byDocType.length > 10) {
+            console.log(`     ... and ${filterStats.byDocType.length - 10} more`);
+          }
+        } else {
+          // Unix mode: TSV key-value output
+          console.log(tsv("filter_total_named", filterStats.totalNamed));
+          console.log(tsv("filter_after_default", filterStats.withDefaultFilters));
+          console.log(tsv("filter_reduction", filterStats.reduction));
+          console.log(tsv("filter_entities_tagged", filterStats.entityStats.entitiesTagged));
+          console.log(tsv("filter_entities_library", filterStats.entityStats.entitiesLibrary));
+          console.log(tsv("filter_entities_total", filterStats.entityStats.totalEntities));
         }
-      } finally {
-        db.close();
       }
     }
 
