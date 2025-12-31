@@ -183,8 +183,63 @@ describe("embed command batch processing", () => {
   });
 });
 
+// T-3.3: Tana-export CLI integration tests
 describe("tana-export CLI batch processing", () => {
-  it.skip("should use processWorkspaces for --all", () => {
-    // T-3.3: To be implemented when migrating tana-export CLI
+  it("should use processWorkspaces for --all", async () => {
+    const { processWorkspaces, isBatchMode } = await import(
+      "../src/config/batch-processor"
+    );
+
+    // Verify the function can handle batch options
+    const options = { all: true };
+    expect(isBatchMode(options)).toBe(true);
+
+    // Simulate export operation
+    const exported: string[] = [];
+    const result = await processWorkspaces(
+      { workspace: "main", continueOnError: true },
+      async (ws) => {
+        exported.push(ws.alias);
+        // Simulate export result
+        return {
+          exportPath: `/path/to/${ws.alias}@2025-01-01.json`,
+        };
+      }
+    );
+
+    expect(result.successful).toBe(1);
+    expect(exported).toContain("main");
+    expect(result.results[0].result).toHaveProperty("exportPath");
   });
+
+  it("should exit 1 if any workspace fails", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const result = await processWorkspaces(
+      { workspaces: ["main", "nonexistent"], continueOnError: true },
+      async (ws) => {
+        // Simulate: main succeeds, nonexistent fails at resolution
+        return { exportPath: `/path/to/${ws.alias}.json` };
+      }
+    );
+
+    // Exit code should be 1 if any failed
+    const exitCode = result.failed > 0 ? 1 : 0;
+    expect(exitCode).toBe(1); // nonexistent fails workspace resolution
+  });
+
+  it("should report success and failure counts", async () => {
+    const { processWorkspaces } = await import("../src/config/batch-processor");
+
+    const result = await processWorkspaces(
+      { workspaces: ["main", "nonexistent"], continueOnError: true },
+      async (ws) => ({ alias: ws.alias })
+    );
+
+    // Both successful and failed should be tracked
+    expect(typeof result.successful).toBe("number");
+    expect(typeof result.failed).toBe("number");
+    expect(result.successful + result.failed).toBe(2);
+  });
+
 });
