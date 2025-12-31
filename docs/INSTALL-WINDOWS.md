@@ -107,7 +107,15 @@ You should see the version number (e.g., `0.6.4`).
 
 Get your Tana API token from: https://app.tana.inc/?bundle=settings&panel=api
 
-### Option A: Environment Variable (Recommended)
+### Option A: CLI Command (Recommended)
+
+```powershell
+.\supertag config --token "your_token_here"
+```
+
+This saves the token to the config file at `%APPDATA%\supertag\config.json`.
+
+### Option B: Environment Variable
 
 ```powershell
 # Set permanently for your user account
@@ -118,20 +126,6 @@ $env:TANA_API_TOKEN = "your_token_here"
 
 # Verify
 echo $env:TANA_API_TOKEN
-```
-
-### Option B: Config File
-
-```powershell
-# Create config directory
-mkdir "$env:APPDATA\supertag" -ErrorAction SilentlyContinue
-
-# Create config file
-@"
-{
-  "token": "your_token_here"
-}
-"@ | Out-File -FilePath "$env:APPDATA\supertag\config.json" -Encoding utf8
 ```
 
 ---

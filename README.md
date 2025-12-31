@@ -19,7 +19,34 @@
 
 ---
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Capabilities](#capabilities)
+  - [READ - Query Workspace](#read---query-workspace)
+  - [WRITE - Create Nodes](#write---create-nodes)
+  - [EXPORT - Automated Backup](#export---automated-backup)
+  - [EMBED - Semantic Search](#embed---semantic-search)
+  - [FIELDS - Query Field Values](#fields---query-field-values)
+  - [TRANSCRIPTS - Meeting Recordings](#transcripts---meeting-recordings)
+  - [SERVER - Webhook API](#server---webhook-api)
+  - [VISUALIZE - Inheritance Graphs](#visualize---inheritance-graphs)
+  - [CODEGEN - Generate Effect Schema Classes](#codegen---generate-effect-schema-classes)
+  - [MCP - AI Tool Integration](#mcp---ai-tool-integration)
+  - [WORKSPACES - Multi-Workspace](#workspaces---multi-workspace)
+  - [OUTPUT - Display Formatting](#output---display-formatting)
+- [Examples](#examples)
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Troubleshooting](#troubleshooting)
+- [Performance](#performance)
+- [Contributing](#contributing)
+
+---
+
 ## Quick Start
+
+> **Need detailed instructions?** See platform-specific guides: [Windows](./docs/INSTALL-WINDOWS.md) | [macOS](./docs/INSTALL-MACOS.md) | [Linux](./docs/INSTALL-LINUX.md)
 
 ### 1. Download and Extract
 
@@ -33,9 +60,10 @@ xattr -d com.apple.quarantine ./supertag ./supertag-mcp ./supertag-export
 
 ### 2. Configure API Token
 
+Get your token from: https://app.tana.inc/?bundle=settings&panel=api
+
 ```bash
-export TANA_API_TOKEN="your_token_here"
-# Get token from: https://app.tana.inc/?bundle=settings&panel=api
+./supertag config --token "your_token_here"
 ```
 
 ### 3. Login and Export

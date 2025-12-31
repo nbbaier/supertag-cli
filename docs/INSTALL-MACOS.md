@@ -94,7 +94,15 @@ supertag --version
 
 Get your Tana API token from: https://app.tana.inc/?bundle=settings&panel=api
 
-### Option A: Environment Variable (Recommended)
+### Option A: CLI Command (Recommended)
+
+```bash
+supertag config --token "your_token_here"
+```
+
+This saves the token to `~/.config/supertag/config.json`.
+
+### Option B: Environment Variable
 
 Add to your shell configuration:
 
@@ -106,17 +114,6 @@ source ~/.zshrc
 # For Bash
 echo 'export TANA_API_TOKEN="your_token_here"' >> ~/.bash_profile
 source ~/.bash_profile
-```
-
-### Option B: Config File
-
-```bash
-mkdir -p ~/.config/supertag
-cat > ~/.config/supertag/config.json << 'EOF'
-{
-  "token": "your_token_here"
-}
-EOF
 ```
 
 ---
