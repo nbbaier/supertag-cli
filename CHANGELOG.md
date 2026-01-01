@@ -7,15 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-01-01
+
+### Added
+
+- **Version Update Checker (Spec 058)** - Automatic update detection and self-update capability
+  - New `supertag update check` command to check for available updates
+  - New `supertag update download` command to download updates to local cache
+  - New `supertag update install` command with automatic backup and rollback on failure
+  - Passive notifications on CLI startup when updates are available
+  - GitHub Releases API integration with 24-hour cache to respect rate limits
+  - Platform detection for correct binary downloads (darwin-arm64, darwin-x64, linux-x64)
+  - Configurable behavior: `updateCheck: 'enabled' | 'disabled' | 'manual'` in config
+
 ### Changed
 
-- **Database Resource Management (Spec 053)** - Refactored database connection handling using RAII-style higher-order functions
-  - New `withDatabase()` function for auto-closing database connections
-  - New `withQueryEngine()` function for combined database + query engine handling
-  - New `withTransaction()` function for automatic commit/rollback
-  - New `withWorkspaceDatabase()` and `withWorkspaceQuery()` for workspace-resolved paths
-  - Eliminates try-finally boilerplate across CLI commands, MCP tools, and services
-  - Prevents resource leaks with guaranteed cleanup even on errors
+- **Unified Logger (Spec 057)** - Migrated core infrastructure to centralized logging system
+  - Consistent log levels (debug/info/warn/error) across all modules
+  - Structured logging with context objects
+  - Child loggers for component-specific logging
+  - JSON and pretty output modes
+
+- **Batch Workspace Processor (Spec 056)** - New `processWorkspaces()` utility for multi-workspace operations
+  - Sequential and parallel execution modes
+  - Progress callbacks for status reporting
+  - Migrated sync, embed, and tana-export commands to use batch processor
+
+- **Query Builder Utilities (Spec 055)** - Safe SQL query construction helpers
+  - `buildPagination()` for LIMIT/OFFSET with safe defaults
+  - `buildOrderBy()` with column whitelist validation
+  - `buildWhereClause()` for parameterized WHERE conditions
+  - `buildSelectQuery()` for complete query composition
+  - 53 tests with 108 assertions
+
+- **Output Formatter Consolidation (Spec 054)** - Unified output formatting across CLI
+  - `OutputFormatter` interface with Unix, Pretty, and JSON implementations
+  - `resolveOutputMode()` helper for consistent flag handling
+  - `createFormatter()` factory for formatter instantiation
+
+- **Database Resource Management (Spec 053)** - RAII-style database connection handling
+  - `withDatabase()` for auto-closing database connections
+  - `withQueryEngine()` for combined database + query engine handling
+  - `withTransaction()` for automatic commit/rollback
+  - `withWorkspaceDatabase()` and `withWorkspaceQuery()` for workspace-resolved paths
+  - Eliminates try-finally boilerplate, prevents resource leaks
   - Custom `DatabaseNotFoundError` for better error messages
 
 ## [1.3.2] - 2025-12-30
