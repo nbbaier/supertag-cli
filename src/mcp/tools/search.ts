@@ -9,6 +9,10 @@ import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import { findMeaningfulAncestor } from '../../embeddings/ancestor-resolution.js';
 import type { SearchInput } from '../schemas.js';
 import { parseDateRange } from '../schemas.js';
+import {
+  parseSelectPaths,
+  applyProjectionToArray,
+} from '../../utils/select-projection.js';
 
 export interface SearchResultItem {
   id: string;
@@ -28,7 +32,7 @@ export interface SearchResultItem {
 export interface SearchResult {
   workspace: string;
   query: string;
-  results: SearchResultItem[];
+  results: Partial<Record<string, unknown>>[];
   count: number;
 }
 
@@ -77,11 +81,15 @@ export async function search(input: SearchInput): Promise<SearchResult> {
       return item;
     });
 
+    // Apply field projection if select is specified
+    const projection = parseSelectPaths(input.select);
+    const projectedResults = applyProjectionToArray(resultsWithTags, projection);
+
     return {
       workspace: workspace.alias,
       query: input.query,
-      results: resultsWithTags,
-      count: resultsWithTags.length,
+      results: projectedResults,
+      count: projectedResults.length,
     };
   } finally {
     engine.close();

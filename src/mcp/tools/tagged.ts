@@ -8,6 +8,10 @@ import { TanaQueryEngine } from '../../query/tana-query-engine.js';
 import { resolveWorkspaceContext } from '../../config/workspace-resolver.js';
 import type { TaggedInput } from '../schemas.js';
 import { parseDateRange } from '../schemas.js';
+import {
+  parseSelectPaths,
+  applyProjectionToArray,
+} from '../../utils/select-projection.js';
 
 export interface TaggedNodeItem {
   id: string;
@@ -19,7 +23,7 @@ export interface TaggedNodeItem {
 export interface TaggedResult {
   workspace: string;
   tagname: string;
-  nodes: TaggedNodeItem[];
+  nodes: Partial<Record<string, unknown>>[];
   count: number;
 }
 
@@ -56,11 +60,15 @@ export async function tagged(input: TaggedInput): Promise<TaggedResult> {
       updated: n.updated,
     }));
 
+    // Apply field projection if select is specified
+    const projection = parseSelectPaths(input.select);
+    const projectedItems = applyProjectionToArray(items, projection);
+
     return {
       workspace: workspace.alias,
       tagname: tagName,
-      nodes: items,
-      count: items.length,
+      nodes: projectedItems,
+      count: projectedItems.length,
     };
   } finally {
     engine.close();

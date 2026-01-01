@@ -25,6 +25,10 @@ import type { SemanticSearchInput } from "../schemas.js";
 import { existsSync } from "node:fs";
 import { withDbRetrySync } from "../../db/retry.js";
 import { withDatabase } from "../../db/with-database.js";
+import {
+  parseSelectPaths,
+  applyProjectionToArray,
+} from "../../utils/select-projection.js";
 
 export interface SemanticSearchResultItem {
   nodeId: string;
@@ -62,7 +66,7 @@ export interface SemanticSearchResultItem {
 export interface SemanticSearchResult {
   workspace: string;
   query: string;
-  results: SemanticSearchResultItem[];
+  results: Partial<Record<string, unknown>>[];
   count: number;
   model: string;
   dimensions: number;
@@ -348,11 +352,15 @@ export async function semanticSearch(
     // Get dimensions from resona
     const dimensions = getModelDimensionsFromResona(embeddingConfig.model) || 0;
 
+    // Apply field projection if select is specified
+    const projection = parseSelectPaths(input.select);
+    const projectedResults = applyProjectionToArray(finalResults, projection);
+
     return {
       workspace,
       query: input.query,
-      results: finalResults,
-      count: finalResults.length,
+      results: projectedResults,
+      count: projectedResults.length,
       model: embeddingConfig.model,
       dimensions,
     };
