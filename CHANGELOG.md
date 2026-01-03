@@ -5,6 +5,14 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-01-03
+
+### Fixed
+
+- **Query: ISO date parsing** - ISO dates (e.g., `2024-12-08`) now work for `created`/`updated` fields
+  - Previously only relative dates (`7d`, `today`) were converted to timestamps
+  - Use range queries for exact day matching: `created > 2024-12-07 and created < 2024-12-09`
+
 ## [1.4.0] - 2026-01-03
 
 ### Added
