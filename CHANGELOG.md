@@ -5,9 +5,22 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] - 2026-01-03
 
 ### Added
+
+- **Unified Query Language (Spec 063)** - SQL-like query syntax for complex filtering
+  - New `supertag query "find task where Status = Done"` CLI command
+  - New `tana_query` MCP tool with structured input
+  - SQL-like syntax: `find <tag> where <conditions> order by <field> limit <n>`
+  - Operators: `=` (exact), `~` (contains), `>`, `<`, `>=`, `<=`, `exists`, `not`
+  - Logical operators: `and`, `or` with parentheses grouping
+  - Relative dates: `today`, `yesterday`, `7d`, `1w`, `1m`, `1y`
+  - Parent path queries: `parent.tags`, `parent.name`
+  - Field projection with `select` parameter
+  - Sorting with `-field` for descending order
+  - All standard output formats supported
+  - 8 new test files with comprehensive coverage
 
 - **Batch Operations (Spec 062)** - Fetch or create multiple nodes in a single request
   - New `supertag batch get <ids...>` command to fetch multiple nodes by ID
