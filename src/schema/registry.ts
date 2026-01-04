@@ -501,9 +501,18 @@ export class SchemaRegistry {
             id: value,
           } as TanaApiNode);
         } else {
-          fieldChildren.push({
-            name: String(value),
-          });
+          // Creating a new node by name
+          // If field has targetSupertag, create tagged node; otherwise plain node
+          if (fieldSchema.targetSupertag?.id) {
+            fieldChildren.push({
+              name: String(value),
+              supertags: [{ id: fieldSchema.targetSupertag.id }],
+            });
+          } else {
+            fieldChildren.push({
+              name: String(value),
+            });
+          }
         }
         break;
 
