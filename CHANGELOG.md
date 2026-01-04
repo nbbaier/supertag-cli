@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-01-04
+
 ### Added
+
+- **Inheritance-Aware Tag Search** - New `--include-descendants` flag for `search --tag` command
+  - Finds all supertags inheriting from the specified tag using recursive CTE
+  - Queries for nodes with ANY of the descendant tags
+  - Example: `search --tag "Source | Origin" --include-descendants` returns nodes tagged with todo, project, Area, meeting, etc. (40 descendant tags)
+  - Uses same hierarchy traversal logic as `tags visualize` command
+  - Case-insensitive tag name matching for robust lookups
+  - Enables "Options from Supertag" fields in Raycast and other tools to show all relevant nodes
 
 - **Schema Registry Export (Spec 081)** - Enhanced schema-registry.json with target supertag metadata
   - `FieldSchema` interface now includes optional `targetSupertag` property with `id` and `name`
