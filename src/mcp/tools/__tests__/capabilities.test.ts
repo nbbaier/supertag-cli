@@ -38,13 +38,14 @@ describe('tana_capabilities handler', () => {
 });
 
 describe('Token Budget Validation', () => {
-  it('should have capabilities response under 1000 tokens', async () => {
+  it('should have capabilities response under 1200 tokens', async () => {
     const result = await capabilities({});
     const jsonStr = JSON.stringify(result, null, 2);
     // Rough token estimate: ~4 chars per token for JSON
     // Target: much smaller than full tool schemas (~2000 tokens)
+    // Budget increased from 1000 to 1200 to accommodate new tools (tana_aggregate, etc.)
     const estimatedTokens = Math.ceil(jsonStr.length / 4);
-    expect(estimatedTokens).toBeLessThan(1000);
+    expect(estimatedTokens).toBeLessThan(1200);
   });
 
   it('should have filtered response much smaller', async () => {
