@@ -16,6 +16,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync, existsSync, writeFileSync } from "fs";
 import { dirname } from "path";
 import { normalizeName } from "../utils/normalize-name";
+import { SYSTEM_FIELD_METADATA } from "../db/system-fields";
 import type { TanaApiNode, TanaApiFieldNode } from "../types";
 
 /**
@@ -359,7 +360,65 @@ export class UnifiedSchemaService {
       }
     }
 
+    // Add system fields (Spec 074) - only if not already defined by user
+    const ancestorIds = new Set(ancestorRows.map(a => a.tag_id));
+    const systemFields = this.getSystemFieldsForTag(ancestorIds);
+    for (const sysField of systemFields) {
+      if (!seenFieldNames.has(sysField.normalizedName)) {
+        seenFieldNames.add(sysField.normalizedName);
+        allFields.push(sysField);
+      }
+    }
+
     return allFields;
+  }
+
+  /**
+   * Get system fields available to a tag based on its inheritance chain.
+   * Queries the system_field_sources table to find which system fields apply.
+   *
+   * @param ancestorIds - Set of tag IDs in the inheritance chain
+   * @returns Array of UnifiedField for system fields
+   */
+  private getSystemFieldsForTag(ancestorIds: Set<string>): UnifiedField[] {
+    const systemFields: UnifiedField[] = [];
+
+    // Check if system_field_sources table exists
+    try {
+      const tableCheck = this.db
+        .query("SELECT name FROM sqlite_master WHERE type='table' AND name='system_field_sources'")
+        .get() as { name: string } | null;
+
+      if (!tableCheck) {
+        return systemFields;
+      }
+    } catch {
+      return systemFields;
+    }
+
+    // For each known system field, check if any ancestor defines it
+    for (const [fieldId, meta] of Object.entries(SYSTEM_FIELD_METADATA)) {
+      // Get tags that define this system field
+      const sourceTags = this.db
+        .query("SELECT tag_id FROM system_field_sources WHERE field_id = ?")
+        .all(fieldId) as Array<{ tag_id: string }>;
+
+      // Does any ancestor define this system field?
+      const definingTag = sourceTags.find(row => ancestorIds.has(row.tag_id));
+
+      if (definingTag) {
+        systemFields.push({
+          tagId: definingTag.tag_id,
+          attributeId: fieldId,
+          name: meta.name,
+          normalizedName: meta.normalizedName,
+          dataType: meta.dataType,
+          order: 999, // System fields come last
+        });
+      }
+    }
+
+    return systemFields;
   }
 
   /**
@@ -532,24 +591,29 @@ export class UnifiedSchemaService {
       case "reference":
       case "options":
         // Both reference and options fields use node IDs
-        // Check if it's an ID (8+ alphanumeric chars) or a name
-        if (typeof value === "string" && /^[A-Za-z0-9_-]{8,}$/.test(value)) {
-          fieldChildren.push({
-            dataType: "reference",
-            id: value,
-          } as TanaApiNode);
-        } else {
-          // Creating a new node by name
-          // If field has targetSupertag, create tagged node; otherwise plain node
-          if (field.targetSupertagId) {
+        // Handle both single values and arrays of references
+        const refValues = Array.isArray(value) ? value : [value];
+        for (const v of refValues) {
+          const strValue = String(v);
+          // Check if it's a node ID (8+ alphanumeric chars with dashes/underscores)
+          if (/^[A-Za-z0-9_-]{8,}$/.test(strValue)) {
             fieldChildren.push({
-              name: String(value),
-              supertags: [{ id: field.targetSupertagId }],
-            });
+              dataType: "reference",
+              id: strValue,
+            } as TanaApiNode);
           } else {
-            fieldChildren.push({
-              name: String(value),
-            });
+            // Creating a new node by name
+            // If field has targetSupertag, create tagged node; otherwise plain node
+            if (field.targetSupertagId) {
+              fieldChildren.push({
+                name: strValue,
+                supertags: [{ id: field.targetSupertagId }],
+              });
+            } else {
+              fieldChildren.push({
+                name: strValue,
+              });
+            }
           }
         }
         break;

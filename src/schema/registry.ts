@@ -494,24 +494,29 @@ export class SchemaRegistry {
         break;
 
       case 'reference':
-        // Check if it's an ID or a name
-        if (typeof value === 'string' && /^[A-Za-z0-9_-]{8,}$/.test(value)) {
-          fieldChildren.push({
-            dataType: 'reference',
-            id: value,
-          } as TanaApiNode);
-        } else {
-          // Creating a new node by name
-          // If field has targetSupertag, create tagged node; otherwise plain node
-          if (fieldSchema.targetSupertag?.id) {
+        // Handle both single values and arrays of references
+        const refValues = Array.isArray(value) ? value : [value];
+        for (const v of refValues) {
+          const strValue = String(v);
+          // Check if it's a node ID (8+ alphanumeric chars with dashes/underscores)
+          if (/^[A-Za-z0-9_-]{8,}$/.test(strValue)) {
             fieldChildren.push({
-              name: String(value),
-              supertags: [{ id: fieldSchema.targetSupertag.id }],
-            });
+              dataType: 'reference',
+              id: strValue,
+            } as TanaApiNode);
           } else {
-            fieldChildren.push({
-              name: String(value),
-            });
+            // Creating a new node by name
+            // If field has targetSupertag, create tagged node; otherwise plain node
+            if (fieldSchema.targetSupertag?.id) {
+              fieldChildren.push({
+                name: strValue,
+                supertags: [{ id: fieldSchema.targetSupertag.id }],
+              });
+            } else {
+              fieldChildren.push({
+                name: strValue,
+              });
+            }
           }
         }
         break;
