@@ -275,7 +275,15 @@ describe('Node Builder Service', () => {
         return;
       }
 
-      const testTag = supertags[0].name;
+      // Use 'todo' or 'meeting' as known stable supertags that exist in both registry and database
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        console.log('No known valid supertag found, skipping test');
+        return;
+      }
+
+      const testTag = validTag.name;
       const input: CreateNodeInput = {
         supertag: testTag,
         name: 'Dry Run Test Node',
@@ -416,8 +424,16 @@ describe('Node Builder Service', () => {
         return;
       }
 
+      // Use 'todo' or 'meeting' as known stable supertags that exist in both registry and database
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        console.log('No known valid supertag found, skipping test');
+        return;
+      }
+
       const input: CreateNodeInput = {
-        supertag: supertags[0].name,
+        supertag: validTag.name,
         name: 'Fallback Test Node',
         dryRun: true,
       };

@@ -67,7 +67,15 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
-      const testSupertag = supertags[0].name;
+      // Use known stable supertags that exist in both registry and database
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        console.log('No known valid supertag found, skipping test');
+        return;
+      }
+
+      const testSupertag = validTag.name;
 
       const result = await create({
         supertag: testSupertag,
@@ -95,11 +103,15 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
-      // Find a supertag with fields
+      // Filter to known stable supertags first
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validSupertags = supertags.filter((s) => knownTags.includes(s.name.toLowerCase()));
+
+      // Find a supertag with fields among valid ones
       let testSupertag: string | null = null;
       let testField: string | null = null;
 
-      for (const st of supertags) {
+      for (const st of validSupertags) {
         const fields = registry.getFields(st.name);
         if (fields.length > 0) {
           testSupertag = st.name;
@@ -109,7 +121,7 @@ describe('MCP tana_create Tool', () => {
       }
 
       if (!testSupertag || !testField) {
-        console.log('No supertag with fields found, skipping test');
+        console.log('No valid supertag with fields found, skipping test');
         return;
       }
 
@@ -137,8 +149,16 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
-      const tag1 = supertags[0].name;
-      const tag2 = supertags[1].name;
+      // Use known stable supertags that exist in both registry and database
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTags = supertags.filter((s) => knownTags.includes(s.name.toLowerCase()));
+      if (validTags.length < 2) {
+        console.log('Need at least 2 known valid supertags, skipping test');
+        return;
+      }
+
+      const tag1 = validTags[0].name;
+      const tag2 = validTags[1].name;
 
       const result = await create({
         supertag: `${tag1},${tag2}`,
@@ -161,8 +181,15 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
+      // Use known stable supertags
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        return;
+      }
+
       const result = await create({
-        supertag: supertags[0].name,
+        supertag: validTag.name,
         name: 'Workspace Test Node',
         workspace: undefined,
         dryRun: true,
@@ -181,8 +208,15 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
+      // Use known stable supertags
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        return;
+      }
+
       const result = await create({
-        supertag: supertags[0].name,
+        supertag: validTag.name,
         name: 'Target Test Node',
         target: 'INBOX',
         workspace: undefined,
@@ -202,8 +236,15 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
+      // Use known stable supertags
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        return;
+      }
+
       const result = await create({
-        supertag: supertags[0].name,
+        supertag: validTag.name,
         name: 'Node with plain children',
         children: [
           { name: 'Plain child 1' },
@@ -232,8 +273,15 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
+      // Use known stable supertags that exist in both registry and database
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        return;
+      }
+
       const result = await create({
-        supertag: supertags[0].name,
+        supertag: validTag.name,
         name: 'Node with URL child',
         children: [
           { name: 'hook://email/test%40example.com', dataType: 'url' },
@@ -262,8 +310,15 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
+      // Use known stable supertags that exist in both registry and database
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        return;
+      }
+
       const result = await create({
-        supertag: supertags[0].name,
+        supertag: validTag.name,
         name: 'Node with reference child',
         children: [
           { name: 'Reference', id: 'abc123' },
@@ -291,8 +346,15 @@ describe('MCP tana_create Tool', () => {
         return;
       }
 
+      // Use known stable supertags that exist in both registry and database
+      const knownTags = ['todo', 'meeting', 'person', 'project'];
+      const validTag = supertags.find((s) => knownTags.includes(s.name.toLowerCase()));
+      if (!validTag) {
+        return;
+      }
+
       const result = await create({
-        supertag: supertags[0].name,
+        supertag: validTag.name,
         name: 'Node with mixed children',
         children: [
           { name: 'Plain text child' },
