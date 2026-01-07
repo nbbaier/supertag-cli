@@ -79,14 +79,15 @@ describe("--select parameter support", () => {
 
   describe("tags show --select", () => {
     testFn("should filter JSON output to selected fields only", async () => {
-      // First get a tag name
-      const tagsResult = await $`bun run src/index.ts tags list --json --limit 1`.text();
+      // First get a tag name - find one without leading/trailing whitespace or special chars
+      const tagsResult = await $`bun run src/index.ts tags list --json --limit 50`.text();
       const tags = JSON.parse(tagsResult);
-      if (tags.length === 0) return;
+      // Find a tag with a "clean" name (no leading/trailing space, no special chars)
+      const cleanTag = tags.find((t: { tagName: string }) => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(t.tagName));
+      if (!cleanTag) return;
 
-      // Trim whitespace from tag name (some test data has leading spaces)
-      const tagName = tags[0].tagName.trim();
-      const result = await $`bun run src/index.ts tags show "${tagName}" --json --select id,name`.text();
+      const tagName = cleanTag.tagName;
+      const result = await $`bun run src/index.ts tags show ${tagName} --json --select id,name`.text();
       const parsed = JSON.parse(result);
 
       expect(parsed).toHaveProperty("id");
@@ -96,14 +97,15 @@ describe("--select parameter support", () => {
     });
 
     testFn("should filter output to selected fields only (non-TTY defaults to JSON)", async () => {
-      // First get a tag name
-      const tagsResult = await $`bun run src/index.ts tags list --json --limit 1`.text();
+      // First get a tag name - find one without leading/trailing whitespace or special chars
+      const tagsResult = await $`bun run src/index.ts tags list --json --limit 50`.text();
       const tags = JSON.parse(tagsResult);
-      if (tags.length === 0) return;
+      // Find a tag with a "clean" name (no leading/trailing space, no special chars)
+      const cleanTag = tags.find((t: { tagName: string }) => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(t.tagName));
+      if (!cleanTag) return;
 
-      // Trim whitespace from tag name (some test data has leading spaces)
-      const tagName = tags[0].tagName.trim();
-      const result = await $`bun run src/index.ts tags show "${tagName}" --select id,name`.text();
+      const tagName = cleanTag.tagName;
+      const result = await $`bun run src/index.ts tags show ${tagName} --select id,name`.text();
 
       // Non-TTY now defaults to JSON format per Spec 060
       const parsed = JSON.parse(result);
