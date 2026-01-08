@@ -7,11 +7,13 @@
 
 import { Database } from "bun:sqlite";
 import { drizzle, type BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import { eq, like, sql, inArray, gt, lt, and, desc } from "drizzle-orm";
+import { eq, like, sql, inArray, gt, lt, and, desc, or } from "drizzle-orm";
 import { nodes, supertags, fields, references } from "../db/schema";
 import type { Node, Supertag, Reference } from "../db/schema";
 import { withDbRetrySync } from "../db/retry";
 import { buildPagination, buildOrderBy } from "../db/query-builder";
+import type { RelationshipType, Direction } from "../types/graph";
+import { mapDbType } from "../types/graph";
 
 export interface NodeQuery {
   name?: string;
@@ -45,6 +47,16 @@ export interface DatabaseStatistics {
   totalSupertags: number;
   totalFields: number;
   totalReferences: number;
+}
+
+/**
+ * Result from getRelatedNodes query
+ */
+export interface RelatedNodeResult {
+  /** Target node ID */
+  nodeId: string;
+  /** Relationship type (mapped from DB type) */
+  type: RelationshipType;
 }
 
 /**
@@ -658,6 +670,102 @@ export class TanaQueryEngine {
     );
 
     return result.map((r) => r.tag_name);
+  }
+
+  /**
+   * Get related nodes in a single direction with type filtering.
+   * Used for graph traversal (Spec 065).
+   *
+   * @param nodeId - Source node ID
+   * @param direction - 'in' (nodes pointing to this), 'out' (this points to)
+   * @param types - Relationship types to include
+   * @param limit - Maximum results
+   * @returns Array of related node IDs with relationship type
+   */
+  async getRelatedNodes(
+    nodeId: string,
+    direction: 'in' | 'out',
+    types: RelationshipType[],
+    limit: number
+  ): Promise<RelatedNodeResult[]> {
+    const results: RelatedNodeResult[] = [];
+    const includeField = types.includes('field');
+
+    // Map RelationshipType to database reference_type values for references table
+    const dbTypes: string[] = [];
+    for (const t of types) {
+      if (t === 'reference') {
+        dbTypes.push('inline_ref');
+      } else if (t === 'child' || t === 'parent') {
+        dbTypes.push(t);
+      }
+      // 'field' type is handled separately via field_values table
+    }
+
+    // Query references table for inline_ref, child, parent types
+    if (dbTypes.length > 0) {
+      const query = direction === 'out'
+        ? this.sqlite.prepare(`
+            SELECT to_node as nodeId, reference_type as refType
+            FROM "references"
+            WHERE from_node = ? AND reference_type IN (${dbTypes.map(() => '?').join(',')})
+            LIMIT ?
+          `)
+        : this.sqlite.prepare(`
+            SELECT from_node as nodeId, reference_type as refType
+            FROM "references"
+            WHERE to_node = ? AND reference_type IN (${dbTypes.map(() => '?').join(',')})
+            LIMIT ?
+          `);
+
+      const params = [nodeId, ...dbTypes, limit];
+      const rows = query.all(...params) as Array<{ nodeId: string; refType: string }>;
+
+      // Map database types back to RelationshipType
+      for (const row of rows) {
+        results.push({
+          nodeId: row.nodeId,
+          type: mapDbType(row.refType),
+        });
+      }
+    }
+
+    // Query field_values table for field references
+    if (includeField) {
+      const remainingLimit = limit - results.length;
+      if (remainingLimit > 0) {
+        // direction='out': Find nodes this node references via field values
+        //   A uses F as "Topic" means A has outbound field reference to F
+        //   Query: parent_id = nodeId → value_node_id
+        // direction='in': Find nodes that reference this node via field values
+        //   F is used by A means F has inbound field reference from A
+        //   Query: value_node_id = nodeId → parent_id
+        const fieldQuery = direction === 'out'
+          ? this.sqlite.prepare(`
+              SELECT DISTINCT value_node_id as nodeId
+              FROM field_values
+              WHERE parent_id = ?
+              LIMIT ?
+            `)
+          : this.sqlite.prepare(`
+              SELECT DISTINCT parent_id as nodeId
+              FROM field_values
+              WHERE value_node_id = ?
+              LIMIT ?
+            `);
+
+        const fieldRows = fieldQuery.all(nodeId, remainingLimit) as Array<{ nodeId: string }>;
+
+        for (const row of fieldRows) {
+          results.push({
+            nodeId: row.nodeId,
+            type: 'field',
+          });
+        }
+      }
+    }
+
+    return results;
   }
 
   /**
