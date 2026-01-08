@@ -12,6 +12,7 @@ import { existsSync } from "fs";
 import { TanaQueryEngine } from "../query/tana-query-engine";
 import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import type { ResolvedWorkspace } from "../config/workspace-resolver";
+import { configureDbForConcurrency } from "./retry";
 
 // =============================================================================
 // Types
@@ -124,6 +125,13 @@ export async function withDatabase<T>(
   // Open database (only pass readonly option if true)
   const db = readonly ? new Database(dbPath, { readonly: true }) : new Database(dbPath);
 
+  // Configure for concurrent access (WAL mode + busy timeout)
+  // Only for read-write connections - WAL mode can't be set on readonly databases
+  // This prevents "database is locked" errors on Windows
+  if (!readonly) {
+    configureDbForConcurrency(db);
+  }
+
   try {
     // Execute callback (may be sync or async)
     const result = await fn({ db, dbPath });
@@ -167,6 +175,9 @@ export async function withTransaction<T>(
   }
 
   const db = new Database(dbPath);
+
+  // Configure for concurrent access (WAL mode + busy timeout)
+  configureDbForConcurrency(db);
 
   try {
     db.exec("BEGIN TRANSACTION");

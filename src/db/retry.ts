@@ -3,7 +3,11 @@
  *
  * Provides retry logic with exponential backoff for SQLite database operations
  * that may fail due to database locks during concurrent access.
+ *
+ * Also provides WAL mode configuration for better concurrent access.
  */
+
+import { Database } from "bun:sqlite";
 
 /**
  * Retry configuration for database operations
@@ -108,4 +112,79 @@ export function withDbRetrySync<T>(
   }
 
   throw lastError;
+}
+
+/**
+ * Check if a database filename is an in-memory database.
+ * In-memory databases don't support WAL mode.
+ */
+export function isInMemoryDb(db: Database): boolean {
+  try {
+    const result = db.query("PRAGMA database_list").all() as Array<{ file: string }>;
+    // In-memory databases have an empty file path or ":memory:"
+    return result.length === 0 || result[0]?.file === "" || result[0]?.file === ":memory:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Enable WAL (Write-Ahead Logging) mode on a database connection.
+ *
+ * WAL mode provides better concurrent access:
+ * - Multiple readers can access the database while a writer is active
+ * - Writers don't block readers
+ * - Better performance for most workloads
+ *
+ * This is especially important on Windows where SQLite file locking
+ * is stricter than on Unix systems.
+ *
+ * Note: WAL mode is not supported for in-memory databases.
+ *
+ * @param db - The database connection to configure
+ * @returns The journal mode that was set (should be "wal", or "memory" for in-memory)
+ */
+export function enableWalMode(db: Database): string {
+  // Skip WAL mode for in-memory databases (not supported)
+  if (isInMemoryDb(db)) {
+    return "memory";
+  }
+
+  const result = db.query("PRAGMA journal_mode = WAL").get() as { journal_mode: string } | null;
+  return result?.journal_mode ?? "unknown";
+}
+
+/**
+ * Configure database connection with optimal settings for concurrent access.
+ *
+ * Sets:
+ * - WAL mode for better concurrent read/write access
+ * - Busy timeout to wait for locks instead of failing immediately
+ *
+ * Note: In-memory databases are skipped as they don't support WAL mode
+ * and don't need busy timeout (single connection).
+ *
+ * @param db - The database connection to configure
+ */
+export function configureDbForConcurrency(db: Database): void {
+  // Skip configuration for in-memory databases
+  if (isInMemoryDb(db)) {
+    return;
+  }
+
+  try {
+    // Enable WAL mode for concurrent access
+    enableWalMode(db);
+
+    // Set busy timeout to 5 seconds - wait for locks instead of failing immediately
+    // This gives other processes time to complete their transactions
+    db.run("PRAGMA busy_timeout = 5000");
+  } catch (error) {
+    // WAL mode may fail in certain scenarios (temp dirs, network drives, etc.)
+    // Log but don't fail - the database will work in rollback journal mode
+    // which is less concurrent but still functional
+    if (process.env.DEBUG) {
+      console.warn("Failed to enable WAL mode:", error);
+    }
+  }
 }

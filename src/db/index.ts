@@ -27,8 +27,15 @@ export {
 // Schema
 export * from "./schema";
 
-// Retry utilities
-export { withDbRetry, withDbRetrySync } from "./retry";
+// Retry and concurrency utilities
+export {
+  withDbRetry,
+  withDbRetrySync,
+  enableWalMode,
+  configureDbForConcurrency,
+  isDbLockError,
+  DB_RETRY_CONFIG,
+} from "./retry";
 
 // Entity detection
 export { isEntity, isEntityById, findNearestEntityAncestor } from "./entity";

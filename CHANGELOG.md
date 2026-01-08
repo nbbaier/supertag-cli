@@ -5,6 +5,18 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2026-01-08
+
+### Fixed
+
+- **SQLite Database Locking on Windows** - Added WAL mode for better concurrent database access
+  - Enables multiple readers while a writer is active
+  - Sets 5-second busy timeout so processes wait for locks instead of failing immediately
+  - Especially important on Windows where SQLite file locking is stricter than on Unix
+  - Prevents "database is locked" errors when running multiple supertag commands simultaneously
+  - New helper functions: `enableWalMode()`, `configureDbForConcurrency()`, `isInMemoryDb()`
+  - WAL mode automatically configured for indexer, query engine, and all database connections
+
 ## [1.8.1] - 2026-01-08
 
 ### Fixed

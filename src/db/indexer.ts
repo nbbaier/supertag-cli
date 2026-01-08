@@ -31,7 +31,7 @@ import { eq, like, sql } from "drizzle-orm";
 import { TanaExportParser } from "../parsers/tana-export";
 import { nodes, supertags, fields, references, fieldNames } from "./schema";
 import type { Node, Supertag, Field, Reference, FieldName } from "./schema";
-import { withDbRetrySync } from "./retry";
+import { withDbRetrySync, configureDbForConcurrency } from "./retry";
 import { migrateFieldValuesSchema, clearFieldValues, migrateSupertagMetadataSchema, clearSupertagMetadata, migrateSchemaConsolidation } from "./migrate";
 import { extractFieldValuesFromNodes, insertFieldValues } from "./field-values";
 import { extractSupertagMetadata } from "./supertag-metadata";
@@ -216,6 +216,11 @@ export class TanaIndexer {
 
     // Create system field sources table (Spec 074: System Field Discovery)
     migrateSystemFieldSources(this.sqlite);
+
+    // Enable WAL mode and busy timeout for better concurrent access
+    // This prevents "database is locked" errors when multiple processes access the DB
+    // Done after schema initialization to ensure database is in a clean state
+    configureDbForConcurrency(this.sqlite);
   }
 
   /**

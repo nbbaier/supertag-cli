@@ -10,7 +10,7 @@ import { drizzle, type BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { eq, like, sql, inArray, gt, lt, and, desc, or } from "drizzle-orm";
 import { nodes, supertags, fields, references } from "../db/schema";
 import type { Node, Supertag, Reference } from "../db/schema";
-import { withDbRetrySync } from "../db/retry";
+import { withDbRetrySync, configureDbForConcurrency } from "../db/retry";
 import { buildPagination, buildOrderBy } from "../db/query-builder";
 import type { RelationshipType, Direction } from "../types/graph";
 import { mapDbType } from "../types/graph";
@@ -94,6 +94,8 @@ export class TanaQueryEngine {
 
   constructor(private dbPath: string) {
     this.sqlite = new Database(dbPath);
+    // Configure for concurrent access (WAL mode + busy timeout)
+    configureDbForConcurrency(this.sqlite);
     this.db = drizzle(this.sqlite);
   }
 
