@@ -11,10 +11,10 @@
 import { describe, test, expect, beforeAll } from "bun:test";
 import { TanaIndexer } from "../src/db/indexer";
 import { TanaExportParser } from "../src/parsers/tana-export";
-import { unlinkSync } from "fs";
 import { join } from "path";
+import { cleanupSqliteDatabase } from "./test-utils";
 
-const TEST_DB_PATH = "./test-tana-show.db";
+const TEST_DB_PATH = "/tmp/supertag-test-tana-show.db";
 const FIXTURE_PATH = join(__dirname, "fixtures/sample-workspace.json");
 
 describe("Tana Show - Node Contents Extraction", () => {
@@ -23,9 +23,7 @@ describe("Tana Show - Node Contents Extraction", () => {
 
   beforeAll(async () => {
     // Set up test database
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
     const indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);

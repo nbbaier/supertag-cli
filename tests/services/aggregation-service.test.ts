@@ -6,9 +6,9 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
 import { AggregationService } from "../../src/services/aggregation-service";
 import { Database } from "bun:sqlite";
-import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { cleanupSqliteDatabase } from "../test-utils";
 
 /**
  * Create a temporary test database with sample data
@@ -117,11 +117,7 @@ function createTestDatabase(): { dbPath: string; cleanup: () => void } {
   return {
     dbPath,
     cleanup: () => {
-      try {
-        fs.unlinkSync(dbPath);
-      } catch {
-        // ignore
-      }
+      cleanupSqliteDatabase(dbPath);
     },
   };
 }

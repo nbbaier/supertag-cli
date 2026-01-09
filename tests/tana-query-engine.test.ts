@@ -8,19 +8,17 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { TanaQueryEngine } from "../src/query/tana-query-engine";
 import { TanaIndexer } from "../src/db/indexer";
 import { TanaExportParser } from "../src/parsers/tana-export";
-import { unlinkSync } from "fs";
 import { join } from "path";
+import { cleanupSqliteDatabase } from "./test-utils";
 
-const TEST_DB_PATH = "./test-query-engine.db";
+const TEST_DB_PATH = "/tmp/supertag-test-query-engine.db";
 const FIXTURE_PATH = join(__dirname, "fixtures/sample-workspace.json");
 
 describe("TanaQueryEngine - Basic Setup", () => {
   let queryEngine: TanaQueryEngine;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
 
     const indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
@@ -32,9 +30,7 @@ describe("TanaQueryEngine - Basic Setup", () => {
 
   afterAll(() => {
     queryEngine.close();
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should create query engine instance", () => {
@@ -52,9 +48,7 @@ describe("TanaQueryEngine - Node Queries", () => {
   let sampleNodeName: string;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
 
     const indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
@@ -77,9 +71,7 @@ describe("TanaQueryEngine - Node Queries", () => {
 
   afterAll(() => {
     queryEngine.close();
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should query nodes by name", async () => {
@@ -143,9 +135,7 @@ describe("TanaQueryEngine - Supertag Queries", () => {
   let queryEngine: TanaQueryEngine;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
 
     const indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
@@ -157,9 +147,7 @@ describe("TanaQueryEngine - Supertag Queries", () => {
 
   afterAll(() => {
     queryEngine.close();
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should list all supertags", async () => {
@@ -193,9 +181,7 @@ describe("TanaQueryEngine - Reference Queries", () => {
   let referencedNode: string | null = null;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
 
     const indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
@@ -217,9 +203,7 @@ describe("TanaQueryEngine - Reference Queries", () => {
 
   afterAll(() => {
     queryEngine.close();
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should get outbound references for node", async () => {
@@ -276,9 +260,7 @@ describe("TanaQueryEngine - Full-Text Search", () => {
   let queryEngine: TanaQueryEngine;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
 
     const indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
@@ -291,9 +273,7 @@ describe("TanaQueryEngine - Full-Text Search", () => {
 
   afterAll(() => {
     queryEngine.close();
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should create FTS5 index", async () => {
@@ -322,9 +302,7 @@ describe("TanaQueryEngine - Advanced Queries", () => {
   let queryEngine: TanaQueryEngine;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
 
     const indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
@@ -336,9 +314,7 @@ describe("TanaQueryEngine - Advanced Queries", () => {
 
   afterAll(() => {
     queryEngine.close();
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should find nodes created after date", async () => {

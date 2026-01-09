@@ -7,26 +7,22 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { TanaIndexer } from "../src/db/indexer";
 import { TanaExportParser } from "../src/parsers/tana-export";
-import { unlinkSync } from "fs";
 import { join } from "path";
+import { cleanupSqliteDatabase } from "./test-utils";
 
-const TEST_DB_PATH = "./test-tana-index.db";
+const TEST_DB_PATH = "/tmp/supertag-test-tana-index.db";
 const FIXTURE_PATH = join(__dirname, "fixtures/sample-workspace.json");
 
 describe("TanaIndexer - Schema Creation", () => {
   let indexer: TanaIndexer;
 
   beforeAll(() => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
     indexer = new TanaIndexer(TEST_DB_PATH);
   });
 
   afterAll(() => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should create database file", () => {
@@ -49,17 +45,13 @@ describe("TanaIndexer - Index Workspace", () => {
   let indexer: TanaIndexer;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
     indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
   });
 
   afterAll(() => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should index workspace", async () => {
@@ -97,9 +89,7 @@ describe("TanaIndexer - Query Nodes", () => {
   let sampleNodeName: string;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
     indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
@@ -117,9 +107,7 @@ describe("TanaIndexer - Query Nodes", () => {
   });
 
   afterAll(() => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should query node by ID", async () => {
@@ -153,18 +141,14 @@ describe("TanaIndexer - Query Supertags", () => {
   let indexer: TanaIndexer;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
     indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
   });
 
   afterAll(() => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should list all supertags", async () => {
@@ -194,9 +178,7 @@ describe("TanaIndexer - Query References", () => {
   let referencedNode: string | null = null;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
     indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
     await indexer.indexExport(FIXTURE_PATH);
@@ -213,9 +195,7 @@ describe("TanaIndexer - Query References", () => {
   });
 
   afterAll(() => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should find outbound references for node", async () => {
@@ -254,17 +234,13 @@ describe("TanaIndexer - Performance", () => {
   let indexer: TanaIndexer;
 
   beforeAll(async () => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
     indexer = new TanaIndexer(TEST_DB_PATH);
     await indexer.initializeSchema();
   });
 
   afterAll(() => {
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should index nodes in reasonable time", async () => {

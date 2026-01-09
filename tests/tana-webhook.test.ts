@@ -7,26 +7,23 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { TanaWebhookServer } from "../src/server/tana-webhook-server";
 import { TanaIndexer } from "../src/db/indexer";
-import { unlinkSync } from "fs";
 import { join } from "path";
+import { cleanupSqliteDatabase, getUniqueTestDbPath, getUniqueTestPort } from "./test-utils";
 
 const FIXTURE_PATH = join(__dirname, "fixtures/sample-workspace.json");
 
 /**
- * Generate a unique database path for each test suite to avoid conflicts
- * when tests run in random order
+ * Generate a unique database path for each test suite
  */
 function getUniqueDbPath(suiteName: string): string {
-  return `./test-webhook-${suiteName}-${Date.now()}-${Math.random().toString(36).slice(2)}.db`;
+  return getUniqueTestDbPath(`webhook-${suiteName}`);
 }
 
 /**
- * Get a unique port for each test suite to avoid port conflicts.
- * Uses a base port + random offset to minimize collision chance.
+ * Get a unique port for each test suite
  */
 function getUniquePort(): number {
-  // Base port range: 10000-20000 to avoid common service ports
-  return 10000 + Math.floor(Math.random() * 10000);
+  return getUniqueTestPort();
 }
 
 /**
@@ -65,9 +62,7 @@ describe("TanaWebhookServer - Basic Setup", () => {
 
   afterAll(async () => {
     await server.stop();
-    try {
-      unlinkSync(dbPath);
-    } catch {}
+    cleanupSqliteDatabase(dbPath);
   });
 
   test("should create server instance", () => {
@@ -103,9 +98,7 @@ describe("TanaWebhookServer - Health Endpoint", () => {
 
   afterAll(async () => {
     await server.stop();
-    try {
-      unlinkSync(dbPath);
-    } catch {}
+    cleanupSqliteDatabase(dbPath);
   });
 
   test("should respond to health check with workspaces info", async () => {
@@ -218,9 +211,7 @@ describe("TanaWebhookServer - Search Endpoint", () => {
 
   afterAll(async () => {
     await server.stop();
-    try {
-      unlinkSync(dbPath);
-    } catch {}
+    cleanupSqliteDatabase(dbPath);
   });
 
   test("should search and return Tana Paste format", async () => {
@@ -268,9 +259,7 @@ describe("TanaWebhookServer - Stats Endpoint", () => {
 
   afterAll(async () => {
     await server.stop();
-    try {
-      unlinkSync(dbPath);
-    } catch {}
+    cleanupSqliteDatabase(dbPath);
   });
 
   test("should return database stats as Tana Paste", async () => {
@@ -308,9 +297,7 @@ describe("TanaWebhookServer - Tags Endpoint", () => {
 
   afterAll(async () => {
     await server.stop();
-    try {
-      unlinkSync(dbPath);
-    } catch {}
+    cleanupSqliteDatabase(dbPath);
   });
 
   test("should return top tags as Tana Paste", async () => {
@@ -348,9 +335,7 @@ describe("TanaWebhookServer - Semantic Search Endpoint", () => {
 
   afterAll(async () => {
     await server.stop();
-    try {
-      unlinkSync(dbPath);
-    } catch {}
+    cleanupSqliteDatabase(dbPath);
   });
 
   test("should return 400 for missing query", async () => {
@@ -491,9 +476,7 @@ describe("TanaWebhookServer - Embed Stats Endpoint", () => {
 
   afterAll(async () => {
     await server.stop();
-    try {
-      unlinkSync(dbPath);
-    } catch {}
+    cleanupSqliteDatabase(dbPath);
   });
 
   test("should return embed stats as Tana Paste by default", async () => {

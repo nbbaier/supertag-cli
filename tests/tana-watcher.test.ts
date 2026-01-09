@@ -7,11 +7,12 @@
 import { describe, test, expect, beforeAll, afterAll, afterEach } from "bun:test";
 import { TanaExportWatcher } from "../src/monitors/tana-export-monitor";
 import { TanaIndexer } from "../src/db/indexer";
-import { writeFileSync, unlinkSync, mkdirSync, rmSync } from "fs";
+import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
+import { cleanupSqliteDatabase } from "./test-utils";
 
-const TEST_EXPORT_DIR = "./test-exports";
-const TEST_DB_PATH = "./test-watcher-index.db";
+const TEST_EXPORT_DIR = "/tmp/supertag-test-exports";
+const TEST_DB_PATH = "/tmp/supertag-test-watcher-index.db";
 const TEST_EXPORT_FILE = join(TEST_EXPORT_DIR, "test-workspace@2025-11-30.json");
 
 // Minimal valid Tana export for testing
@@ -44,9 +45,7 @@ describe("TanaExportWatcher - Basic Setup (🔴 RED)", () => {
     try {
       rmSync(TEST_EXPORT_DIR, { recursive: true, force: true });
     } catch {}
-    try {
-      unlinkSync(TEST_DB_PATH);
-    } catch {}
+    cleanupSqliteDatabase(TEST_DB_PATH);
   });
 
   test("should create watcher instance with export directory", () => {
@@ -76,7 +75,7 @@ describe("TanaExportWatcher - Manual Index (🔴 RED)", () => {
       mkdirSync(TEST_EXPORT_DIR, { recursive: true });
     } catch {}
     try {
-      unlinkSync(TEST_DB_PATH);
+      cleanupSqliteDatabase(TEST_DB_PATH);
     } catch {}
 
     watcher = new TanaExportWatcher({
@@ -90,7 +89,7 @@ describe("TanaExportWatcher - Manual Index (🔴 RED)", () => {
       rmSync(TEST_EXPORT_DIR, { recursive: true, force: true });
     } catch {}
     try {
-      unlinkSync(TEST_DB_PATH);
+      cleanupSqliteDatabase(TEST_DB_PATH);
     } catch {}
   });
 
@@ -145,7 +144,7 @@ describe("TanaExportWatcher - Automatic Monitoring (🔴 RED)", () => {
       mkdirSync(TEST_EXPORT_DIR, { recursive: true });
     } catch {}
     try {
-      unlinkSync(TEST_DB_PATH);
+      cleanupSqliteDatabase(TEST_DB_PATH);
     } catch {}
   });
 
@@ -161,7 +160,7 @@ describe("TanaExportWatcher - Automatic Monitoring (🔴 RED)", () => {
       rmSync(TEST_EXPORT_DIR, { recursive: true, force: true });
     } catch {}
     try {
-      unlinkSync(TEST_DB_PATH);
+      cleanupSqliteDatabase(TEST_DB_PATH);
     } catch {}
   });
 
@@ -290,7 +289,7 @@ describe("TanaExportWatcher - Status and Statistics (🔴 RED)", () => {
       mkdirSync(TEST_EXPORT_DIR, { recursive: true });
     } catch {}
     try {
-      unlinkSync(TEST_DB_PATH);
+      cleanupSqliteDatabase(TEST_DB_PATH);
     } catch {}
 
     watcher = new TanaExportWatcher({
@@ -305,7 +304,7 @@ describe("TanaExportWatcher - Status and Statistics (🔴 RED)", () => {
       rmSync(TEST_EXPORT_DIR, { recursive: true, force: true });
     } catch {}
     try {
-      unlinkSync(TEST_DB_PATH);
+      cleanupSqliteDatabase(TEST_DB_PATH);
     } catch {}
   });
 
