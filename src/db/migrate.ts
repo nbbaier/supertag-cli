@@ -236,6 +236,7 @@ export function needsSupertagMetadataMigration(db: Database): boolean {
  * @param db - SQLite database connection
  */
 export function clearSupertagMetadata(db: Database): void {
+  db.run("DELETE FROM supertag_metadata");
   db.run("DELETE FROM supertag_fields");
   db.run("DELETE FROM supertag_parents");
 }
