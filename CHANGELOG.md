@@ -5,6 +5,22 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-01-09
+
+### Fixed
+
+- **Deleted Supertags Not Removed on Sync** - Fixed issue where deleted supertags remained in the database after re-syncing (#23)
+  - The `supertag_metadata` table was not being cleared during sync, only `supertag_fields` and `supertag_parents`
+  - Now all three tables are cleared before re-extracting metadata from export
+  - Deleted supertags will now properly disappear after running `supertag sync index`
+
+- **Windows LanceDB Loading** - Fixed startup crash on Windows when LanceDB native module wasn't available
+  - Commands like `sync index` no longer require LanceDB to be installed
+  - LanceDB is now lazy-loaded only when embedding/semantic search features are used
+  - Server commands (`supertag server start`) dynamically import LanceDB-dependent modules
+
+- **Flaky CI Test** - Fixed `installUpdate` test using unique temp directories to prevent race conditions
+
 ## [1.9.0] - 2026-01-08
 
 ### Added
