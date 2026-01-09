@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import {
   migrateSupertagMetadataSchema,
+  migrateSchemaConsolidation,
   needsSupertagMetadataMigration,
   clearSupertagMetadata,
   getSupertagMetadataStats,
@@ -156,10 +157,16 @@ describe("Supertag Metadata Migration", () => {
   });
 
   describe("clearSupertagMetadata", () => {
-    it("should clear all data from both tables", () => {
+    it("should clear all data from all three tables", () => {
+      // Need both migrations as clearSupertagMetadata now clears supertag_metadata too
       migrateSupertagMetadataSchema(db);
+      migrateSchemaConsolidation(db);
 
       // Insert test data
+      db.run(`
+        INSERT INTO supertag_metadata (tag_id, tag_name, normalized_name)
+        VALUES ('tag1', 'Test Tag', 'test_tag')
+      `);
       db.run(`
         INSERT INTO supertag_fields (tag_id, tag_name, field_name, field_label_id, field_order)
         VALUES ('tag1', 'test', 'Field1', 'label1', 0)
@@ -171,6 +178,9 @@ describe("Supertag Metadata Migration", () => {
 
       clearSupertagMetadata(db);
 
+      const metadataCount = db
+        .query("SELECT COUNT(*) as count FROM supertag_metadata")
+        .get() as { count: number };
       const fieldsCount = db
         .query("SELECT COUNT(*) as count FROM supertag_fields")
         .get() as { count: number };
@@ -178,6 +188,7 @@ describe("Supertag Metadata Migration", () => {
         .query("SELECT COUNT(*) as count FROM supertag_parents")
         .get() as { count: number };
 
+      expect(metadataCount.count).toBe(0);
       expect(fieldsCount.count).toBe(0);
       expect(parentsCount.count).toBe(0);
     });
