@@ -1,0 +1,110 @@
+name: Windows Debug Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      debug_schema:
+        description: 'Enable DEBUG_SCHEMA for schema generation debugging'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-debug:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Get version and timestamp
+        id: info
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $timestamp = Get-Date -Format "yyyyMMdd-HHmm"
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "TIMESTAMP=$timestamp" >> $env:GITHUB_OUTPUT
+
+      - name: Build debug CLI (with external resona for embedding-free operation)
+        run: |
+          bun build src/index.ts --compile --outfile=supertag-debug-windows.exe
+
+      - name: Build MCP server (semantic search requires LanceDB)
+        run: |
+          bun build src/mcp/index.ts --compile --external resona --external @lancedb/lancedb --outfile=supertag-mcp-debug-windows.exe
+
+      - name: Create distribution package
+        shell: pwsh
+        run: |
+          $distName = "supertag-debug-windows-x64"
+          $version = "${{ steps.info.outputs.VERSION }}"
+          $timestamp = "${{ steps.info.outputs.TIMESTAMP }}"
+
+          New-Item -ItemType Directory -Force -Path $distName
+
+          # Copy binaries
+          Copy-Item supertag-debug-windows.exe "$distName/"
+          Copy-Item supertag-mcp-debug-windows.exe "$distName/"
+
+          # Copy documentation
+          Copy-Item README.md "$distName/"
+          Copy-Item -Recurse docs "$distName/"
+
+          # Create usage instructions
+          @"
+          Windows Debug Build - v$version ($timestamp)
+          ============================================
+
+          This is a debug build for troubleshooting Windows-specific issues.
+
+          Quick Start:
+          ------------
+          1. Open PowerShell in this directory
+          2. Run: .\supertag-debug-windows.exe sync index
+
+          Debug Schema Generation:
+          ------------------------
+          To debug schema issues, run:
+            `$env:DEBUG_SCHEMA=1
+            .\supertag-debug-windows.exe sync index
+
+          This will output detailed information about schema extraction.
+
+          Note on Semantic Search:
+          ------------------------
+          Semantic search (embeddings) requires LanceDB which needs additional
+          native dependencies on Windows. The main CLI (supertag-debug-windows.exe)
+          will work for all non-embedding commands.
+
+          For semantic search, you may need to install LanceDB dependencies:
+            npm install @lancedb/lancedb-win32-x64-msvc
+
+          Available Commands:
+          -------------------
+          .\supertag-debug-windows.exe --help
+          .\supertag-debug-windows.exe sync index
+          .\supertag-debug-windows.exe search "your query"
+          .\supertag-debug-windows.exe nodes show <node-id>
+          .\supertag-debug-windows.exe tags list
+          "@ | Out-File -FilePath "$distName/README-DEBUG.txt" -Encoding utf8
+
+          Compress-Archive -Path $distName -DestinationPath "supertag-debug-v$version-$timestamp-windows-x64.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supertag-debug-windows-x64
+          path: supertag-debug-v${{ steps.info.outputs.VERSION }}-${{ steps.info.outputs.TIMESTAMP }}-windows-x64.zip
+          retention-days: 7

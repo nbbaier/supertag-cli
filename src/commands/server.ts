@@ -6,7 +6,8 @@
  */
 
 import { Command } from "commander";
-import { TanaWebhookServer } from "../server/tana-webhook-server";
+// TanaWebhookServer is imported dynamically to avoid loading resona/LanceDB at startup
+// This allows commands like 'sync index' to work on platforms without LanceDB support
 import { existsSync, writeFileSync, readFileSync, unlinkSync, openSync } from "fs";
 import { getEnabledWorkspaces, PID_FILE, SERVER_CONFIG_FILE, ensureAllDirs, getWorkspaceDatabasePath } from "../config/paths";
 import { resolveWorkspaceContext } from "../config/workspace-resolver";
@@ -145,6 +146,8 @@ export function registerServerCommands(program: Command): void {
       console.log(`   Host: ${host}`);
       console.log(`   Port: ${port}`);
 
+      // Dynamic import to avoid loading resona/LanceDB at startup
+      const { TanaWebhookServer } = await import("../server/tana-webhook-server");
       const webhookServer = new TanaWebhookServer({
         port,
         host,
