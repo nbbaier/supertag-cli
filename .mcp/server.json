@@ -1,0 +1,113 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/registry/main/schema/server.json",
+  "name": "supertag-cli",
+  "display_name": "Supertag CLI - Tana MCP Server",
+  "description": "Complete MCP server for Tana PKM with 18 tools. Full-text and semantic vector search, unified query language, graph traversal, meeting transcript search, aggregation/analytics, and node creation. Runs 100% locally.",
+  "repository": "https://github.com/jcfischer/supertag-cli",
+  "homepage": "https://invisible.ch/supertag/",
+  "author": {
+    "name": "Jens-Christian Fischer",
+    "url": "https://invisible.ch"
+  },
+  "license": "MIT",
+  "categories": ["productivity", "knowledge-management", "search"],
+  "tags": ["tana", "pkm", "knowledge-base", "semantic-search", "backup", "export", "ai-integration"],
+  "installations": {
+    "claude-desktop": {
+      "type": "stdio",
+      "command": "/path/to/supertag-mcp",
+      "env": {
+        "TANA_WORKSPACE": "main"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "tana_capabilities",
+      "description": "Get lightweight overview of all available tools"
+    },
+    {
+      "name": "tana_tool_schema",
+      "description": "Get full schema for a specific tool"
+    },
+    {
+      "name": "tana_search",
+      "description": "Full-text search across your Tana workspace"
+    },
+    {
+      "name": "tana_semantic_search",
+      "description": "Vector similarity search - find content by meaning"
+    },
+    {
+      "name": "tana_tagged",
+      "description": "Find all nodes with a specific supertag"
+    },
+    {
+      "name": "tana_query",
+      "description": "Unified query with field and date filtering"
+    },
+    {
+      "name": "tana_aggregate",
+      "description": "Group and count nodes by field or time period"
+    },
+    {
+      "name": "tana_field_values",
+      "description": "Query text-based field values"
+    },
+    {
+      "name": "tana_node",
+      "description": "Get node contents with configurable depth"
+    },
+    {
+      "name": "tana_related",
+      "description": "Graph traversal to find connected nodes"
+    },
+    {
+      "name": "tana_stats",
+      "description": "Database statistics and workspace info"
+    },
+    {
+      "name": "tana_supertags",
+      "description": "List all supertags in workspace"
+    },
+    {
+      "name": "tana_supertag_info",
+      "description": "Query supertag inheritance and fields"
+    },
+    {
+      "name": "tana_transcript_list",
+      "description": "List meetings with transcripts"
+    },
+    {
+      "name": "tana_transcript_show",
+      "description": "Get full transcript for a meeting"
+    },
+    {
+      "name": "tana_transcript_search",
+      "description": "Search within meeting transcripts"
+    },
+    {
+      "name": "tana_create",
+      "description": "Create new nodes with supertags and references"
+    },
+    {
+      "name": "tana_sync",
+      "description": "Trigger database reindex"
+    }
+  ],
+  "features": [
+    "Semantic vector search with local embeddings",
+    "Full-text search in milliseconds",
+    "SQL-like query language with field filters",
+    "Graph traversal and relationship discovery",
+    "Meeting transcript search",
+    "Aggregation and analytics",
+    "Node creation via Tana API",
+    "Multi-workspace support",
+    "100% local - no cloud, no tracking"
+  ],
+  "requirements": {
+    "tana_account": "Active Tana subscription with API access",
+    "indexed_data": "Run 'supertag sync index' before using"
+  }
+}
