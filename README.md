@@ -52,19 +52,23 @@
 
 ## Quick Start
 
-> **Need detailed instructions?** See platform-specific guides: [Windows](./docs/INSTALL-WINDOWS.md) | [macOS](./docs/INSTALL-MACOS.md) | [Linux](./docs/INSTALL-LINUX.md)
+### One-Line Install (Recommended)
 
-### 1. Download and Extract
-
+**macOS / Linux:**
 ```bash
-unzip supertag-cli-vX.Y.Z-macos-arm64.zip
-cd supertag-cli-macos-arm64
-
-# macOS: Remove quarantine
-xattr -d com.apple.quarantine ./supertag ./supertag-mcp ./supertag-export
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.sh | bash
 ```
 
-### 2. Configure API Token
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.ps1 | iex
+```
+
+This installs everything: Bun, Playwright, Chromium, supertag-cli, and configures MCP.
+
+> **Need manual installation?** See platform-specific guides: [Windows](./docs/INSTALL-WINDOWS.md) | [macOS](./docs/INSTALL-MACOS.md) | [Linux](./docs/INSTALL-LINUX.md)
+
+### 1. Configure API Token
 
 Get your token from: https://app.tana.inc/?bundle=settings&panel=api
 
@@ -72,16 +76,16 @@ Get your token from: https://app.tana.inc/?bundle=settings&panel=api
 ./supertag config --token "your_token_here"
 ```
 
-### 3. Login and Export
+### 2. Login and Export
 
 ```bash
-./supertag-export login      # Opens browser for Tana login
-./supertag-export discover   # Find your workspaces
-./supertag-export run        # Export your data
-./supertag sync index        # Index the export
+supertag-export login      # Opens browser for Tana login
+supertag-export discover   # Find your workspaces
+supertag-export run        # Export your data
+supertag sync index        # Index the export
 ```
 
-### 4. Start Using
+### 3. Start Using
 
 ```bash
 ./supertag search "meeting"                    # Full-text search
@@ -629,37 +633,45 @@ See [examples/tui-todo/README.md](./examples/tui-todo/README.md) for full docume
 
 ## Installation
 
-**Detailed installation guides:**
+### One-Line Install (Recommended)
+
+The installer handles everything: Bun runtime, Playwright, Chromium browser, supertag-cli binaries, PATH configuration, and MCP auto-setup.
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.ps1 | iex
+```
+
+**Options:**
+```bash
+./install.sh --version 1.9.0    # Install specific version
+./install.sh --no-mcp           # Skip MCP auto-configuration
+```
+
+### Uninstall
+
+```bash
+# macOS/Linux
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/uninstall.sh | bash
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/uninstall.ps1 | iex
+```
+
+### Manual Installation
+
+For manual installation or troubleshooting, see the platform-specific guides:
 
 | Platform | Guide |
 |----------|-------|
 | **Windows** | [Windows Installation Guide](./docs/INSTALL-WINDOWS.md) |
 | **macOS** | [macOS Installation Guide](./docs/INSTALL-MACOS.md) |
 | **Linux** | [Linux Installation Guide](./docs/INSTALL-LINUX.md) |
-
-### Quick Install (macOS/Linux)
-
-```bash
-# Download and extract from GitHub Releases
-unzip supertag-cli-vX.Y.Z-*.zip
-cd supertag-cli-*
-
-# macOS: Remove quarantine
-xattr -d com.apple.quarantine ./supertag ./supertag-mcp ./supertag-export
-
-# Symlink to PATH
-sudo ln -s $(pwd)/supertag /usr/local/bin/supertag
-sudo ln -s $(pwd)/supertag-export /usr/local/bin/supertag-export
-sudo ln -s $(pwd)/supertag-mcp /usr/local/bin/supertag-mcp
-
-# Install Playwright for browser automation
-curl -fsSL https://bun.sh/install | bash
-bunx playwright install chromium
-```
-
-### Playwright (Required for Export)
-
-The `supertag-export` tool requires Playwright for browser automation. See the platform-specific guides above for detailed instructions.
 
 ---
 

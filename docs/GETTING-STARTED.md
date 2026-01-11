@@ -23,11 +23,25 @@ This guide walks you through everything from installation to advanced integratio
 
 ## 1. Installation & Setup
 
-Get Supertag CLI running in under 2 minutes. No runtime dependencies—just download, extract, and go.
+Get Supertag CLI running in under 2 minutes.
 
-### Download and Extract
+### Quick Install (Recommended)
 
-Download the appropriate binary for your platform from the releases page, then extract it:
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.ps1 | iex
+```
+
+This installs everything automatically: Bun, Playwright, Chromium, and supertag-cli.
+
+### Manual Install
+
+If you prefer manual installation, download the appropriate binary for your platform from [GitHub Releases](https://github.com/jcfischer/supertag-cli/releases):
 
 ![Terminal: Extract and setup](images/01-install.svg)
 
@@ -39,6 +53,8 @@ cd supertag-cli-macos-arm64
 # macOS only: Remove quarantine attribute
 xattr -d com.apple.quarantine ./supertag ./supertag-export ./supertag-mcp
 ```
+
+See platform-specific guides for detailed manual instructions: [macOS](./INSTALL-MACOS.md) | [Linux](./INSTALL-LINUX.md) | [Windows](./INSTALL-WINDOWS.md)
 
 ### Login to Tana
 

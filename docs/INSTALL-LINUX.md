@@ -2,7 +2,37 @@
 
 This guide covers installing Supertag CLI on Linux (x64).
 
-## Prerequisites
+---
+
+## Quick Install (Recommended)
+
+Run this single command in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.sh | bash
+```
+
+This automatically:
+- Installs Bun runtime (if needed)
+- Installs Playwright and Chromium browser
+- Downloads supertag-cli for Linux x64
+- Configures PATH
+- Sets up MCP for Claude Code (if installed)
+
+**After installation**, verify with:
+```bash
+supertag --version
+```
+
+If this works, skip to [Step 4: Configure API Token](#step-4-configure-api-token).
+
+---
+
+## Manual Installation
+
+If the quick install doesn't work, follow these manual steps.
+
+### Prerequisites
 
 - Linux x64 (Ubuntu 20.04+, Debian 11+, Fedora 35+, or similar)
 - curl or wget
@@ -11,7 +41,7 @@ This guide covers installing Supertag CLI on Linux (x64).
 
 ---
 
-## Step 1: Download and Extract
+### Step 1: Download and Extract
 
 ```bash
 # Download latest release (replace X.Y.Z with actual version)
@@ -34,7 +64,7 @@ unzip supertag-cli-v*.zip
 
 ---
 
-## Step 2: Install Binaries
+### Step 2: Install Binaries
 
 ### Option A: User Install (Recommended)
 
@@ -85,7 +115,7 @@ supertag --version
 
 ---
 
-## Step 3: Configure API Token
+### Step 3: Configure API Token
 
 Get your Tana API token from: https://app.tana.inc/?bundle=settings&panel=api
 
@@ -111,7 +141,7 @@ source ~/.zshrc
 
 ---
 
-## Step 4: Install Playwright (Required for Export)
+### Step 4: Install Playwright (Required for Export)
 
 The `supertag-export` tool requires Playwright for browser automation. Due to Playwright's native dependencies, it must be installed globally.
 
@@ -211,7 +241,7 @@ A browser window should open.
 
 ---
 
-## Step 5: Create Export Directory
+### Step 5: Create Export Directory
 
 ```bash
 mkdir -p ~/Documents/Tana-Export/main
@@ -219,7 +249,7 @@ mkdir -p ~/Documents/Tana-Export/main
 
 ---
 
-## Step 6: First Run
+### Step 6: First Run
 
 ```bash
 # 1. Login to Tana (opens browser)
