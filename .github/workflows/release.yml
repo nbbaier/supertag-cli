@@ -93,6 +93,8 @@ jobs:
           cp -r docs "$DIST_NAME/"
           cp -r launchd "$DIST_NAME/"
           cp -r scripts "$DIST_NAME/"
+          cp install.sh "$DIST_NAME/"
+          cp uninstall.sh "$DIST_NAME/"
           zip -r "supertag-cli-v${{ steps.version.outputs.VERSION }}-${{ matrix.suffix }}.zip" "$DIST_NAME"
 
       - name: Upload artifact
@@ -144,6 +146,8 @@ jobs:
           cp -r docs "$DIST_NAME/"
           cp -r launchd "$DIST_NAME/"
           cp -r scripts "$DIST_NAME/"
+          cp install.sh "$DIST_NAME/"
+          cp uninstall.sh "$DIST_NAME/"
           zip -r "supertag-cli-v${{ steps.version.outputs.VERSION }}-linux-x64.zip" "$DIST_NAME"
 
       - name: Upload artifact
@@ -198,6 +202,8 @@ jobs:
           Copy-Item -Recurse docs "$distName/"
           Copy-Item -Recurse launchd "$distName/"
           Copy-Item -Recurse scripts "$distName/"
+          Copy-Item install.ps1 "$distName/"
+          Copy-Item uninstall.ps1 "$distName/"
           Compress-Archive -Path $distName -DestinationPath "supertag-cli-v$version-windows-x64.zip"
 
       - name: Upload artifact
