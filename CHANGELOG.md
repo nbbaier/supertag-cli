@@ -5,6 +5,16 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-01-11
+
+### Fixed
+
+- **Claude Desktop MCP Compatibility** - Fixed `supertag-mcp` binary crashing on startup with Claude Desktop (#24)
+  - Root cause: Zod 4.x bundling issue with Bun's compiler caused `TypeError: undefined is not a constructor` error in `_custom` function
+  - Downgraded from Zod 4.x to Zod 3.25.x which bundles correctly with Bun
+  - Updated `zodToJsonSchema` helper to use Zod 3.x internal structure (`_def.typeName` instead of `_zod.def.type`)
+  - MCP SDK supports both Zod 3.25+ and Zod 4.x, so compatibility is maintained
+
 ## [1.9.1] - 2026-01-09
 
 ### Fixed
