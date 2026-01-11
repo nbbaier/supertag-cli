@@ -18,12 +18,12 @@ completed: 0
 
 ### Group 1: Foundation
 
-- [ ] **T-1.1** Create visualization types [T] [P]
+- [x] **T-1.1** Create visualization types [T] [P]
   - File: `src/visualization/types.ts`
   - Test: `tests/visualization/types.test.ts`
   - Description: Define TypeScript interfaces for VisualizationData, VisualizationNode, VisualizationLink, VisualizationMetadata, and VisualizationOptions. Include Zod schemas for runtime validation.
 
-- [ ] **T-1.2** Create VisualizationService [T]
+- [x] **T-1.2** Create VisualizationService [T]
   - File: `src/visualization/service.ts`
   - Test: `tests/visualization/service.test.ts`
   - Description: Implement VisualizationService class with getData(), getSubtree(), and getMaxDepth() methods. Uses existing supertag_parents and supertag_metadata tables.
@@ -31,25 +31,25 @@ completed: 0
 
 ### Group 2: Renderers
 
-- [ ] **T-2.1** Create Mermaid renderer [T] [P]
+- [x] **T-2.1** Create Mermaid renderer [T] [P]
   - File: `src/visualization/renderers/mermaid.ts`
   - Test: `tests/visualization/renderers/mermaid.test.ts`
   - Description: Pure function renderMermaid() that converts VisualizationData to Mermaid flowchart syntax. Supports direction options (TD/BT/LR/RL), field counts, colors.
   - depends: T-1.1
 
-- [ ] **T-2.2** Create DOT renderer [T] [P]
+- [x] **T-2.2** Create DOT renderer [T] [P]
   - File: `src/visualization/renderers/dot.ts`
   - Test: `tests/visualization/renderers/dot.test.ts`
   - Description: Pure function renderDOT() that converts VisualizationData to Graphviz DOT syntax. Supports rankdir, colors, node styling.
   - depends: T-1.1
 
-- [ ] **T-2.3** Create JSON renderer [T] [P]
+- [x] **T-2.3** Create JSON renderer [T] [P]
   - File: `src/visualization/renderers/json.ts`
   - Test: `tests/visualization/renderers/json.test.ts`
   - Description: Pure function renderJSON() that outputs formatted JSON. Supports pretty-printing option.
   - depends: T-1.1
 
-- [ ] **T-2.4** Create renderer index [P]
+- [x] **T-2.4** Create renderer index [P]
   - File: `src/visualization/renderers/index.ts`
   - Test: (no test needed - pure exports)
   - Description: Export all renderers from single entry point. Include format type union and renderer lookup map.
@@ -57,19 +57,19 @@ completed: 0
 
 ### Group 3: CLI Integration
 
-- [ ] **T-3.1** Add visualize subcommand [T]
+- [x] **T-3.1** Add visualize subcommand [T]
   - File: `src/commands/tags.ts` (modify)
   - Test: `tests/commands/tags-visualize.test.ts`
   - Description: Add `tags visualize` subcommand with --format, --root, --depth, --min-usage, --orphans, --output, --open options.
   - depends: T-1.2, T-2.4
 
-- [ ] **T-3.2** Implement filter options [T]
+- [x] **T-3.2** Implement filter options [T]
   - File: `src/commands/tags.ts` (modify)
   - Test: `tests/commands/tags-visualize.test.ts` (extend)
   - Description: Implement --root (subtree filtering), --depth (limit traversal), --min-usage (filter by usage count), --orphans (include/exclude).
   - depends: T-3.1
 
-- [ ] **T-3.3** Implement output options [T]
+- [x] **T-3.3** Implement output options [T]
   - File: `src/commands/tags.ts` (modify)
   - Test: `tests/commands/tags-visualize.test.ts` (extend)
   - Description: Implement --output (write to file) and --open (open in browser/viewer). Handle file writing and platform-specific open command.
@@ -77,19 +77,19 @@ completed: 0
 
 ### Group 4: Polish & Documentation
 
-- [ ] **T-4.1** Add error handling and edge cases [T]
+- [x] **T-4.1** Add error handling and edge cases [T]
   - File: `src/visualization/service.ts`, `src/commands/tags.ts` (modify)
   - Test: `tests/visualization/edge-cases.test.ts`
   - Description: Handle empty workspace, unknown tag for --root, very large graphs (>500 tags warning), special characters in tag names.
   - depends: T-3.3
 
-- [ ] **T-4.2** Update README documentation
+- [x] **T-4.2** Update README documentation
   - File: `README.md` (modify)
   - Test: (no test needed)
   - Description: Add visualization section with usage examples, sample outputs, Graphviz installation instructions.
   - depends: T-4.1
 
-- [ ] **T-4.3** Update SKILL.md
+- [x] **T-4.3** Update SKILL.md
   - File: `SKILL.md` (modify)
   - Test: (no test needed)
   - Description: Add visualization commands to skill documentation for MCP/PAI integration.

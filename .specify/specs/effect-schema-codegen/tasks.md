@@ -18,73 +18,73 @@ completed: 0
 
 ### Group 1: Foundation
 
-- [ ] **T-1.1** Create codegen types [T] [P]
+- [x] **T-1.1** Create codegen types [T] [P]
   - File: `src/codegen/types.ts`
   - Test: `tests/codegen/types.test.ts`
   - Description: Define CodegenOptions, CodegenSupertag, CodegenField, GenerationResult interfaces
 
-- [ ] **T-1.2** Create naming utilities [T] [P]
+- [x] **T-1.2** Create naming utilities [T] [P]
   - File: `src/codegen/naming.ts`
   - Test: `tests/codegen/naming.test.ts`
   - Description: Implement toClassName(), toPropertyName(), toValidIdentifier() with reserved word handling
 
-- [ ] **T-1.3** Create type mapper [T] [P]
+- [x] **T-1.3** Create type mapper [T] [P]
   - File: `src/codegen/type-mapper.ts`
   - Test: `tests/codegen/type-mapper.test.ts`
   - Description: Map DataType → Effect Schema strings for all 8 types + optional wrapping strategies
 
 ### Group 2: Core Generator
 
-- [ ] **T-2.1** Create Effect class generator [T] (depends: T-1.1, T-1.2, T-1.3)
+- [x] **T-2.1** Create Effect class generator [T] (depends: T-1.1, T-1.2, T-1.3)
   - File: `src/codegen/effect-generator.ts`
   - Test: `tests/codegen/effect-generator.test.ts`
   - Description: Generate single Effect Schema class from CodegenSupertag with JSDoc comments
 
-- [ ] **T-2.2** Create Effect file generator [T] (depends: T-2.1)
+- [x] **T-2.2** Create Effect file generator [T] (depends: T-2.1)
   - File: `src/codegen/effect-generator.ts` (extend)
   - Test: `tests/codegen/effect-generator.test.ts` (extend)
   - Description: Generate complete file with imports, multiple classes, and metadata header
 
-- [ ] **T-2.3** Create codegen orchestrator [T] (depends: T-2.2)
+- [x] **T-2.3** Create codegen orchestrator [T] (depends: T-2.2)
   - File: `src/codegen/index.ts`
   - Test: `tests/codegen/index.test.ts`
   - Description: Main generateSchemas() function: load supertags, transform, generate files
 
-- [ ] **T-2.4** Add inheritance support [T] (depends: T-2.3)
+- [x] **T-2.4** Add inheritance support [T] (depends: T-2.3)
   - File: `src/codegen/effect-generator.ts` (extend)
   - Test: `tests/codegen/effect-generator.test.ts` (extend)
   - Description: Support Schema.Class.extend() for supertags with parents in same generation
 
 ### Group 3: CLI Integration
 
-- [ ] **T-3.1** Create codegen CLI command [T] (depends: T-2.3)
+- [x] **T-3.1** Create codegen CLI command [T] (depends: T-2.3)
   - File: `src/commands/codegen.ts`
   - Test: `tests/codegen/cli.test.ts`
   - Description: Commander.js command with --output, --tags, --format, --optional-strategy, --split flags
 
-- [ ] **T-3.2** Wire into main CLI (depends: T-3.1)
+- [x] **T-3.2** Wire into main CLI (depends: T-3.1)
   - File: `src/index.ts`
   - Test: n/a (covered by T-3.1 integration test)
   - Description: Register codegen command in main CLI entry point
 
-- [ ] **T-3.3** Add multi-file output mode [T] (depends: T-3.2)
+- [x] **T-3.3** Add multi-file output mode [T] (depends: T-3.2)
   - File: `src/codegen/index.ts` (extend), `src/commands/codegen.ts` (extend)
   - Test: `tests/codegen/cli.test.ts` (extend)
   - Description: Support --split flag for one-file-per-supertag with index.ts re-exports
 
 ### Group 4: Polish & Documentation
 
-- [ ] **T-4.1** Add TypeScript compilation validation [T] (depends: T-3.3)
+- [x] **T-4.1** Add TypeScript compilation validation [T] (depends: T-3.3)
   - File: `tests/codegen/compile-check.test.ts`
   - Test: Self-contained test
   - Description: Test that generated code compiles without errors using tsc
 
-- [ ] **T-4.2** Update documentation (depends: T-4.1)
+- [x] **T-4.2** Update documentation (depends: T-4.1)
   - Files: `README.md`, `CLAUDE.md`, `SKILL.md`
   - Test: n/a
   - Description: Document codegen command, options, and usage examples
 
-- [ ] **T-4.3** Update CHANGELOG (depends: T-4.2)
+- [x] **T-4.3** Update CHANGELOG (depends: T-4.2)
   - File: `CHANGELOG.md`
   - Test: n/a
   - Description: Add codegen feature to [Unreleased] section

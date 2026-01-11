@@ -18,91 +18,91 @@ completed: 0
 
 ### Group 1: Foundation (Core Module)
 
-- [ ] **T-1.1** Define OutputFormatter interface and types [T]
+- [x] **T-1.1** Define OutputFormatter interface and types [T]
   - File: `src/utils/output-formatter.ts`
   - Test: `tests/utils/output-formatter.test.ts`
   - Description: Create OutputFormatter interface, OutputMode type, FormatterOptions interface. No implementation yet - just the contract.
 
-- [ ] **T-1.2** Implement UnixFormatter [T] (depends: T-1.1)
+- [x] **T-1.2** Implement UnixFormatter [T] (depends: T-1.1)
   - File: `src/utils/output-formatter.ts`
   - Test: `tests/utils/output-formatter.test.ts`
   - Description: TSV output for table, YAML-like records, skip headers/tips/dividers, stderr for errors. Uses stream capture for testability.
 
-- [ ] **T-1.3** Implement PrettyFormatter [T] (depends: T-1.1)
+- [x] **T-1.3** Implement PrettyFormatter [T] (depends: T-1.1)
   - File: `src/utils/output-formatter.ts`
   - Test: `tests/utils/output-formatter.test.ts`
   - Description: Formatted table with headers, emoji headers via EMOJI constant, tips with emoji, aligned records, divider character.
 
-- [ ] **T-1.4** Implement JsonFormatter [T] (depends: T-1.1)
+- [x] **T-1.4** Implement JsonFormatter [T] (depends: T-1.1)
   - File: `src/utils/output-formatter.ts`
   - Test: `tests/utils/output-formatter.test.ts`
   - Description: Buffer records, output JSON array on finalize(). Single object when one value(), empty array for no data. Skip headers/tips/dividers.
 
-- [ ] **T-1.5** Implement createFormatter factory [T] (depends: T-1.2, T-1.3, T-1.4)
+- [x] **T-1.5** Implement createFormatter factory [T] (depends: T-1.2, T-1.3, T-1.4)
   - File: `src/utils/output-formatter.ts`
   - Test: `tests/utils/output-formatter.test.ts`
   - Description: Factory function that returns appropriate formatter based on mode. Passes through humanDates, verbose, stream options.
 
-- [ ] **T-1.6** Implement resolveOutputMode helper [T] (depends: T-1.1)
+- [x] **T-1.6** Implement resolveOutputMode helper [T] (depends: T-1.1)
   - File: `src/utils/output-formatter.ts`
   - Test: `tests/utils/output-formatter.test.ts`
   - Description: Resolve mode from CLI options. Precedence: --json > --pretty > config > unix default. Integrates with existing output-options.ts.
 
 ### Group 2: Command Migration
 
-- [ ] **T-2.1** Migrate stats.ts [T] (depends: T-1.5, T-1.6)
+- [x] **T-2.1** Migrate stats.ts [T] (depends: T-1.5, T-1.6)
   - File: `src/commands/stats.ts`
   - Test: existing tests + output verification
   - Description: Replace if/else output switching with formatter. Simplest command - proof of concept. Verify db/embed/filter stats all work.
 
-- [ ] **T-2.2** Migrate tags.ts - top subcommand [T] (depends: T-1.5, T-1.6)
+- [x] **T-2.2** Migrate tags.ts - top subcommand [T] (depends: T-1.5, T-1.6)
   - File: `src/commands/tags.ts`
   - Test: existing tests + output verification
   - Description: Replace `tags top` output with formatter.table(). Verify TSV/pretty/JSON all produce correct output.
 
-- [ ] **T-2.3** Migrate tags.ts - list subcommand [T] (depends: T-2.2)
+- [x] **T-2.3** Migrate tags.ts - list subcommand [T] (depends: T-2.2)
   - File: `src/commands/tags.ts`
   - Test: existing tests + output verification
   - Description: Replace `tags list` output with formatter. Reuses patterns from T-2.2.
 
-- [ ] **T-2.4** Migrate search.ts - FTS search [T] (depends: T-1.5, T-1.6)
+- [x] **T-2.4** Migrate search.ts - FTS search [T] (depends: T-1.5, T-1.6)
   - File: `src/commands/search.ts`
   - Test: existing tests + output verification
   - Description: Replace handleFtsSearch output with formatter. This is the most complex - has ancestor resolution, tags, rank.
 
-- [ ] **T-2.5** Migrate search.ts - semantic search [T] [P] (depends: T-2.4)
+- [x] **T-2.5** Migrate search.ts - semantic search [T] [P] (depends: T-2.4)
   - File: `src/commands/search.ts`
   - Test: existing tests + output verification
   - Description: Replace handleSemanticSearch output with formatter. Similar pattern to FTS but with similarity scores.
 
-- [ ] **T-2.6** Migrate search.ts - tagged search [T] [P] (depends: T-2.4)
+- [x] **T-2.6** Migrate search.ts - tagged search [T] [P] (depends: T-2.4)
   - File: `src/commands/search.ts`
   - Test: existing tests + output verification
   - Description: Replace handleTaggedSearch output with formatter. Simpler than FTS - just id/name/created.
 
-- [ ] **T-2.7** Migrate nodes.ts [T] [P] (depends: T-1.5, T-1.6)
+- [x] **T-2.7** Migrate nodes.ts [T] [P] (depends: T-1.5, T-1.6)
   - File: `src/commands/nodes.ts`
   - Test: existing tests + output verification
   - Description: Replace node output switching with formatter.
 
-- [ ] **T-2.8** Migrate fields.ts [T] [P] (depends: T-1.5, T-1.6)
+- [x] **T-2.8** Migrate fields.ts [T] [P] (depends: T-1.5, T-1.6)
   - File: `src/commands/fields.ts`
   - Test: existing tests + output verification
   - Description: Replace field list output with formatter.
 
 ### Group 3: Cleanup & Integration
 
-- [ ] **T-3.1** Migrate remaining commands [T] (depends: T-2.1 through T-2.8)
+- [x] **T-3.1** Migrate remaining commands [T] (depends: T-2.1 through T-2.8)
   - Files: `src/commands/embed.ts`, `src/commands/workspace.ts`, `src/commands/server.ts`
   - Test: existing tests + output verification
   - Description: Migrate stats output from embed.ts, workspace status, server status. Lower priority - less frequently used output paths.
 
-- [ ] **T-3.2** Add typed result formatters (optional helpers) [T] (depends: T-3.1)
+- [x] **T-3.2** Add typed result formatters (optional helpers) [T] (depends: T-3.1)
   - File: `src/utils/output-formatter.ts`
   - Test: `tests/utils/output-formatter.test.ts`
   - Description: Add formatSearchResults(), formatStats() helper functions for common patterns. Optional but reduces boilerplate.
 
-- [ ] **T-3.3** Final cleanup and documentation (depends: T-3.1)
+- [x] **T-3.3** Final cleanup and documentation (depends: T-3.1)
   - Files: `src/commands/helpers.ts`, `CHANGELOG.md`
   - Description: Remove any remaining duplicated output logic. Add examples to JSDoc comments. Update CHANGELOG.
 
@@ -197,11 +197,11 @@ For each task marked [T]:
 
 For each migrated command, verify:
 
-- [ ] `supertag <cmd>` produces TSV output (pipe to `cut -f1` works)
-- [ ] `supertag <cmd> --pretty` produces formatted output with emojis
-- [ ] `supertag <cmd> --json` produces valid JSON (pipe to `jq` works)
-- [ ] Existing tests pass
-- [ ] No visual regressions in terminal output
+- [x] `supertag <cmd>` produces TSV output (pipe to `cut -f1` works)
+- [x] `supertag <cmd> --pretty` produces formatted output with emojis
+- [x] `supertag <cmd> --json` produces valid JSON (pipe to `jq` works)
+- [x] Existing tests pass
+- [x] No visual regressions in terminal output
 
 ## Blockers & Issues
 

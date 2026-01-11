@@ -18,73 +18,73 @@ completed: 14
 
 ### Group 1: Foundation (Types + Test Setup)
 
-- [ ] **T-1.1** Add shared types to types.ts [T]
+- [x] **T-1.1** Add shared types to types.ts [T]
   - File: `src/types.ts`
   - Test: `src/services/node-builder.test.ts` (type tests)
   - Description: Add `ChildNodeInput`, `CreateNodeInput`, `CreateNodeResult` interfaces
 
-- [ ] **T-1.2** Create test file with failing tests [T]
+- [x] **T-1.2** Create test file with failing tests [T]
   - File: `src/services/node-builder.test.ts`
   - Description: Write 12 failing tests covering all 4 functions (RED state)
   - Tests cover: validateSupertags, buildChildNodes, buildNodePayload, createNode
 
 ### Group 2: Core Implementation (Shared Module)
 
-- [ ] **T-2.1** Implement validateSupertags() [T] (depends: T-1.2)
+- [x] **T-2.1** Implement validateSupertags() [T] (depends: T-1.2)
   - File: `src/services/node-builder.ts`
   - Test: Tests 1-3 in node-builder.test.ts
   - Description: Parse comma-separated tags, validate against registry, return schemas or throw with suggestions
 
-- [ ] **T-2.2** Implement buildChildNodes() [T] (depends: T-1.2)
+- [x] **T-2.2** Implement buildChildNodes() [T] (depends: T-1.2)
   - File: `src/services/node-builder.ts`
   - Test: Tests 4-7 in node-builder.test.ts
   - Description: Convert ChildNodeInput[] to TanaApiNode[] (plain text, URL, reference)
 
-- [ ] **T-2.3** Implement buildNodePayload() [T] (depends: T-2.1, T-2.2)
+- [x] **T-2.3** Implement buildNodePayload() [T] (depends: T-2.1, T-2.2)
   - File: `src/services/node-builder.ts`
   - Test: Tests 8-10 in node-builder.test.ts
   - Description: Build complete TanaApiNode using registry.buildNodePayload + append children
 
-- [ ] **T-2.4** Implement createNode() [T] (depends: T-2.3)
+- [x] **T-2.4** Implement createNode() [T] (depends: T-2.3)
   - File: `src/services/node-builder.ts`
   - Test: Tests 11-12 in node-builder.test.ts
   - Description: Orchestrate validation, building, and API posting with dry-run support
 
-- [ ] **T-2.5** Verify all new tests pass [T] (depends: T-2.4)
+- [x] **T-2.5** Verify all new tests pass [T] (depends: T-2.4)
   - Test: `bun test src/services/node-builder.test.ts`
   - Description: Ensure GREEN state - all 12 tests pass
 
 ### Group 3: Integration (Refactor Consumers)
 
-- [ ] **T-3.1** Refactor CLI create command [T] (depends: T-2.5)
+- [x] **T-3.1** Refactor CLI create command [T] (depends: T-2.5)
   - File: `src/commands/create.ts`
   - Test: Existing MCP create tests + full suite
   - Description: Replace duplicated logic with calls to shared module, keep CLI-specific I/O
 
-- [ ] **T-3.2** Refactor MCP create tool [T] (depends: T-2.5)
+- [x] **T-3.2** Refactor MCP create tool [T] (depends: T-2.5)
   - File: `src/mcp/tools/create.ts`
   - Test: `src/mcp/tools/__tests__/create.test.ts`
   - Description: Replace duplicated logic with calls to shared module, keep MCP-specific result handling
 
-- [ ] **T-3.3** Verify existing tests pass [T] (depends: T-3.1, T-3.2)
+- [x] **T-3.3** Verify existing tests pass [T] (depends: T-3.1, T-3.2)
   - Test: `bun test`
   - Description: Run full test suite, ensure no regressions
 
-- [ ] **T-3.4** Remove dead code [P] (depends: T-3.3)
+- [x] **T-3.4** Remove dead code [P] (depends: T-3.3)
   - Files: `src/commands/create.ts`, `src/mcp/tools/create.ts`
   - Description: Delete now-unused helper functions from both files
 
 ### Group 4: Cleanup & Documentation
 
-- [ ] **T-4.1** Add JSDoc to exported functions [P] (depends: T-3.3)
+- [x] **T-4.1** Add JSDoc to exported functions [P] (depends: T-3.3)
   - File: `src/services/node-builder.ts`
   - Description: Document all exported functions with usage examples
 
-- [ ] **T-4.2** Verify test coverage >90% [T] (depends: T-3.4)
+- [x] **T-4.2** Verify test coverage >90% [T] (depends: T-3.4)
   - Test: `bun test --coverage`
   - Description: Ensure shared module has adequate test coverage
 
-- [ ] **T-4.3** Final full test suite (depends: T-4.1, T-4.2)
+- [x] **T-4.3** Final full test suite (depends: T-4.1, T-4.2)
   - Test: `bun test`
   - Description: Final verification all tests pass
 

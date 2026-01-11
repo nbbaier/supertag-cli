@@ -18,74 +18,74 @@ completed: 0
 
 ### Group 1: Foundation (Types & Query Engine)
 
-- [ ] **T-1.1** Create graph traversal types [T] [P]
+- [x] **T-1.1** Create graph traversal types [T] [P]
   - File: `src/types/graph.ts`
   - Test: `tests/unit/graph-types.test.ts`
   - Description: Define `RelatedQuery`, `RelationshipType`, `RelationshipMetadata`, `RelatedNode`, `RelatedResult` interfaces with Zod validation
 
-- [ ] **T-1.2** Extend TanaQueryEngine with getRelatedNodes [T] [P]
+- [x] **T-1.2** Extend TanaQueryEngine with getRelatedNodes [T] [P]
   - File: `src/query/tana-query-engine.ts`
   - Test: `tests/unit/related-query.test.ts`
   - Description: Add `getRelatedNodes(nodeId, direction, types, limit)` method with type filtering and batched lookups
 
 ### Group 2: Core Service
 
-- [ ] **T-2.1** Create GraphTraversalService base [T] (depends: T-1.1, T-1.2)
+- [x] **T-2.1** Create GraphTraversalService base [T] (depends: T-1.1, T-1.2)
   - File: `src/services/graph-traversal.ts`
   - Test: `tests/unit/graph-traversal.test.ts`
   - Description: Implement service class with constructor, close(), and basic single-hop traversal
 
-- [ ] **T-2.2** Implement BFS multi-hop traversal [T] (depends: T-2.1)
+- [x] **T-2.2** Implement BFS multi-hop traversal [T] (depends: T-2.1)
   - File: `src/services/graph-traversal.ts`
   - Test: `tests/unit/graph-traversal.test.ts`
   - Description: Add depth traversal with visited set for cycle detection, path tracking, distance calculation
 
-- [ ] **T-2.3** Add direction and type filtering [T] (depends: T-2.2)
+- [x] **T-2.3** Add direction and type filtering [T] (depends: T-2.2)
   - File: `src/services/graph-traversal.ts`
   - Test: `tests/unit/graph-traversal.test.ts`
   - Description: Filter by direction (in/out/both) and relationship types (child/parent/reference/field)
 
-- [ ] **T-2.4** Add limits, warnings, and edge cases [T] (depends: T-2.3)
+- [x] **T-2.4** Add limits, warnings, and edge cases [T] (depends: T-2.3)
   - File: `src/services/graph-traversal.ts`
   - Test: `tests/unit/graph-traversal.test.ts`
   - Description: Depth clamping (max 5), result truncation, unknown type warnings, empty results
 
 ### Group 3: MCP Tool
 
-- [ ] **T-3.1** Add relatedSchema to schemas.ts [T] [P] (depends: T-1.1)
+- [x] **T-3.1** Add relatedSchema to schemas.ts [T] [P] (depends: T-1.1)
   - File: `src/mcp/schemas.ts`
   - Test: `tests/unit/schemas.test.ts`
   - Description: Define Zod schema for `tana_related` tool input with all parameters
 
-- [ ] **T-3.2** Create MCP tool handler [T] (depends: T-2.4, T-3.1)
+- [x] **T-3.2** Create MCP tool handler [T] (depends: T-2.4, T-3.1)
   - File: `src/mcp/tools/related.ts`
   - Test: `tests/mcp/related.test.ts`
   - Description: Implement tool handler following `node.ts` pattern with workspace resolution, projection support
 
-- [ ] **T-3.3** Register tool in registry [T] (depends: T-3.2)
+- [x] **T-3.3** Register tool in registry [T] (depends: T-3.2)
   - File: `src/mcp/tool-registry.ts`
   - Test: `tests/mcp/tool-registry.test.ts`
   - Description: Add `tana_related` to registry with category 'query', update capabilities
 
 ### Group 4: CLI Command
 
-- [ ] **T-4.1** Create related CLI command [T] (depends: T-2.4)
+- [x] **T-4.1** Create related CLI command [T] (depends: T-2.4)
   - File: `src/commands/related.ts`
   - Test: `tests/e2e/related-cli.test.ts`
   - Description: Implement `supertag related <nodeId>` with --direction, --types, --depth, --limit flags
 
-- [ ] **T-4.2** Add output format support [T] (depends: T-4.1)
+- [x] **T-4.2** Add output format support [T] (depends: T-4.1)
   - File: `src/commands/related.ts`
   - Test: `tests/e2e/related-cli.test.ts`
   - Description: Support all 6 formats (table, json, csv, ids, minimal, jsonl) per Spec 060
 
-- [ ] **T-4.3** Wire command into main CLI (depends: T-4.2)
+- [x] **T-4.3** Wire command into main CLI (depends: T-4.2)
   - File: `src/index.ts`
   - Description: Register `related` command in main CLI entry point
 
 ### Group 5: Documentation & Polish
 
-- [ ] **T-5.1** Update documentation (depends: T-4.3, T-3.3)
+- [x] **T-5.1** Update documentation (depends: T-4.3, T-3.3)
   - Files: `README.md`, `SKILL.md`, `CHANGELOG.md`
   - Description: Document new command/tool, add examples, update capability list
 
@@ -177,9 +177,9 @@ T-1.1 → T-2.1 → T-2.2 → T-2.3 → T-2.4 → T-4.1 → T-4.2 → T-4.3 → 
 **Before marking feature complete, verify:**
 
 ### Functional Verification
-- [ ] All unit tests pass (`bun run test`)
-- [ ] All integration tests pass
-- [ ] Feature works as specified in acceptance criteria:
+- [x] All unit tests pass (`bun run test`)
+- [x] All integration tests pass
+- [x] Feature works as specified in acceptance criteria:
   - [ ] `tana_related` returns nodes connected to given node
   - [ ] Direction filtering works (in/out/both)
   - [ ] Type filtering works (child/parent/reference/field)
@@ -187,18 +187,18 @@ T-1.1 → T-2.1 → T-2.2 → T-2.3 → T-2.4 → T-4.1 → T-4.2 → T-4.3 → 
   - [ ] Cycles detected and handled gracefully
 
 ### Failure Verification (Doctorow Gate)
-- [ ] **Node not found:** Returns structured error with NODE_NOT_FOUND code
-- [ ] **Cycle in graph:** Returns partial results without infinite loop
-- [ ] **Empty references:** Returns empty array (not error)
-- [ ] **Unknown type:** Ignored with warning in response
-- [ ] **Depth > 5:** Clamped with warning
+- [x] **Node not found:** Returns structured error with NODE_NOT_FOUND code
+- [x] **Cycle in graph:** Returns partial results without infinite loop
+- [x] **Empty references:** Returns empty array (not error)
+- [x] **Unknown type:** Ignored with warning in response
+- [x] **Depth > 5:** Clamped with warning
 
 ### Maintainability Verification
-- [ ] **Documentation:** README, SKILL.md, CHANGELOG updated
-- [ ] **No orphan code:** All new code reachable and tested
-- [ ] **Consistent patterns:** Follows existing MCP tool and CLI patterns
+- [x] **Documentation:** README, SKILL.md, CHANGELOG updated
+- [x] **No orphan code:** All new code reachable and tested
+- [x] **Consistent patterns:** Follows existing MCP tool and CLI patterns
 
 ### Sign-off
-- [ ] All verification items checked
-- [ ] Debt score: 2 (low complexity)
+- [x] All verification items checked
+- [x] Debt score: 2 (low complexity)
 - Date completed: ___

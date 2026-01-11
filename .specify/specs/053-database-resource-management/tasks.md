@@ -18,64 +18,64 @@ completed: 0
 
 ### Group 1: Foundation - Types & Core Functions
 
-- [ ] **T-1.1** Create types and error classes [T] [P]
+- [x] **T-1.1** Create types and error classes [T] [P]
   - File: `src/db/with-database.ts`
   - Test: `tests/db/with-database.test.ts`
   - Description: Define `DatabaseContext`, `QueryContext`, `DatabaseOptions`, `DatabaseNotFoundError`
 
-- [ ] **T-1.2** Implement withDatabase() [T] (depends: T-1.1)
+- [x] **T-1.2** Implement withDatabase() [T] (depends: T-1.1)
   - File: `src/db/with-database.ts`
   - Test: `tests/db/with-database.test.ts`
   - Description: Core function that opens database, executes callback, guarantees close
 
-- [ ] **T-1.3** Implement withTransaction() [T] (depends: T-1.2)
+- [x] **T-1.3** Implement withTransaction() [T] (depends: T-1.2)
   - File: `src/db/with-database.ts`
   - Test: `tests/db/with-database.test.ts`
   - Description: Wrap operations in transaction with auto-commit/rollback
 
 ### Group 2: Core - QueryEngine & Workspace Integration
 
-- [ ] **T-2.1** Implement withQueryEngine() [T] (depends: T-1.2)
+- [x] **T-2.1** Implement withQueryEngine() [T] (depends: T-1.2)
   - File: `src/db/with-database.ts`
   - Test: `tests/db/with-database.test.ts`
   - Description: Compose withDatabase + TanaQueryEngine creation
 
-- [ ] **T-2.2** Implement withWorkspaceDatabase() [T] (depends: T-2.1)
+- [x] **T-2.2** Implement withWorkspaceDatabase() [T] (depends: T-2.1)
   - File: `src/db/with-database.ts`
   - Test: `tests/db/with-database.test.ts`
   - Description: Compose resolveWorkspaceContext + withDatabase
 
-- [ ] **T-2.3** Implement withWorkspaceQuery() [T] (depends: T-2.2)
+- [x] **T-2.3** Implement withWorkspaceQuery() [T] (depends: T-2.2)
   - File: `src/db/with-database.ts`
   - Test: `tests/db/with-database.test.ts`
   - Description: Compose resolveWorkspaceContext + withQueryEngine
 
-- [ ] **T-2.4** Export from db/index.ts (depends: T-2.3)
+- [x] **T-2.4** Export from db/index.ts (depends: T-2.3)
   - File: `src/db/index.ts`
   - Description: Re-export all functions and types from with-database.ts
 
 ### Group 3: Integration - Migrate Commands
 
-- [ ] **T-3.1** Migrate CLI commands [T] [P] (depends: T-2.4)
+- [x] **T-3.1** Migrate CLI commands [T] [P] (depends: T-2.4)
   - Files: `src/commands/stats.ts`, `src/commands/search.ts`, `src/commands/tags.ts`, `src/commands/nodes.ts`, `src/commands/fields.ts`, `src/commands/embed.ts`, `src/commands/schema.ts`, `src/commands/codegen.ts`, `src/commands/transcript.ts`
   - Test: Existing tests must pass
   - Description: Replace try-finally patterns with withDatabase/withQueryEngine
 
-- [ ] **T-3.2** Migrate MCP tools [T] [P] (depends: T-2.4)
+- [x] **T-3.2** Migrate MCP tools [T] [P] (depends: T-2.4)
   - Files: `src/mcp/tools/search.ts`, `src/mcp/tools/stats.ts`, `src/mcp/tools/tagged.ts`, `src/mcp/tools/node.ts`, `src/mcp/tools/supertag-info.ts`, `src/mcp/tools/field-values.ts`, `src/mcp/tools/transcript.ts`, `src/mcp/tools/semantic-search.ts`, `src/mcp/tools/supertags.ts`, `src/mcp/tools/sync.ts`
   - Test: Existing tests must pass
   - Description: Replace try-finally patterns with withDatabase/withQueryEngine
 
-- [ ] **T-3.3** Migrate services [T] [P] (depends: T-2.4)
+- [x] **T-3.3** Migrate services [T] [P] (depends: T-2.4)
   - Files: `src/server/tana-webhook-server.ts`, `src/db/indexer.ts`
   - Test: Existing tests must pass
   - Description: Replace try-finally patterns where applicable
 
-- [ ] **T-3.4** Verify full test suite (depends: T-3.1, T-3.2, T-3.3)
+- [x] **T-3.4** Verify full test suite (depends: T-3.1, T-3.2, T-3.3)
   - Test: `bun run test:full`
   - Description: Run complete test suite, ensure no regressions
 
-- [ ] **T-3.5** Update documentation (depends: T-3.4)
+- [x] **T-3.5** Update documentation (depends: T-3.4)
   - Files: `CLAUDE.md`
   - Description: Document the new database resource management pattern
 

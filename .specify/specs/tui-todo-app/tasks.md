@@ -18,69 +18,69 @@ completed: 0
 
 ### Group 1: Foundation
 
-- [ ] **T-1.1** Create project structure [P]
+- [x] **T-1.1** Create project structure [P]
   - Files: `examples/tui-todo/package.json`, `tsconfig.json`
   - Description: Initialize example project with Ink, React, Effect dependencies
 
-- [ ] **T-1.2** Generate Todo schema [P]
+- [x] **T-1.2** Generate Todo schema [P]
   - File: `examples/tui-todo/src/schemas.ts`
   - Description: Run `supertag codegen generate -o ./src/schemas.ts --tags Todo`
 
-- [ ] **T-1.3** Implement TodoService [T] (depends: T-1.1, T-1.2)
+- [x] **T-1.3** Implement TodoService [T] (depends: T-1.1, T-1.2)
   - File: `examples/tui-todo/src/services/todo-service.ts`
   - Test: `examples/tui-todo/tests/todo-service.test.ts`
   - Description: Read todos from supertag-cli SQLite database
 
-- [ ] **T-1.4** Implement TanaInputApi [T] (depends: T-1.1, T-1.2)
+- [x] **T-1.4** Implement TanaInputApi [T] (depends: T-1.1, T-1.2)
   - File: `examples/tui-todo/src/services/tana-api.ts`
   - Test: `examples/tui-todo/tests/tana-api.test.ts`
   - Description: Create todos via Tana Input API
 
-- [ ] **T-1.5** Create app state types
+- [x] **T-1.5** Create app state types
   - File: `examples/tui-todo/src/types/app-state.ts`
   - Description: Define AppState, AppAction types for state management
 
 ### Group 2: Core UI
 
-- [ ] **T-2.1** Implement App component with state (depends: T-1.3, T-1.4, T-1.5)
+- [x] **T-2.1** Implement App component with state (depends: T-1.3, T-1.4, T-1.5)
   - File: `examples/tui-todo/src/components/App.tsx`
   - Description: Main component with useReducer, keyboard handling, mode switching
 
-- [ ] **T-2.2** Implement TodoList component [P] (depends: T-2.1)
+- [x] **T-2.2** Implement TodoList component [P] (depends: T-2.1)
   - File: `examples/tui-todo/src/components/TodoList.tsx`
   - Description: Left pane showing todo list with selection, strikethrough for completed
 
-- [ ] **T-2.3** Implement TodoDetail component [P] (depends: T-2.1)
+- [x] **T-2.3** Implement TodoDetail component [P] (depends: T-2.1)
   - File: `examples/tui-todo/src/components/TodoDetail.tsx`
   - Description: Right pane showing all fields of selected todo
 
-- [ ] **T-2.4** Implement CreateForm component [T] (depends: T-2.1)
+- [x] **T-2.4** Implement CreateForm component [T] (depends: T-2.1)
   - File: `examples/tui-todo/src/components/CreateForm.tsx`
   - Description: Form with text inputs, Effect schema validation, submit/cancel
 
-- [ ] **T-2.5** Implement StatusBar component [P] (depends: T-2.1)
+- [x] **T-2.5** Implement StatusBar component [P] (depends: T-2.1)
   - File: `examples/tui-todo/src/components/StatusBar.tsx`
   - Description: Bottom bar showing keyboard shortcuts, current mode, error messages
 
-- [ ] **T-2.6** Add filter/search functionality (depends: T-2.2)
+- [x] **T-2.6** Add filter/search functionality (depends: T-2.2)
   - File: `examples/tui-todo/src/components/FilterInput.tsx`
   - Description: Text input for filtering todos by title, integrates with TodoList
 
 ### Group 3: Integration
 
-- [ ] **T-3.1** Implement HelpOverlay component (depends: T-2.5)
+- [x] **T-3.1** Implement HelpOverlay component (depends: T-2.5)
   - File: `examples/tui-todo/src/components/HelpOverlay.tsx`
   - Description: Full-screen help overlay with all keyboard shortcuts
 
-- [ ] **T-3.2** Create entry point and wire everything (depends: T-2.1, T-2.2, T-2.3, T-2.4, T-2.5)
+- [x] **T-3.2** Create entry point and wire everything (depends: T-2.1, T-2.2, T-2.3, T-2.4, T-2.5)
   - File: `examples/tui-todo/src/index.tsx`
   - Description: Main entry point, render App with Ink
 
-- [ ] **T-3.3** Write example README (depends: T-3.2)
+- [x] **T-3.3** Write example README (depends: T-3.2)
   - File: `examples/tui-todo/README.md`
   - Description: Usage instructions, screenshots, setup steps
 
-- [ ] **T-3.4** Update main README (depends: T-3.3)
+- [x] **T-3.4** Update main README (depends: T-3.3)
   - File: `README.md`
   - Description: Add reference to tui-todo example in supertag-cli docs
 

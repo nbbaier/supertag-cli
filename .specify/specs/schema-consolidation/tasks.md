@@ -18,105 +18,105 @@ completed: 19
 
 ### Group 1: Foundation (Database Schema)
 
-- [ ] **T-1.1** Add supertag_metadata table [T] [P]
+- [x] **T-1.1** Add supertag_metadata table [T] [P]
   - File: `src/db/schema.ts`
   - Test: `tests/db/supertag-metadata-table.test.ts`
   - Description: Create new Drizzle table for supertag-level metadata (normalized_name, description, color)
 
-- [ ] **T-1.2** Enhance supertag_fields columns [T] [P]
+- [x] **T-1.2** Enhance supertag_fields columns [T] [P]
   - File: `src/db/schema.ts`
   - Test: `tests/db/supertag-fields-enhanced.test.ts`
   - Description: Add normalized_name, description, inferred_data_type columns to supertag_fields
 
-- [ ] **T-1.3** Add migration logic for new columns [T] (depends: T-1.1, T-1.2)
+- [x] **T-1.3** Add migration logic for new columns [T] (depends: T-1.1, T-1.2)
   - File: `src/db/indexer.ts`
   - Test: `tests/db/schema-migration.test.ts`
   - Description: ALTER TABLE logic with IF NOT EXISTS for graceful upgrades
 
 ### Group 2: Extraction Enhancement
 
-- [ ] **T-2.1** Implement normalizeName function [T] [P]
+- [x] **T-2.1** Implement normalizeName function [T] [P]
   - File: `src/utils/normalize-name.ts`
   - Test: `tests/utils/normalize-name.test.ts`
   - Description: Extract normalization from SchemaRegistry to reusable utility
 
-- [ ] **T-2.2** Implement inferDataType function [T] [P]
+- [x] **T-2.2** Implement inferDataType function [T] [P]
   - File: `src/utils/infer-data-type.ts`
   - Test: `tests/utils/infer-data-type.test.ts`
   - Description: Extract data type inference from SchemaRegistry to reusable utility
 
-- [ ] **T-2.3** Enhance extractFieldsFromTagDef [T] (depends: T-2.1, T-2.2)
+- [x] **T-2.3** Enhance extractFieldsFromTagDef [T] (depends: T-2.1, T-2.2)
   - File: `src/db/supertag-metadata.ts`
   - Test: `tests/db/supertag-metadata-extraction.test.ts`
   - Description: Store normalized_name, description, inferred_data_type during extraction
 
-- [ ] **T-2.4** Add supertag metadata extraction [T] (depends: T-1.3, T-2.1)
+- [x] **T-2.4** Add supertag metadata extraction [T] (depends: T-1.3, T-2.1)
   - File: `src/db/supertag-metadata.ts`
   - Test: `tests/db/supertag-metadata-extraction.test.ts`
   - Description: Extract and store tag name, description, color in supertag_metadata table
 
 ### Group 3: Unified Schema Service
 
-- [ ] **T-3.1** Create UnifiedSchemaService class [T] (depends: T-2.3, T-2.4)
+- [x] **T-3.1** Create UnifiedSchemaService class [T] (depends: T-2.3, T-2.4)
   - File: `src/services/unified-schema-service.ts`
   - Test: `tests/services/unified-schema-service.test.ts`
   - Description: Core service class with constructor and basic queries
 
-- [ ] **T-3.2** Implement supertag lookups [T] (depends: T-3.1)
+- [x] **T-3.2** Implement supertag lookups [T] (depends: T-3.1)
   - File: `src/services/unified-schema-service.ts`
   - Test: `tests/services/unified-schema-service.test.ts`
   - Description: getSupertag, getSupertagById, searchSupertags, listSupertags methods
 
-- [ ] **T-3.3** Implement field operations [T] (depends: T-3.1)
+- [x] **T-3.3** Implement field operations [T] (depends: T-3.1)
   - File: `src/services/unified-schema-service.ts`
   - Test: `tests/services/unified-schema-service.test.ts`
   - Description: getFields, getAllFields (with inheritance), getFieldByNormalizedName
 
-- [ ] **T-3.4** Implement buildNodePayload [T] (depends: T-3.2, T-3.3)
+- [x] **T-3.4** Implement buildNodePayload [T] (depends: T-3.2, T-3.3)
   - File: `src/services/unified-schema-service.ts`
   - Test: `tests/services/unified-schema-service.test.ts`
   - Description: Replicate SchemaRegistry.buildNodePayload using database data
 
 ### Group 4: Cache Generation
 
-- [ ] **T-4.1** Implement toSchemaRegistryJSON [T] (depends: T-3.2, T-3.3)
+- [x] **T-4.1** Implement toSchemaRegistryJSON [T] (depends: T-3.2, T-3.3)
   - File: `src/services/unified-schema-service.ts`
   - Test: `tests/services/unified-schema-service.test.ts`
   - Description: Generate JSON in exact SchemaRegistry format
 
-- [ ] **T-4.2** Implement generateSchemaCache [T] (depends: T-4.1)
+- [x] **T-4.2** Implement generateSchemaCache [T] (depends: T-4.1)
   - File: `src/services/unified-schema-service.ts`
   - Test: `tests/services/schema-cache-generation.test.ts`
   - Description: Write JSON to file, called after sync index
 
-- [ ] **T-4.3** Integrate cache generation into sync index [T] (depends: T-4.2)
+- [x] **T-4.3** Integrate cache generation into sync index [T] (depends: T-4.2)
   - File: `src/commands/sync.ts`
   - Test: `tests/commands/sync-schema-cache.test.ts`
   - Description: Call generateSchemaCache after indexing completes
 
 ### Group 5: Integration
 
-- [ ] **T-5.1** Update getSchemaRegistry wrapper [T] (depends: T-3.4, T-4.2)
+- [x] **T-5.1** Update getSchemaRegistry wrapper [T] (depends: T-3.4, T-4.2)
   - File: `src/commands/schema.ts`
   - Test: `tests/commands/schema.test.ts`
   - Description: Load from generated cache OR fallback to database
 
-- [ ] **T-5.2** Update tags show command [T] (depends: T-5.1)
+- [x] **T-5.2** Update tags show command [T] (depends: T-5.1)
   - File: `src/commands/tags.ts`
   - Test: `tests/commands/tags.test.ts`
   - Description: Use UnifiedSchemaService for display, show inferred types
 
-- [ ] **T-5.3** Update create command [T] (depends: T-5.1)
+- [x] **T-5.3** Update create command [T] (depends: T-5.1)
   - File: `src/commands/create.ts`
   - Test: `tests/commands/create.test.ts`
   - Description: Use UnifiedSchemaService.buildNodePayload
 
-- [ ] **T-5.4** Update MCP supertag_info tool [T] (depends: T-5.1)
+- [x] **T-5.4** Update MCP supertag_info tool [T] (depends: T-5.1)
   - File: `src/mcp/tools/supertag-info.ts`
   - Test: `tests/mcp/supertag-info.test.ts`
   - Description: Return inferred data types in field info
 
-- [ ] **T-5.5** Final validation and cleanup
+- [x] **T-5.5** Final validation and cleanup
   - Files: Multiple
   - Test: Run full test suite
   - Description: Ensure all 782+ tests pass, remove deprecated code paths

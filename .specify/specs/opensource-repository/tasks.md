@@ -21,78 +21,78 @@ completed: 0
 
 ### Group 1: Repository Migration (Foundation)
 
-- [ ] **T-1.1** Create new repository directory structure [DOC] [P]
+- [x] **T-1.1** Create new repository directory structure [DOC] [P]
   - Command: `mkdir ~/work/supertag-cli && cd ~/work/supertag-cli && git init`
   - Description: Create standalone repository directory with fresh git init
 
-- [ ] **T-1.2** Copy files from KAI monorepo [DOC] [P]
+- [x] **T-1.2** Copy files from KAI monorepo [DOC] [P]
   - Command: `rsync -av --exclude='.git' --exclude='node_modules' --exclude='*.db' /Users/fischer/work/DA/KAI/skills/tana/ ~/work/supertag-cli/`
   - Description: Copy all source code, tests, docs (excluding git history and build artifacts)
 
-- [ ] **T-1.3** Verify independence - install dependencies (depends: T-1.2)
+- [x] **T-1.3** Verify independence - install dependencies (depends: T-1.2)
   - Command: `cd ~/work/supertag-cli && bun install`
   - Verification: Check for missing dependencies, resolve any imports
   - Description: Ensure repository can stand alone without KAI monorepo
 
-- [ ] **T-1.4** Verify independence - run full test suite [T] (depends: T-1.3)
+- [x] **T-1.4** Verify independence - run full test suite [T] (depends: T-1.3)
   - Command: `bun test:full`
   - Verification: All 379 tests must pass
   - Description: Confirm no dependencies on parent directories or missing modules
 
-- [ ] **T-1.5** Verify independence - build binaries (depends: T-1.3)
+- [x] **T-1.5** Verify independence - build binaries (depends: T-1.3)
   - Command: `bun build src/index.ts --compile --outfile supertag && bun build export/index.ts --compile --outfile export/supertag-export`
   - Verification: Both binaries compile successfully
   - Description: Ensure build process works independently
 
-- [ ] **T-1.6** Search and replace absolute paths [DOC] (depends: T-1.2)
+- [x] **T-1.6** Search and replace absolute paths [DOC] (depends: T-1.2)
   - Command: `grep -r "/Users/fischer" --include="*.ts" --include="*.js" --include="*.md"`
   - Action: Replace with relative paths or environment variables if found
   - Description: Remove hardcoded paths that would break for other users
 
-- [ ] **T-1.7** Initial git commit (depends: T-1.4, T-1.5, T-1.6)
+- [x] **T-1.7** Initial git commit (depends: T-1.4, T-1.5, T-1.6)
   - Command: `git add . && git commit -m "Initial commit - Supertag CLI v0.12.0 (open source release)"`
   - Description: Create first commit in new repository with clean codebase
 
-- [ ] **T-1.8** Update symlink to new location [DOC] (depends: T-1.7)
+- [x] **T-1.8** Update symlink to new location [DOC] (depends: T-1.7)
   - Command: `rm ~/.claude/skills/tana && ln -s ~/work/supertag-cli ~/.claude/skills/tana`
   - Verification: `ls -la ~/.claude/skills/tana` shows new target
   - Description: Point symlink to new repository location
 
 ### Group 2: Community Infrastructure Files
 
-- [ ] **T-2.1** Create LICENSE file (MIT) [DOC] [P]
+- [x] **T-2.1** Create LICENSE file (MIT) [DOC] [P]
   - File: `LICENSE`
   - Source: https://choosealicense.com/licenses/mit/
   - Action: Copy MIT license, update year and author name
   - Commit: `git commit -m "docs: add MIT license"`
 
-- [ ] **T-2.2** Create CODE_OF_CONDUCT.md [DOC] [P]
+- [x] **T-2.2** Create CODE_OF_CONDUCT.md [DOC] [P]
   - File: `CODE_OF_CONDUCT.md`
   - Source: https://www.contributor-covenant.org/version/2/1/code_of_conduct/
   - Action: Copy Contributor Covenant v2.1, update contact email
   - Commit: `git commit -m "docs: add code of conduct"`
 
-- [ ] **T-2.3** Create SECURITY.md [DOC] [P]
+- [x] **T-2.3** Create SECURITY.md [DOC] [P]
   - File: `SECURITY.md`
   - Content: Supported versions, reporting instructions (private email), response timeline
   - Commit: `git commit -m "docs: add security policy"`
 
-- [ ] **T-2.4** Create CONTRIBUTING.md [DOC]
+- [x] **T-2.4** Create CONTRIBUTING.md [DOC]
   - File: `CONTRIBUTING.md`
   - Content: Development setup, testing (TDD workflow), PR process, code style, commit format
   - Commit: `git commit -m "docs: add contributing guidelines"`
 
-- [ ] **T-2.5** Create GitHub issue templates [DOC] [P]
+- [x] **T-2.5** Create GitHub issue templates [DOC] [P]
   - Files: `.github/ISSUE_TEMPLATE/bug_report.md`, `.github/ISSUE_TEMPLATE/feature_request.md`
   - Source: GitHub's default templates
   - Commit: `git commit -m "chore: add issue templates"`
 
-- [ ] **T-2.6** Create GitHub PR template [DOC] [P]
+- [x] **T-2.6** Create GitHub PR template [DOC] [P]
   - File: `.github/pull_request_template.md`
   - Content: Checklist (tests pass, docs updated), description requirements
   - Commit: `git commit -m "chore: add PR template"`
 
-- [ ] **T-2.7** Create GitHub Actions CI workflow [T]
+- [x] **T-2.7** Create GitHub Actions CI workflow [T]
   - File: `.github/workflows/test.yml`
   - Test: Manually trigger workflow, verify runs successfully
   - Content: Run `bun install && bun test` on push and PRs
@@ -100,83 +100,83 @@ completed: 0
 
 ### Group 3: Documentation Updates
 
-- [ ] **T-3.1** Update README.md with badges and sections [DOC]
+- [x] **T-3.1** Update README.md with badges and sections [DOC]
   - File: `README.md`
   - Add: Badges (license, tests, version), License section, Contributing section, Security section
   - Add: "Building from Source" section
   - Remove: Any private URLs or references (if present)
   - Commit: `git commit -m "docs: update README for open source"`
 
-- [ ] **T-3.2** Update package.json metadata [DOC]
+- [x] **T-3.2** Update package.json metadata [DOC]
   - File: `package.json`
   - Update: `"license": "MIT"`, ensure `private: false` (or remove)
   - Add: `repository`, `bugs`, `homepage` fields with GitHub URLs
   - Commit: `git commit -m "chore: update package.json metadata"`
 
-- [ ] **T-3.3** Update CHANGELOG.md with open source entry [DOC]
+- [x] **T-3.3** Update CHANGELOG.md with open source entry [DOC]
   - File: `CHANGELOG.md`
   - Add: Section for open source release (v0.12.0 already has license removal)
   - Commit: `git commit -m "docs: add open source release to changelog"`
 
-- [ ] **T-3.4** Review and update .gitignore [DOC]
+- [x] **T-3.4** Review and update .gitignore [DOC]
   - File: `.gitignore`
   - Add: Ensure `.env`, `*.key`, `*.pem`, `credentials.json`, `secrets.json` covered
   - Commit: `git commit -m "chore: ensure .gitignore covers secrets"`
 
 ### Group 4: Website Updates (store.invisible.ch)
 
-- [ ] **T-4.1** Update index.html landing page [DOC]
+- [x] **T-4.1** Update index.html landing page [DOC]
   - File: `~/work/web/invisible-store/tana/index.html`
   - Remove: Pricing section, "Purchase" buttons, LemonSqueezy scripts
   - Add: "Free & Open Source" badge, GitHub repository link, "Download" button → GitHub releases
   - Update: Hero text to "Free and open source CLI..."
   - Commit: `git commit -m "feat: convert landing page to open source"`
 
-- [ ] **T-4.2** Delete pricing page [DOC]
+- [x] **T-4.2** Delete pricing page [DOC]
   - File: `~/work/web/invisible-store/tana/pricing.html`
   - Action: Delete file, remove from navigation
   - Commit: `git commit -m "chore: remove pricing page"`
 
-- [ ] **T-4.3** Update user guide [DOC]
+- [x] **T-4.3** Update user guide [DOC]
   - Files: `~/work/web/invisible-store/tana/USER-GUIDE.md`, `guide.html`
   - Remove: License activation instructions
   - Update: Download links to GitHub releases
   - Keep: Usage examples, command reference
   - Commit: `git commit -m "docs: update user guide for open source"`
 
-- [ ] **T-4.4** Sync website CHANGELOG.md [DOC]
+- [x] **T-4.4** Sync website CHANGELOG.md [DOC]
   - File: `~/work/web/invisible-store/tana/CHANGELOG.md`
   - Action: Sync with repository CHANGELOG.md
   - Commit: `git commit -m "docs: sync changelog with repository"`
 
-- [ ] **T-4.5** Remove LemonSqueezy integration code [DOC]
+- [x] **T-4.5** Remove LemonSqueezy integration code [DOC]
   - Files: `~/work/web/invisible-store/tana/*.js`
   - Remove: LemonSqueezy checkout scripts, purchase flow logic
   - Update: Download button handlers to link to GitHub releases
   - Commit: `git commit -m "refactor: remove commercial integration code"`
 
-- [ ] **T-4.6** Build and verify website (depends: T-4.1, T-4.2, T-4.3, T-4.4, T-4.5)
+- [x] **T-4.6** Build and verify website (depends: T-4.1, T-4.2, T-4.3, T-4.4, T-4.5)
   - Command: `cd ~/work/web/invisible-store && npm run build`
   - Verification: Check for broken links, verify no pricing visible, download links work
   - Description: Build website and verify all changes render correctly
 
 ### Group 5: GitHub Repository Setup
 
-- [ ] **T-5.1** Create GitHub repository (depends: T-2.7, T-3.4)
+- [x] **T-5.1** Create GitHub repository (depends: T-2.7, T-3.4)
   - Action: Create new repository on GitHub
   - Settings: Name=supertag-cli, Visibility=Private (initially), Description="CLI tool for Tana integration..."
   - Description: Create repository (keep private until security audit completes)
 
-- [ ] **T-5.2** Push to GitHub (depends: T-5.1)
+- [x] **T-5.2** Push to GitHub (depends: T-5.1)
   - Command: `git remote add origin git@github.com:<username>/supertag-cli.git && git branch -M main && git push -u origin main && git tag v0.12.0 && git push --tags`
   - Description: Push all code and tags to GitHub
 
-- [ ] **T-5.3** Configure repository settings (depends: T-5.2)
+- [x] **T-5.3** Configure repository settings (depends: T-5.2)
   - Action: GitHub Settings → About (website, topics), Features (Issues: ✅, Wiki: ❌, Discussions: ❌)
   - Topics: `tana`, `cli`, `knowledge-management`, `typescript`, `bun`, `sqlite`, `mcp`, `semantic-search`
   - Description: Configure repository metadata and features
 
-- [ ] **T-5.4** Create GitHub Release v0.12.0 (depends: T-5.2)
+- [x] **T-5.4** Create GitHub Release v0.12.0 (depends: T-5.2)
   - Action: GitHub Releases → New Release
   - Tag: v0.12.0
   - Title: "v0.12.0 - Open Source Release"
@@ -186,27 +186,27 @@ completed: 0
 
 ### Group 6: Security Audit & Final Verification
 
-- [ ] **T-6.1** Search for hardcoded credentials [DOC]
+- [x] **T-6.1** Search for hardcoded credentials [DOC]
   - Command: `cd ~/work/supertag-cli && grep -r "api_key\|secret\|password\|token" --include="*.ts" --include="*.js"`
   - Verification: No hardcoded secrets found (config references are OK)
   - Description: Ensure no credentials in code
 
-- [ ] **T-6.2** Check for absolute paths [DOC]
+- [x] **T-6.2** Check for absolute paths [DOC]
   - Command: `grep -r "/Users/fischer" --include="*.ts" --include="*.js" --include="*.md"`
   - Verification: Should be clean from T-1.6
   - Description: Double-check no absolute paths remain
 
-- [ ] **T-6.3** Verify git history is clean [DOC]
+- [x] **T-6.3** Verify git history is clean [DOC]
   - Command: `git log -p | grep -i "password\|secret\|api_key" || echo "Clean"`
   - Verification: "Clean" or only config references
   - Description: Confirm no secrets in commit history (fresh repo should be clean)
 
-- [ ] **T-6.4** Final test from clean clone [T] (depends: T-5.2)
+- [x] **T-6.4** Final test from clean clone [T] (depends: T-5.2)
   - Command: `cd /tmp && git clone ~/work/supertag-cli supertag-test && cd supertag-test && bun install && bun test:full`
   - Verification: All 379 tests pass
   - Description: Verify repository works in isolation
 
-- [ ] **T-6.5** Make repository public (depends: T-6.1, T-6.2, T-6.3, T-6.4)
+- [x] **T-6.5** Make repository public (depends: T-6.1, T-6.2, T-6.3, T-6.4)
   - Action: GitHub Settings → Danger Zone → Change visibility → Public
   - Description: Make repository public for community access
 

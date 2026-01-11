@@ -18,93 +18,93 @@ completed: 0
 
 ### Group 1: Foundation
 
-- [ ] **T-1.1** Create batch operations types and service skeleton [T]
+- [x] **T-1.1** Create batch operations types and service skeleton [T]
   - File: `src/services/batch-operations.ts`
   - Test: `tests/batch-operations.test.ts`
   - Description: Define `BatchGetRequest`, `BatchGetResult`, `BatchCreateRequest`, `BatchCreateResult`, `BatchError` interfaces. Create service skeleton with function signatures.
 
-- [ ] **T-1.2** Implement batchGetNodes with efficient SQL [T] (depends: T-1.1)
+- [x] **T-1.2** Implement batchGetNodes with efficient SQL [T] (depends: T-1.1)
   - File: `src/services/batch-operations.ts`
   - Test: `tests/batch-operations.test.ts`
   - Description: Fetch multiple nodes by ID using single SQL query with `WHERE id IN (...)`. Return results in input order. Handle missing nodes (return null). Support depth traversal.
 
-- [ ] **T-1.3** Add batch get validation [T] (depends: T-1.1)
+- [x] **T-1.3** Add batch get validation [T] (depends: T-1.1)
   - File: `src/services/batch-operations.ts`
   - Test: `tests/batch-operations.test.ts`
   - Description: Validate max 100 node IDs, validate ID format, validate depth 0-3. Throw `StructuredError` on validation failure.
 
 ### Group 2: Batch Get (MCP + CLI)
 
-- [ ] **T-2.1** Add batch get MCP schema [T] [P]
+- [x] **T-2.1** Add batch get MCP schema [T] [P]
   - File: `src/mcp/schemas.ts`
   - Test: `src/mcp/tools/__tests__/batch-get.test.ts`
   - Description: Create `batchGetSchema` with Zod: `nodeIds` (string array, 1-100), `select`, `depth` (0-3), `workspace`. Export `BatchGetInput` type.
 
-- [ ] **T-2.2** Implement tana_batch_get MCP tool [T] (depends: T-1.2, T-2.1)
+- [x] **T-2.2** Implement tana_batch_get MCP tool [T] (depends: T-1.2, T-2.1)
   - File: `src/mcp/tools/batch-get.ts`
   - Test: `src/mcp/tools/__tests__/batch-get.test.ts`
   - Description: Implement MCP handler using `batchGetNodes()`. Apply select projection. Return array of node contents or nulls. Handle workspace resolution.
 
-- [ ] **T-2.3** Register tana_batch_get in tool registry [T] (depends: T-2.2)
+- [x] **T-2.3** Register tana_batch_get in tool registry [T] (depends: T-2.2)
   - File: `src/mcp/tool-registry.ts`
   - Test: `src/mcp/tools/__tests__/batch-get.test.ts`
   - Description: Add `tana_batch_get` to `TOOL_METADATA` (category: query). Add schema to `TOOL_SCHEMAS`. Update `tana_capabilities` response.
 
-- [ ] **T-2.4** Create batch CLI command group [T] [P]
+- [x] **T-2.4** Create batch CLI command group [T] [P]
   - File: `src/commands/batch.ts`
   - Test: `tests/batch-cli.test.ts`
   - Description: Create `batch` command group with Commander.js. Add `batch get <ids...>` subcommand with `--stdin`, `--select`, `--depth`, `--format` options.
 
-- [ ] **T-2.5** Implement batch get CLI with stdin support [T] (depends: T-1.2, T-2.4)
+- [x] **T-2.5** Implement batch get CLI with stdin support [T] (depends: T-1.2, T-2.4)
   - File: `src/commands/batch.ts`
   - Test: `tests/batch-cli.test.ts`
   - Description: Handle positional IDs and `--stdin` flag. Read stdin line by line. Call `batchGetNodes()`. Format output (table/json/csv/ids/jsonl/minimal).
 
-- [ ] **T-2.6** Wire batch commands into main CLI [T] (depends: T-2.5)
+- [x] **T-2.6** Wire batch commands into main CLI [T] (depends: T-2.5)
   - File: `src/index.ts`
   - Test: `tests/batch-cli.test.ts`
   - Description: Import `createBatchCommand()` and add to main program. Verify `supertag batch get` works end-to-end.
 
 ### Group 3: Batch Create
 
-- [ ] **T-3.1** Implement batchCreateNodes with chunking [T] (depends: T-1.1)
+- [x] **T-3.1** Implement batchCreateNodes with chunking [T] (depends: T-1.1)
   - File: `src/services/batch-operations.ts`
   - Test: `tests/batch-operations.test.ts`
   - Description: Create nodes via Tana API in chunks of 10. Use existing `createNode()` for payload building. Collect node IDs in order. Implement exponential backoff for 429s.
 
-- [ ] **T-3.2** Add batch create validation and dry-run [T] (depends: T-3.1)
+- [x] **T-3.2** Add batch create validation and dry-run [T] (depends: T-3.1)
   - File: `src/services/batch-operations.ts`
   - Test: `tests/batch-operations.test.ts`
   - Description: Validate max 50 nodes, validate each node structure. Implement dry-run mode (validate all without posting). Return validation errors with index.
 
-- [ ] **T-3.3** Add batch create MCP schema [T] (depends: T-3.1)
+- [x] **T-3.3** Add batch create MCP schema [T] (depends: T-3.1)
   - File: `src/mcp/schemas.ts`
   - Test: `src/mcp/tools/__tests__/batch-create.test.ts`
   - Description: Create `batchCreateSchema` with Zod: `nodes` (array of node definitions, 1-50), `target`, `dryRun`, `workspace`. Reuse existing `childNodeSchema`.
 
-- [ ] **T-3.4** Implement tana_batch_create MCP tool [T] (depends: T-3.1, T-3.3)
+- [x] **T-3.4** Implement tana_batch_create MCP tool [T] (depends: T-3.1, T-3.3)
   - File: `src/mcp/tools/batch-create.ts`
   - Test: `src/mcp/tools/__tests__/batch-create.test.ts`
   - Description: Implement MCP handler using `batchCreateNodes()`. Return created node IDs or errors. Handle dry-run mode.
 
-- [ ] **T-3.5** Register tana_batch_create in tool registry [T] (depends: T-3.4)
+- [x] **T-3.5** Register tana_batch_create in tool registry [T] (depends: T-3.4)
   - File: `src/mcp/tool-registry.ts`
   - Test: `src/mcp/tools/__tests__/batch-create.test.ts`
   - Description: Add `tana_batch_create` to `TOOL_METADATA` (category: mutate). Add schema to `TOOL_SCHEMAS`.
 
-- [ ] **T-3.6** Implement batch create CLI with file/stdin [T] (depends: T-3.1, T-2.4)
+- [x] **T-3.6** Implement batch create CLI with file/stdin [T] (depends: T-3.1, T-2.4)
   - File: `src/commands/batch.ts`
   - Test: `tests/batch-cli.test.ts`
   - Description: Add `batch create` subcommand with `--file`, `--stdin`, `--target`, `--dry-run`, `--format`. Detect JSON array vs JSON Lines. Report progress for large batches.
 
 ### Group 4: Integration
 
-- [ ] **T-4.1** End-to-end integration tests [T] (depends: T-2.6, T-3.6)
+- [x] **T-4.1** End-to-end integration tests [T] (depends: T-2.6, T-3.6)
   - File: `tests/batch-integration.test.ts`
   - Test: (self)
   - Description: Test full CLI flows: `supertag batch get id1 id2`, pipe from search, `batch create --file`, stdin piping. Verify format outputs.
 
-- [ ] **T-4.2** Update documentation (depends: T-4.1)
+- [x] **T-4.2** Update documentation (depends: T-4.1)
   - Files: `README.md`, `SKILL.md`, `CHANGELOG.md`
   - Description: Document batch commands and MCP tools. Add examples. Update CHANGELOG with new features.
 
