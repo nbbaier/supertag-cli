@@ -4,7 +4,7 @@
 [![Tests](https://github.com/jcfischer/supertag-cli/actions/workflows/test.yml/badge.svg)](https://github.com/jcfischer/supertag-cli/actions/workflows/test.yml)
 [![MCP](https://lobehub.com/badge/mcp/jcfischer-supertag-cli)](https://lobehub.com/mcp/jcfischer-supertag-cli)
 
-**Complete Tana integration**: Query, write, search, and automate your Tana workspace from the command line.
+**Complete Tana integration**: Query, write, search, and automate your Tana workspace from the command line or use as a library in your TypeScript applications.
 
 ## Three-Tool Architecture
 
@@ -604,9 +604,55 @@ export SUPERTAG_FORMAT=csv  # Default to CSV output
 
 ---
 
+## Library Mode
+
+Supertag CLI can be used as a library in TypeScript applications for programmatic access to Tana data and APIs.
+
+```typescript
+import {
+  TanaApiClient,
+  withDatabase,
+  getDatabasePath,
+  getConfig,
+} from 'supertag-cli';
+
+// Query the database
+const dbPath = getDatabasePath();
+withDatabase(dbPath, (db) => {
+  const results = db.query('SELECT * FROM nodes LIMIT 10').all();
+  console.log(results);
+});
+
+// Use the API
+const config = getConfig();
+const client = new TanaApiClient(config.apiToken, config.apiEndpoint);
+await client.postNodes('INBOX', [{ name: 'New node' }]);
+```
+
+**Full API Documentation**: See [docs/LIBRARY.md](./docs/LIBRARY.md) for complete library reference.
+
+---
+
 ## Examples
 
 The `examples/` directory contains sample applications demonstrating supertag-cli features:
+
+### Library Usage (`examples/library-usage/`)
+
+Demonstrates using supertag-cli as a library in TypeScript applications. Shows:
+
+- **Database queries**: Direct SQLite access
+- **API operations**: Creating nodes programmatically
+- **Workspace resolution**: Path and configuration management
+- **Batch operations**: Multi-node processing
+
+```bash
+cd examples/library-usage
+bun install
+bun run start
+```
+
+See [examples/library-usage/README.md](./examples/library-usage/README.md) for full documentation.
 
 ### TUI Todo (`examples/tui-todo/`)
 
@@ -668,6 +714,7 @@ The `supertag-export` tool requires Playwright for browser automation. See the p
 | Document | Description |
 |----------|-------------|
 | [Getting Started](./docs/GETTING-STARTED.md) | Visual guide with step-by-step screenshots |
+| [Library Mode](./docs/LIBRARY.md) | **Use as a TypeScript library - full API reference** |
 | [Windows Install](./docs/INSTALL-WINDOWS.md) | Detailed Windows installation with Bun/Playwright |
 | [macOS Install](./docs/INSTALL-MACOS.md) | macOS installation with launchd automation |
 | [Linux Install](./docs/INSTALL-LINUX.md) | Linux installation with systemd automation |
