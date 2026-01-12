@@ -162,9 +162,22 @@ async function exportViaApi(options: ExportOptions): Promise<ExportResult> {
   const nodeCount = meta.metadata.nodeCount;
   const sizeBytes = meta.metadata.size;
   const homeNodeName = meta.metadata.homeNodeName.replace(/<[^>]*>/g, ''); // Strip HTML
+  const lastUpdated = meta.metadata.lastUpdated;
 
   logger.info(`Workspace: ${homeNodeName}`);
   logger.info(`Nodes: ${nodeCount.toLocaleString()}, Size: ${(sizeBytes / 1024 / 1024).toFixed(1)}MB`);
+
+  // Show snapshot freshness - helps diagnose stale data issues
+  if (lastUpdated) {
+    const snapshotDate = new Date(lastUpdated);
+    const now = new Date();
+    const ageHours = Math.round((now.getTime() - snapshotDate.getTime()) / (1000 * 60 * 60));
+    const ageDisplay = ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+    logger.info(`Snapshot: ${snapshotDate.toISOString().replace('T', ' ').slice(0, 19)} (${ageDisplay})`);
+    if (ageHours > 24) {
+      logger.warn(`⚠️  Snapshot is ${ageDisplay} old - may be missing recent changes`);
+    }
+  }
 
   // Step 4: Get download URL
   if (verbose) logger.info("Getting snapshot download URL...");

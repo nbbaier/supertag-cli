@@ -5,6 +5,23 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Tags List Count Always 1** - Fixed `supertag tags list` showing node count as 1 for all supertags
+  - Root cause: `getNodeCountsBySupertag()` queried the `supertags` table (tag definitions - one row per tag) instead of `tag_applications` table (node-to-tag mappings)
+  - Changed SQL query to use `tag_applications` with `COUNT(DISTINCT data_node_id)` to count actual tagged nodes
+  - Added regression test to prevent recurrence
+
+### Added
+
+- **Snapshot Freshness Diagnostic** - Export now shows snapshot timestamp and age to help diagnose stale data issues
+  - Displays "Snapshot: 2026-01-12 15:13:37 (6h ago)" after node count
+  - Shows warning if snapshot is >24 hours old: "⚠️ Snapshot is 2d ago old - may be missing recent changes"
+  - Added troubleshooting section to `docs/export.md` explaining stale snapshot behavior
+  - Note: Tana generates snapshots periodically, not on-demand - recent changes may not appear immediately
+
 ## [1.9.4] - 2026-01-12
 
 ### Fixed

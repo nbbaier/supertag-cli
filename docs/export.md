@@ -194,6 +194,29 @@ bunx playwright install chromium
 supertag-export login
 ```
 
+### Export Missing Recent Changes (Stale Snapshot)
+
+**Symptom:** Export is missing recent nodes (e.g., today's #Day nodes, recently created items), even though the export date is current.
+
+**Cause:** Tana generates workspace snapshots periodically, not on-demand. When you export, you get the most recent snapshot, which may be hours or days old.
+
+**Diagnosis:** Check the snapshot timestamp in the export output:
+
+```
+[supertag-export] Workspace: 🏠 My Workspace
+[supertag-export] Nodes: 234,071, Size: 85.2MB
+[supertag-export] Snapshot: 2026-01-10 15:13:37 (2d ago)  ← Snapshot is 2 days old!
+```
+
+If the snapshot date is significantly older than the current date, recent changes won't be included.
+
+**Workaround:**
+1. **Wait:** Tana updates snapshots periodically. Try exporting again later.
+2. **Force sync in Tana:** Open Tana, make a small edit, and wait a few minutes for sync to complete.
+3. **Check Tana status:** Verify Tana web app shows your recent changes - if not, the issue is with Tana's sync, not the export.
+
+**Note:** This is a limitation of Tana's snapshot API, not supertag-cli. The tool always fetches the latest available snapshot.
+
 ---
 
 ## Performance

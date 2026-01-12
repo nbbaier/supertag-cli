@@ -173,6 +173,35 @@ describe("TanaQueryEngine - Supertag Queries", () => {
     expect(topTags.length).toBeLessThanOrEqual(5);
     expect(topTags.length).toBeGreaterThan(0);
   });
+
+  /**
+   * Regression test for bug where getNodeCountsBySupertag returned count=1 for all tags.
+   *
+   * Root cause: Query was counting from 'supertags' table (tag definitions, one row per tag)
+   * instead of 'tag_applications' table (node-to-tag mappings, one row per tagged node).
+   *
+   * This test ensures counts reflect actual tagged nodes, not just tag definitions.
+   */
+  test("should count tagged nodes, not tag definitions (regression)", async () => {
+    const counts = await queryEngine.getNodeCountsBySupertag();
+
+    // The sample workspace has multiple nodes with the same tag (e.g., chapters tagged with "chapter")
+    // If the bug regresses, all counts would be 1
+    const hasMultipleNodes = counts.some((c) => c.count > 1);
+    expect(hasMultipleNodes).toBe(true);
+
+    // Verify counts match between getNodeCountsBySupertag and getTopTagsByUsage
+    // (getTopTagsByUsage was always correct, querying tag_applications)
+    const topByUsage = await queryEngine.getTopTagsByUsage(counts.length);
+
+    // Both should return the same counts for the same tags
+    for (const count of counts) {
+      const matchingUsage = topByUsage.find((t) => t.tagId === count.tagId);
+      if (matchingUsage) {
+        expect(count.count).toBe(matchingUsage.count);
+      }
+    }
+  });
 });
 
 describe("TanaQueryEngine - Reference Queries", () => {

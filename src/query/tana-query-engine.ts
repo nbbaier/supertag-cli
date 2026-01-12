@@ -206,6 +206,9 @@ export class TanaQueryEngine {
 
   /**
    * Get node counts per supertag
+   *
+   * Note: Queries tag_applications table (which stores node-to-tag mappings)
+   * rather than supertags table (which stores tag definitions).
    */
   async getNodeCountsBySupertag(): Promise<SupertagCount[]> {
     const result = withDbRetrySync(
@@ -215,8 +218,8 @@ export class TanaQueryEngine {
         SELECT
           tag_name as tagName,
           tag_id as tagId,
-          COUNT(DISTINCT node_id) as count
-        FROM supertags
+          COUNT(DISTINCT data_node_id) as count
+        FROM tag_applications
         GROUP BY tag_name, tag_id
         ORDER BY count DESC
       `
