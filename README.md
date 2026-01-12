@@ -8,11 +8,11 @@
 
 ## Three-Tool Architecture
 
-| Tool | Size | Purpose |
-|------|------|---------|
-| `supertag` | ~57 MB | Main CLI - query, write, sync, server |
-| `supertag-export` | ~59 MB | Browser automation for exports |
-| `supertag-mcp` | ~60 MB | MCP server for AI tool integration |
+| Tool              | Size   | Purpose                               |
+| ----------------- | ------ | ------------------------------------- |
+| `supertag`        | ~57 MB | Main CLI - query, write, sync, server |
+| `supertag-export` | ~59 MB | Browser automation for exports        |
+| `supertag-mcp`    | ~60 MB | MCP server for AI tool integration    |
 
 **Downloads**: [GitHub Releases](https://github.com/jcfischer/supertag-cli/releases) (macOS ARM64/Intel, Linux x64, Windows x64)
 
@@ -22,31 +22,54 @@
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
-- [Capabilities](#capabilities)
-  - [READ - Query Workspace](#read---query-workspace)
-  - [WRITE - Create Nodes](#write---create-nodes)
-  - [QUERY - Unified Query Language](#query---unified-query-language)
-  - [BATCH - Multi-Node Operations](#batch---multi-node-operations)
-  - [AGGREGATE - Group and Count](#aggregate---group-and-count)
-  - [RELATED - Graph Traversal](#related---graph-traversal)
-  - [EXPORT - Automated Backup](#export---automated-backup)
-  - [EMBED - Semantic Search](#embed---semantic-search)
-  - [FIELDS - Query Field Values](#fields---query-field-values)
-  - [TRANSCRIPTS - Meeting Recordings](#transcripts---meeting-recordings)
-  - [ATTACHMENTS - Extract Attachments](#attachments---extract-attachments)
-  - [SERVER - Webhook API](#server---webhook-api)
-  - [VISUALIZE - Inheritance Graphs](#visualize---inheritance-graphs)
-  - [CODEGEN - Generate Effect Schema Classes](#codegen---generate-effect-schema-classes)
-  - [MCP - AI Tool Integration](#mcp---ai-tool-integration)
-  - [WORKSPACES - Multi-Workspace](#workspaces---multi-workspace)
-  - [OUTPUT - Display Formatting](#output---display-formatting)
-- [Examples](#examples)
-- [Installation](#installation)
-- [Documentation](#documentation)
-- [Troubleshooting](#troubleshooting)
-- [Performance](#performance)
-- [Contributing](#contributing)
+- [Supertag CLI](#supertag-cli)
+  - [Three-Tool Architecture](#three-tool-architecture)
+  - [Table of Contents](#table-of-contents)
+  - [Quick Start](#quick-start)
+    - [1. Download and Extract](#1-download-and-extract)
+    - [2. Configure API Token](#2-configure-api-token)
+    - [3. Login and Export](#3-login-and-export)
+    - [4. Start Using](#4-start-using)
+  - [Capabilities](#capabilities)
+    - [READ - Query Workspace](#read---query-workspace)
+    - [WRITE - Create Nodes](#write---create-nodes)
+    - [QUERY - Unified Query Language](#query---unified-query-language)
+    - [BATCH - Multi-Node Operations](#batch---multi-node-operations)
+    - [AGGREGATE - Group and Count](#aggregate---group-and-count)
+    - [RELATED - Graph Traversal](#related---graph-traversal)
+    - [EXPORT - Automated Backup](#export---automated-backup)
+    - [EMBED - Semantic Search](#embed---semantic-search)
+    - [FIELDS - Query Field Values](#fields---query-field-values)
+    - [TRANSCRIPTS - Meeting Recordings](#transcripts---meeting-recordings)
+    - [ATTACHMENTS - Extract Attachments](#attachments---extract-attachments)
+    - [SERVER - Webhook API](#server---webhook-api)
+    - [VISUALIZE - Inheritance Graphs](#visualize---inheritance-graphs)
+    - [CODEGEN - Generate Effect Schema Classes](#codegen---generate-effect-schema-classes)
+    - [MCP - AI Tool Integration](#mcp---ai-tool-integration)
+    - [WORKSPACES - Multi-Workspace](#workspaces---multi-workspace)
+    - [OUTPUT - Display Formatting](#output---display-formatting)
+  - [Library Mode](#library-mode)
+  - [Examples](#examples)
+    - [Library Usage (`examples/library-usage/`)](#library-usage-exampleslibrary-usage)
+    - [TUI Todo (`examples/tui-todo/`)](#tui-todo-examplestui-todo)
+  - [Installation](#installation)
+    - [Quick Install (macOS/Linux)](#quick-install-macoslinux)
+    - [Playwright (Required for Export)](#playwright-required-for-export)
+  - [Documentation](#documentation)
+  - [Troubleshooting](#troubleshooting)
+    - [Common Issues](#common-issues)
+    - [Debug Mode](#debug-mode)
+    - [Error Logging](#error-logging)
+    - [Error Codes](#error-codes)
+    - [Windows-Specific Issues](#windows-specific-issues)
+      - ["Cannot find package 'playwright'" Error](#cannot-find-package-playwright-error)
+      - [Alternative: Manual Export (No Playwright Required)](#alternative-manual-export-no-playwright-required)
+      - [Windows Path Configuration](#windows-path-configuration)
+      - [Windows API Token Configuration](#windows-api-token-configuration)
+  - [Performance](#performance)
+  - [Contributing](#contributing)
+  - [Security](#security)
+  - [License](#license)
 
 ---
 
@@ -152,14 +175,14 @@ supertag query "find todo" --select id,name,fields.Status
 
 **Operators:**
 
-| Operator | Meaning | Example |
-|----------|---------|---------|
-| `=` | Exact match | `Status = Done` |
-| `~` | Contains | `Name ~ John` |
-| `>`, `<`, `>=`, `<=` | Comparison | `Priority >= 2` |
-| `exists` | Field has value | `Due exists` |
-| `not` | Negation | `not Status = Done` |
-| `and`, `or` | Logical | `A and (B or C)` |
+| Operator             | Meaning         | Example             |
+| -------------------- | --------------- | ------------------- |
+| `=`                  | Exact match     | `Status = Done`     |
+| `~`                  | Contains        | `Name ~ John`       |
+| `>`, `<`, `>=`, `<=` | Comparison      | `Priority >= 2`     |
+| `exists`             | Field has value | `Due exists`        |
+| `not`                | Negation        | `not Status = Done` |
+| `and`, `or`          | Logical         | `A and (B or C)`    |
 
 **Relative Dates:** `today`, `yesterday`, `7d`, `30d`, `1w`, `1m`, `1y`
 
@@ -189,10 +212,15 @@ supertag batch create --file nodes.json --dry-run
 ```
 
 **Input format for batch create:**
+
 ```json
 [
-  {"supertag": "todo", "name": "Task 1", "fields": {"Status": "Open"}},
-  {"supertag": "meeting", "name": "Standup", "children": [{"name": "Agenda item"}]}
+   { "supertag": "todo", "name": "Task 1", "fields": { "Status": "Open" } },
+   {
+      "supertag": "meeting",
+      "name": "Standup",
+      "children": [{ "name": "Agenda item" }]
+   }
 ]
 ```
 
@@ -225,6 +253,7 @@ supertag aggregate --tag task --group-by Status --format csv
 **Time periods:** `day`, `week`, `month`, `quarter`, `year`
 
 **Output:**
+
 ```
 Status    Count   Percent
 Done      50      50%
@@ -264,6 +293,7 @@ supertag related <id> --format ids       # IDs for piping to other commands
 **Relationship types:** `child`, `parent`, `reference`, `field`
 
 **Output:**
+
 ```
 🔗 Related to: Project Alpha:
 
@@ -348,6 +378,7 @@ supertag transcript search "quarterly" --limit 5
 ```
 
 **Include in embeddings:**
+
 ```bash
 supertag embed generate --include-transcripts  # Opt-in for semantic search
 ```
@@ -383,24 +414,24 @@ supertag attachments get --id <nodeId> -o ./file.png # Custom output path
 
 **Organization Strategies:**
 
-| Strategy | Description | Example Path |
-|----------|-------------|--------------|
-| `flat` | All files in output directory (default) | `./attachments/image.png` |
-| `date` | By year/month | `./attachments/2025/04/image.png` |
-| `tag` | By parent supertag | `./attachments/meeting/image.png` |
-| `node` | By parent node ID | `./attachments/abc123/image.png` |
+| Strategy | Description                             | Example Path                      |
+| -------- | --------------------------------------- | --------------------------------- |
+| `flat`   | All files in output directory (default) | `./attachments/image.png`         |
+| `date`   | By year/month                           | `./attachments/2025/04/image.png` |
+| `tag`    | By parent supertag                      | `./attachments/meeting/image.png` |
+| `node`   | By parent node ID                       | `./attachments/abc123/image.png`  |
 
 **Options:**
 
-| Flag | Description |
-|------|-------------|
-| `-o, --output <dir>` | Output directory (default: `~/Downloads/tana-attachments`) |
-| `--organize-by <strategy>` | Organization: flat, date, tag, node |
-| `-c, --concurrency <n>` | Parallel downloads 1-10 (default: 3) |
-| `--skip-existing` | Skip files that already exist |
-| `-t, --tag <tags...>` | Filter by supertag |
-| `-e, --extension <exts...>` | Filter by extension (png, pdf, etc.) |
-| `--dry-run` | List files without downloading |
+| Flag                        | Description                                                |
+| --------------------------- | ---------------------------------------------------------- |
+| `-o, --output <dir>`        | Output directory (default: `~/Downloads/tana-attachments`) |
+| `--organize-by <strategy>`  | Organization: flat, date, tag, node                        |
+| `-c, --concurrency <n>`     | Parallel downloads 1-10 (default: 3)                       |
+| `--skip-existing`           | Skip files that already exist                              |
+| `-t, --tag <tags...>`       | Filter by supertag                                         |
+| `-e, --extension <exts...>` | Filter by extension (png, pdf, etc.)                       |
+| `--dry-run`                 | List files without downloading                             |
 
 ### SERVER - Webhook API
 
@@ -437,9 +468,10 @@ supertag tags visualize --format dot --output graph.dot
 ```
 
 **Output formats:**
-- `mermaid` - Mermaid flowchart syntax (default)
-- `dot` - Graphviz DOT for rendering to SVG/PNG/PDF
-- `json` - Raw data for custom visualization
+
+-  `mermaid` - Mermaid flowchart syntax (default)
+-  `dot` - Graphviz DOT for rendering to SVG/PNG/PDF
+-  `json` - Raw data for custom visualization
 
 See [Visualization Documentation](./docs/visualization.md) for rendering instructions.
 
@@ -462,45 +494,46 @@ supertag codegen generate -o ./generated/schemas.ts --dry-run
 ```
 
 **Output Example:**
+
 ```typescript
 import { Schema } from "effect";
 
 export class TodoItem extends Schema.Class<TodoItem>("TodoItem")({
-  id: Schema.String,
-  title: Schema.optionalWith(Schema.String, { as: "Option" }),
-  dueDate: Schema.optionalWith(Schema.DateFromString, { as: "Option" }),
-  completed: Schema.optionalWith(Schema.Boolean, { as: "Option" }),
+   id: Schema.String,
+   title: Schema.optionalWith(Schema.String, { as: "Option" }),
+   dueDate: Schema.optionalWith(Schema.DateFromString, { as: "Option" }),
+   completed: Schema.optionalWith(Schema.Boolean, { as: "Option" }),
 }) {}
 
 // Child class extends parent
 export class WorkTask extends TodoItem.extend<WorkTask>("WorkTask")({
-  project: Schema.optionalWith(Schema.String, { as: "Option" }),
+   project: Schema.optionalWith(Schema.String, { as: "Option" }),
 }) {}
 ```
 
 **Options:**
 
-| Flag | Description |
-|------|-------------|
-| `-o, --output <path>` | Output file path (required) |
-| `-t, --tags <tags...>` | Filter to specific supertags |
-| `--split` | Generate separate file per supertag |
+| Flag                    | Description                                    |
+| ----------------------- | ---------------------------------------------- |
+| `-o, --output <path>`   | Output file path (required)                    |
+| `-t, --tags <tags...>`  | Filter to specific supertags                   |
+| `--split`               | Generate separate file per supertag            |
 | `--optional <strategy>` | `option` (default), `undefined`, or `nullable` |
-| `--no-metadata` | Exclude supertag metadata comments |
-| `-d, --dry-run` | Preview without writing files |
+| `--no-metadata`         | Exclude supertag metadata comments             |
+| `-d, --dry-run`         | Preview without writing files                  |
 
 **Type Mapping:**
 
-| Tana Type | Effect Schema |
-|-----------|---------------|
-| text | `Schema.String` |
-| number | `Schema.Number` |
-| date | `Schema.DateFromString` |
-| checkbox | `Schema.Boolean` |
-| url | `Schema.String.pipe(Schema.pattern(/^https?:\/\//))` |
-| email | `Schema.String` |
-| reference | `Schema.String` |
-| options | `Schema.String` |
+| Tana Type | Effect Schema                                        |
+| --------- | ---------------------------------------------------- |
+| text      | `Schema.String`                                      |
+| number    | `Schema.Number`                                      |
+| date      | `Schema.DateFromString`                              |
+| checkbox  | `Schema.Boolean`                                     |
+| url       | `Schema.String.pipe(Schema.pattern(/^https?:\/\//))` |
+| email     | `Schema.String`                                      |
+| reference | `Schema.String`                                      |
+| options   | `Schema.String`                                      |
 
 ### MCP - AI Tool Integration
 
@@ -508,9 +541,9 @@ Integrate with Claude Desktop, ChatGPT, Cursor, VS Code, and other MCP-compatibl
 
 ```json
 {
-  "mcpServers": {
-    "tana": { "command": "/path/to/supertag-mcp" }
-  }
+   "mcpServers": {
+      "tana": { "command": "/path/to/supertag-mcp" }
+   }
 }
 ```
 
@@ -530,14 +563,14 @@ See [Workspaces Documentation](./docs/workspaces.md) for details.
 
 All commands support `--format <type>` with these options:
 
-| Format | Description | Use Case |
-|--------|-------------|----------|
-| `table` | Human-readable with emojis | Interactive terminal use |
-| `json` | Pretty-printed JSON array | API integration, jq processing |
-| `csv` | RFC 4180 compliant CSV | Excel, spreadsheets |
-| `ids` | One ID per line | xargs piping, scripting |
-| `minimal` | Compact JSON (id, name, tags) | Quick lookups |
-| `jsonl` | JSON Lines (streaming) | Log processing, large datasets |
+| Format    | Description                   | Use Case                       |
+| --------- | ----------------------------- | ------------------------------ |
+| `table`   | Human-readable with emojis    | Interactive terminal use       |
+| `json`    | Pretty-printed JSON array     | API integration, jq processing |
+| `csv`     | RFC 4180 compliant CSV        | Excel, spreadsheets            |
+| `ids`     | One ID per line               | xargs piping, scripting        |
+| `minimal` | Compact JSON (id, name, tags) | Quick lookups                  |
+| `jsonl`   | JSON Lines (streaming)        | Log processing, large datasets |
 
 ```bash
 # Explicit format selection
@@ -573,15 +606,15 @@ supertag tags top --verbose            # Adds tag IDs
 
 **Output Flags:**
 
-| Flag | Description |
-|------|-------------|
-| `--format <type>` | Output format (table, json, csv, ids, minimal, jsonl) |
-| `--pretty` | Shortcut for `--format table` |
-| `--json` | Shortcut for `--format json` |
+| Flag                | Description                                             |
+| ------------------- | ------------------------------------------------------- |
+| `--format <type>`   | Output format (table, json, csv, ids, minimal, jsonl)   |
+| `--pretty`          | Shortcut for `--format table`                           |
+| `--json`            | Shortcut for `--format json`                            |
 | `--select <fields>` | Select specific fields in JSON output (comma-separated) |
-| `--verbose` | Include technical details (timing, IDs) |
-| `--human-dates` | Localized date format (Dec 23, 2025) |
-| `--no-header` | Omit header row in CSV output |
+| `--verbose`         | Include technical details (timing, IDs)                 |
+| `--human-dates`     | Localized date format (Dec 23, 2025)                    |
+| `--no-header`       | Omit header row in CSV output                           |
 
 **Configuration:**
 
@@ -589,10 +622,10 @@ Set defaults in `~/.config/supertag/config.json`:
 
 ```json
 {
-  "output": {
-    "format": "table",
-    "humanDates": false
-  }
+   "output": {
+      "format": "table",
+      "humanDates": false
+   }
 }
 ```
 
@@ -610,23 +643,23 @@ Supertag CLI can be used as a library in TypeScript applications for programmati
 
 ```typescript
 import {
-  TanaApiClient,
-  withDatabase,
-  getDatabasePath,
-  getConfig,
-} from 'supertag-cli';
+   TanaApiClient,
+   withDatabase,
+   getDatabasePath,
+   getConfig,
+} from "supertag-cli";
 
 // Query the database
 const dbPath = getDatabasePath();
 withDatabase(dbPath, (db) => {
-  const results = db.query('SELECT * FROM nodes LIMIT 10').all();
-  console.log(results);
+   const results = db.query("SELECT * FROM nodes LIMIT 10").all();
+   console.log(results);
 });
 
 // Use the API
 const config = getConfig();
 const client = new TanaApiClient(config.apiToken, config.apiEndpoint);
-await client.postNodes('INBOX', [{ name: 'New node' }]);
+await client.postNodes("INBOX", [{ name: "New node" }]);
 ```
 
 **Full API Documentation**: See [docs/LIBRARY.md](./docs/LIBRARY.md) for complete library reference.
@@ -641,10 +674,10 @@ The `examples/` directory contains sample applications demonstrating supertag-cl
 
 Demonstrates using supertag-cli as a library in TypeScript applications. Shows:
 
-- **Database queries**: Direct SQLite access
-- **API operations**: Creating nodes programmatically
-- **Workspace resolution**: Path and configuration management
-- **Batch operations**: Multi-node processing
+-  **Database queries**: Direct SQLite access
+-  **API operations**: Creating nodes programmatically
+-  **Workspace resolution**: Path and configuration management
+-  **Batch operations**: Multi-node processing
 
 ```bash
 cd examples/library-usage
@@ -658,10 +691,10 @@ See [examples/library-usage/README.md](./examples/library-usage/README.md) for f
 
 A terminal-based todo manager built with [Ink](https://github.com/vadimdemedes/ink) (React for CLIs). Demonstrates:
 
-- **Codegen integration**: Uses Effect Schema classes generated from Tana supertags
-- **SQLite queries**: Reads from the supertag-cli indexed database
-- **Tana Input API**: Creates new todos directly in Tana
-- **Split-pane UI**: Vim-style navigation with search/filter
+-  **Codegen integration**: Uses Effect Schema classes generated from Tana supertags
+-  **SQLite queries**: Reads from the supertag-cli indexed database
+-  **Tana Input API**: Creates new todos directly in Tana
+-  **Split-pane UI**: Vim-style navigation with search/filter
 
 ```bash
 cd examples/tui-todo
@@ -677,11 +710,11 @@ See [examples/tui-todo/README.md](./examples/tui-todo/README.md) for full docume
 
 **Detailed installation guides:**
 
-| Platform | Guide |
-|----------|-------|
+| Platform    | Guide                                                   |
+| ----------- | ------------------------------------------------------- |
 | **Windows** | [Windows Installation Guide](./docs/INSTALL-WINDOWS.md) |
-| **macOS** | [macOS Installation Guide](./docs/INSTALL-MACOS.md) |
-| **Linux** | [Linux Installation Guide](./docs/INSTALL-LINUX.md) |
+| **macOS**   | [macOS Installation Guide](./docs/INSTALL-MACOS.md)     |
+| **Linux**   | [Linux Installation Guide](./docs/INSTALL-LINUX.md)     |
 
 ### Quick Install (macOS/Linux)
 
@@ -711,28 +744,28 @@ The `supertag-export` tool requires Playwright for browser automation. See the p
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Getting Started](./docs/GETTING-STARTED.md) | Visual guide with step-by-step screenshots |
-| [Library Mode](./docs/LIBRARY.md) | **Use as a TypeScript library - full API reference** |
-| [Windows Install](./docs/INSTALL-WINDOWS.md) | Detailed Windows installation with Bun/Playwright |
-| [macOS Install](./docs/INSTALL-MACOS.md) | macOS installation with launchd automation |
-| [Linux Install](./docs/INSTALL-LINUX.md) | Linux installation with systemd automation |
-| [MCP Integration](./docs/mcp.md) | AI tool setup (Claude, ChatGPT, Cursor, etc.) |
-| [MCP Alternatives](./docs/mcp-alternatives.md) | Cheaper options: Ollama, BYOK, local LLMs |
-| [Embeddings](./docs/embeddings.md) | Semantic search configuration |
-| [Field Values](./docs/fields.md) | Query and search field data from nodes |
-| [Aggregation](./docs/aggregation.md) | Group and count nodes by field or time period |
-| [Transcripts](./docs/transcripts.md) | Query and search meeting transcripts |
-| [Visualization](./docs/visualization.md) | Inheritance graph rendering (Mermaid, DOT, PNG) |
-| [Codegen](./docs/codegen.md) | Generate Effect Schema classes from supertags |
-| [Webhook Server](./docs/WEBHOOK-SERVER.md) | HTTP API reference |
-| [Workspaces](./docs/workspaces.md) | Multi-workspace management |
-| [Export](./docs/export.md) | Automated backup and scheduling |
-| [Development](./docs/development.md) | Building, testing, contributing |
-| [Launchd Setup](./docs/LAUNCHD-SETUP.md) | macOS auto-start configuration |
-| [Field Structures](./docs/TANA-FIELD-STRUCTURES.md) | Technical reference for Tana tuple/field patterns |
-| [Database Schema](./docs/database-schema.md) | SQLite schema, tables, JSON storage |
+| Document                                            | Description                                          |
+| --------------------------------------------------- | ---------------------------------------------------- |
+| [Getting Started](./docs/GETTING-STARTED.md)        | Visual guide with step-by-step screenshots           |
+| [Library Mode](./docs/LIBRARY.md)                   | **Use as a TypeScript library - full API reference** |
+| [Windows Install](./docs/INSTALL-WINDOWS.md)        | Detailed Windows installation with Bun/Playwright    |
+| [macOS Install](./docs/INSTALL-MACOS.md)            | macOS installation with launchd automation           |
+| [Linux Install](./docs/INSTALL-LINUX.md)            | Linux installation with systemd automation           |
+| [MCP Integration](./docs/mcp.md)                    | AI tool setup (Claude, ChatGPT, Cursor, etc.)        |
+| [MCP Alternatives](./docs/mcp-alternatives.md)      | Cheaper options: Ollama, BYOK, local LLMs            |
+| [Embeddings](./docs/embeddings.md)                  | Semantic search configuration                        |
+| [Field Values](./docs/fields.md)                    | Query and search field data from nodes               |
+| [Aggregation](./docs/aggregation.md)                | Group and count nodes by field or time period        |
+| [Transcripts](./docs/transcripts.md)                | Query and search meeting transcripts                 |
+| [Visualization](./docs/visualization.md)            | Inheritance graph rendering (Mermaid, DOT, PNG)      |
+| [Codegen](./docs/codegen.md)                        | Generate Effect Schema classes from supertags        |
+| [Webhook Server](./docs/WEBHOOK-SERVER.md)          | HTTP API reference                                   |
+| [Workspaces](./docs/workspaces.md)                  | Multi-workspace management                           |
+| [Export](./docs/export.md)                          | Automated backup and scheduling                      |
+| [Development](./docs/development.md)                | Building, testing, contributing                      |
+| [Launchd Setup](./docs/LAUNCHD-SETUP.md)            | macOS auto-start configuration                       |
+| [Field Structures](./docs/TANA-FIELD-STRUCTURES.md) | Technical reference for Tana tuple/field patterns    |
+| [Database Schema](./docs/database-schema.md)        | SQLite schema, tables, JSON storage                  |
 
 ---
 
@@ -740,11 +773,11 @@ The `supertag-export` tool requires Playwright for browser automation. See the p
 
 ### Common Issues
 
-| Problem | Solution |
-|---------|----------|
+| Problem                    | Solution                             |
+| -------------------------- | ------------------------------------ |
 | "API token not configured" | `export TANA_API_TOKEN="your_token"` |
-| "Database not found" | `supertag sync index` |
-| "Chromium not found" | `supertag-export setup` |
+| "Database not found"       | `supertag sync index`                |
+| "Chromium not found"       | `supertag-export setup`              |
 
 ### Debug Mode
 
@@ -756,9 +789,10 @@ supertag create todo "Test" --debug     # Debug node creation
 ```
 
 Debug mode shows:
-- Full error codes (e.g., `WORKSPACE_NOT_FOUND`, `DATABASE_NOT_FOUND`)
-- Stack traces for debugging
-- Detailed context about what went wrong
+
+-  Full error codes (e.g., `WORKSPACE_NOT_FOUND`, `DATABASE_NOT_FOUND`)
+-  Stack traces for debugging
+-  Detailed context about what went wrong
 
 ### Error Logging
 
@@ -776,14 +810,14 @@ Error logs are stored at `~/.cache/supertag/errors.log` (up to 1000 entries).
 
 ### Error Codes
 
-| Code | Meaning | Recovery |
-|------|---------|----------|
+| Code                  | Meaning                        | Recovery                        |
+| --------------------- | ------------------------------ | ------------------------------- |
 | `WORKSPACE_NOT_FOUND` | Workspace alias not configured | Check `supertag workspace list` |
-| `DATABASE_NOT_FOUND` | Database not indexed | Run `supertag sync index` |
-| `TAG_NOT_FOUND` | Supertag doesn't exist | Check `supertag tags list` |
-| `NODE_NOT_FOUND` | Node ID doesn't exist | Verify node ID |
-| `API_ERROR` | Tana API request failed | Check token & network |
-| `VALIDATION_ERROR` | Invalid input parameters | Check command options |
+| `DATABASE_NOT_FOUND`  | Database not indexed           | Run `supertag sync index`       |
+| `TAG_NOT_FOUND`       | Supertag doesn't exist         | Check `supertag tags list`      |
+| `NODE_NOT_FOUND`      | Node ID doesn't exist          | Verify node ID                  |
+| `API_ERROR`           | Tana API request failed        | Check token & network           |
+| `VALIDATION_ERROR`    | Invalid input parameters       | Check command options           |
 
 ### Windows-Specific Issues
 
@@ -852,11 +886,11 @@ $env:TANA_API_TOKEN = "your_token_here"
 
 ## Performance
 
-| Operation | Performance |
-|-----------|-------------|
-| Indexing | 107k nodes/second |
-| FTS5 Search | < 50ms |
-| Database | ~500 MB for 1M nodes |
+| Operation   | Performance          |
+| ----------- | -------------------- |
+| Indexing    | 107k nodes/second    |
+| FTS5 Search | < 50ms               |
+| Database    | ~500 MB for 1M nodes |
 
 ---
 
