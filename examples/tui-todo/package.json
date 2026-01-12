@@ -1,24 +1,24 @@
 {
-  "name": "tui-todo",
-  "version": "1.0.0",
-  "description": "Terminal-based todo manager demonstrating supertag-cli codegen",
-  "type": "module",
-  "main": "src/index.tsx",
-  "scripts": {
-    "start": "bun run src/index.tsx",
-    "dev": "bun --watch run src/index.tsx",
-    "test": "bun test",
-    "generate-schema": "cd ../.. && ./supertag codegen generate -o ./examples/tui-todo/src/schemas.ts --tags Todo",
-    "build": "bun build src/index.tsx --compile --outfile=tui-todo"
-  },
-  "dependencies": {
-    "ink": "^5.0.1",
-    "react": "^18.2.0",
-    "ink-text-input": "^6.0.0",
-    "effect": "^3.12.5"
-  },
-  "devDependencies": {
-    "@types/react": "^18.2.0",
-    "typescript": "^5.0.0"
-  }
+	"name": "tui-todo",
+	"version": "1.0.0",
+	"description": "Terminal-based todo manager demonstrating supertag-cli codegen",
+	"type": "module",
+	"main": "src/index.tsx",
+	"scripts": {
+		"start": "bun run src/index.tsx",
+		"dev": "bun --watch run src/index.tsx",
+		"test": "bun test",
+		"generate-schema": "cd ../.. && ./supertag codegen generate -o ./examples/tui-todo/src/schemas.ts --tags Todo",
+		"build": "bun build src/index.tsx --compile --outfile=tui-todo"
+	},
+	"dependencies": {
+		"ink": "^5.0.1",
+		"react": "^18.2.0",
+		"ink-text-input": "^6.0.0",
+		"effect": "^3.12.5"
+	},
+	"devDependencies": {
+		"@types/react": "^18.2.0",
+		"typescript": "^5.0.0"
+	}
 }
