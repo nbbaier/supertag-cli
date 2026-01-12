@@ -3,6 +3,15 @@
   "version": "1.9.1",
   "description": "CLI for Tana integration - query, create, sync, and manage Tana workspaces with semantic search",
   "type": "module",
+  "main": "./src/lib.ts",
+  "module": "./src/lib.ts",
+  "types": "./src/lib.ts",
+  "exports": {
+    ".": {
+      "import": "./src/lib.ts",
+      "types": "./src/lib.ts"
+    }
+  },
   "bin": {
     "supertag": "./supertag"
   },
