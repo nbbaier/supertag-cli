@@ -78,10 +78,10 @@ confirm() {
     local yn
 
     if [[ "$default" == "y" ]]; then
-        read -p "      $prompt [Y/n]: " yn
+        read -p "      $prompt [Y/n]: " yn </dev/tty
         yn="${yn:-y}"
     else
-        read -p "      $prompt [y/N]: " yn
+        read -p "      $prompt [y/N]: " yn </dev/tty
         yn="${yn:-n}"
     fi
 
@@ -321,7 +321,7 @@ configure_path() {
         echo "        1) /usr/local/bin (requires sudo, no shell config changes)"
         echo "        2) ~/.local/bin (no sudo, adds to shell config)"
         echo ""
-        read -p "      Choice [1]: " choice
+        read -p "      Choice [1]: " choice </dev/tty
         choice="${choice:-1}"
 
         case "$choice" in
