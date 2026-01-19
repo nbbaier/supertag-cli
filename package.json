@@ -1,6 +1,6 @@
 {
   "name": "supertag-cli",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "CLI for Tana integration - query, create, sync, and manage Tana workspaces with semantic search",
   "type": "module",
   "bin": {
@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "bun build src/index.ts --compile --outfile=supertag",
+    "build:lite": "bun build src/cli-lite.ts --compile --outfile=supertag-lite",
     "build:mcp": "bun build src/mcp/index.ts --compile --outfile=supertag-mcp",
     "build:export": "bun build src/cli/tana-export.ts --compile --outfile=supertag-export --external=playwright --external=playwright-core --external=chromium-bidi --external=electron",
     "dev": "bun run src/index.ts",

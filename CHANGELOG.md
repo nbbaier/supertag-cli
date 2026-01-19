@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-01-19
+
+### Added
+
+- **Lite Binary (supertag-lite)** - Lightweight build without embedding support for environments with native module issues
+  - Excludes `embed` and `server` commands that depend on `@lancedb/lancedb` native module
+  - Fixes "exit 137" crash in environments where Bun's --compile has issues with native modules
+  - Includes all core functionality: create, post, tags, fields, search, nodes, stats, sync, batch, etc.
+  - Perfect for Raycast extensions, Docker containers, CI/CD pipelines
+  - New build script: `bun run build:lite`
+  - Compiles successfully without native module dependencies
+  - Documented in README-LITE.md
+
+### Fixed
+
+- **Compiled Binary Crash on macOS** - Fixed supertag binary crashing with exit code 137 (SIGKILL)
+  - Root cause: Bun's --compile feature incompatibility with @lancedb/lancedb native ARM64 module
+  - Solution: Created lite build that excludes embedding functionality
+  - Raycast extension and other distribution packages now use supertag-lite
+
 ## [1.10.0] - 2026-01-18
 
 ### Added
