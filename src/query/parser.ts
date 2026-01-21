@@ -237,6 +237,22 @@ class Parser {
       };
     }
 
+    // Check for "is empty" or "is null" syntax
+    if (this.match(TokenType.KEYWORD, "is")) {
+      this.advance();
+      // Expect "empty" or "null" after "is"
+      if (this.match(TokenType.KEYWORD, "empty") || this.match(TokenType.KEYWORD, "null")) {
+        this.advance();
+        return {
+          field,
+          operator: "is_empty",
+          value: true,
+          negated: negated || undefined,
+        };
+      }
+      throw new ParseError("Expected 'empty' or 'null' after 'is'");
+    }
+
     // Parse operator
     const opToken = this.current();
     if (!opToken || opToken.type !== TokenType.OPERATOR) {

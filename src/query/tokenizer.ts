@@ -41,6 +41,9 @@ const KEYWORDS = new Set([
   "not",
   "exists",
   "select",
+  "is",
+  "empty",
+  "null",
 ]);
 
 /**

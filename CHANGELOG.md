@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Semantic Search --min-score Option** - Filter results by minimum similarity threshold
+  - `supertag search "query" --semantic --min-score 0.5` - Only results with >= 50% similarity
+  - Accepts decimal (0-1) or percentage (0-100) values
+  - Example: `--min-score 0.75` or `--min-score 75` both mean 75% threshold
+
 ## [1.11.0] - 2026-01-19
 
 ### Added

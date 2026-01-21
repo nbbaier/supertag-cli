@@ -245,17 +245,21 @@ describe("Unified Query Engine", () => {
       expect(node.created).toBeDefined();
     });
 
-    it("should project selected fields only", async () => {
+    it("should include core fields plus selected custom fields", async () => {
+      // select now specifies custom fields to include; core fields are always present
       const ast: QueryAST = {
         find: "task",
-        select: ["id", "name"],
+        select: ["Status"],
         limit: 1,
       };
       const result = await engine.execute(ast);
-      const node = result.results[0];
+      const node = result.results[0] as any;
+      // Core fields always present
       expect(node.id).toBeDefined();
       expect(node.name).toBeDefined();
-      expect(node.created).toBeUndefined();
+      expect(node.created).toBeDefined();
+      // Custom fields in fields property
+      expect(node.fields).toBeDefined();
     });
   });
 
@@ -275,6 +279,128 @@ describe("Unified Query Engine", () => {
       };
       const result = await engine.execute(ast);
       expect(result.count).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Is Empty Operator", () => {
+    it("should match nodes where field does not exist", async () => {
+      // task3 has no Priority field
+      const ast: QueryAST = {
+        find: "task",
+        where: [{ field: "Priority", operator: "is_empty", value: true }],
+      };
+      const result = await engine.execute(ast);
+      expect(result.count).toBe(1);
+      expect(result.results[0].name).toBe("Deploy to prod"); // task3
+    });
+
+    it("should match nodes where field is empty string", async () => {
+      // Add an empty Description field to task1
+      db.run(
+        "INSERT INTO field_values (tuple_id, parent_id, field_name, value_text, created) VALUES (?, ?, ?, ?, ?)",
+        ["tuple6", "task1", "Description", "", Date.now()]
+      );
+
+      const ast: QueryAST = {
+        find: "task",
+        where: [{ field: "Description", operator: "is_empty", value: true }],
+      };
+      const result = await engine.execute(ast);
+      // task1 has empty Description, task2/task3 have no Description
+      expect(result.count).toBe(3);
+    });
+
+    it("should handle negated is_empty (not is empty)", async () => {
+      // Priority exists for task1 and task2, not for task3
+      const ast: QueryAST = {
+        find: "task",
+        where: [{ field: "Priority", operator: "is_empty", value: true, negated: true }],
+      };
+      const result = await engine.execute(ast);
+      expect(result.count).toBe(2);
+      // task1 and task2 have Priority
+      const names = result.results.map((r) => r.name);
+      expect(names).toContain("Fix login bug");
+      expect(names).toContain("Write tests");
+    });
+
+    it("should exclude nodes with non-empty values", async () => {
+      // Status exists and is non-empty for all tasks
+      const ast: QueryAST = {
+        find: "task",
+        where: [{ field: "Status", operator: "is_empty", value: true }],
+      };
+      const result = await engine.execute(ast);
+      expect(result.count).toBe(0);
+    });
+  });
+
+  describe("Field Output (F-093)", () => {
+    it("should include field values when select specifies fields", async () => {
+      const ast: QueryAST = {
+        find: "task",
+        select: ["Status", "Priority"],
+      };
+      const result = await engine.execute(ast);
+      expect(result.fieldNames).toBeDefined();
+      expect(result.fieldNames).toContain("Status");
+      // Check that results have fields property
+      const firstResult = result.results[0] as any;
+      expect(firstResult.fields).toBeDefined();
+    });
+
+    it("should include all fields when select is *", async () => {
+      // First, we need to set up supertag tables
+      db.run(`
+        CREATE TABLE IF NOT EXISTS supertags (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          node_id TEXT NOT NULL,
+          tag_name TEXT NOT NULL,
+          tag_id TEXT NOT NULL
+        )
+      `);
+      db.run(`
+        CREATE TABLE IF NOT EXISTS supertag_fields (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          tag_id TEXT NOT NULL,
+          tag_name TEXT NOT NULL,
+          field_name TEXT NOT NULL,
+          field_order INTEGER DEFAULT 0,
+          UNIQUE(tag_id, field_name)
+        )
+      `);
+      db.run(`
+        CREATE TABLE IF NOT EXISTS supertag_parents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          child_tag_id TEXT NOT NULL,
+          parent_tag_id TEXT NOT NULL,
+          UNIQUE(child_tag_id, parent_tag_id)
+        )
+      `);
+      db.run("INSERT OR IGNORE INTO supertags (node_id, tag_name, tag_id) VALUES (?, ?, ?)", [
+        "tag_task_node", "task", "tag_task",
+      ]);
+      db.run("INSERT OR IGNORE INTO supertag_fields (tag_id, tag_name, field_name, field_order) VALUES (?, ?, ?, ?)", [
+        "tag_task", "task", "Status", 1,
+      ]);
+      db.run("INSERT OR IGNORE INTO supertag_fields (tag_id, tag_name, field_name, field_order) VALUES (?, ?, ?, ?)", [
+        "tag_task", "task", "Priority", 2,
+      ]);
+
+      const ast: QueryAST = {
+        find: "task",
+        select: ["*"],
+      };
+      const result = await engine.execute(ast);
+      expect(result.fieldNames).toBeDefined();
+      expect(result.fieldNames!.length).toBeGreaterThan(0);
+    });
+
+    it("should not include fields when select is not specified", async () => {
+      const ast: QueryAST = { find: "task" };
+      const result = await engine.execute(ast);
+      // fieldNames should be undefined or empty when no select
+      expect(result.fieldNames).toBeUndefined();
     });
   });
 
