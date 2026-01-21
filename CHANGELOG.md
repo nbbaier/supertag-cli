@@ -5,6 +5,22 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.2] - 2026-01-21
+
+### Fixed
+
+- **Export Status Display Bug (Issue #32)** - Fixed `supertag-export status` always showing "Token expired"
+  - Bug: `showStatus()` passed `AuthResult` object to `isTokenValid()` instead of `AuthResult.auth`
+  - Now correctly shows token validity and expiration time
+  - Also displays auth method (cached/refreshed/browser) for debugging
+
+- **Export Token Refresh (Issue #33)** - Fixed automated exports failing after 60 minutes
+  - Root cause: `supertag-export login` did not extract Firebase API key needed for token refresh
+  - Added `extractFirebaseApiKey()` to extract API key from browser's IndexedDB during login
+  - Login now polls for successful authentication and auto-extracts the API key
+  - API key is saved to config.json enabling unattended token refresh
+  - Fixes "Method doesn't allow unregistered callers" 403 errors in scheduled exports
+
 ## [1.12.1] - 2026-01-21
 
 ### Fixed
