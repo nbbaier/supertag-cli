@@ -305,4 +305,107 @@ describe("F-094: @Name Reference Resolution", () => {
       expect(stateField.children[0].id).toBe("node-open-123");
     });
   });
+
+  describe("Field children option lookup (options without targetSupertagId)", () => {
+    // This tests the scenario where a field has options but no targetSupertagId
+    // The options are stored as children of a "Values" tuple under the field definition
+
+    beforeAll(() => {
+      // Create a "Status" field without targetSupertagId (like real Tana Status dropdown)
+      // Structure: Field Definition -> "Values" tuple -> Options Container -> Option Values
+
+      // The field definition node (attrDef)
+      db.run(`
+        INSERT INTO nodes (id, name, raw_data) VALUES (
+          'status-field-def',
+          'Status',
+          '{"id":"status-field-def","props":{"_docType":"attrDef"},"children":["status-values-tuple","other-child"]}'
+        )
+      `);
+
+      // The "Values" tuple child
+      db.run(`
+        INSERT INTO nodes (id, name, raw_data) VALUES (
+          'status-values-tuple',
+          'Values',
+          '{"id":"status-values-tuple","props":{"_docType":"tuple"},"children":["SYS_A52","status-menu-options"]}'
+        )
+      `);
+
+      // The options container
+      db.run(`
+        INSERT INTO nodes (id, name, raw_data) VALUES (
+          'status-menu-options',
+          'Status Menu Options',
+          '{"id":"status-menu-options","children":["status-active","status-next","status-complete"]}'
+        )
+      `);
+
+      // The actual option values
+      db.run(`INSERT INTO nodes (id, name, raw_data) VALUES ('status-active', 'Active', '{}')`);
+      db.run(`INSERT INTO nodes (id, name, raw_data) VALUES ('status-next', 'Next Up', '{}')`);
+      db.run(`INSERT INTO nodes (id, name, raw_data) VALUES ('status-complete', 'Complete', '{}')`);
+
+      // A different "Active" node that should NOT be found (wrong context)
+      db.run(`INSERT INTO nodes (id, name, raw_data) VALUES ('wrong-active', 'Active', '{}')`);
+
+      // Add a supertag "todo" with Status field (no targetSupertagId)
+      db.run(`
+        INSERT INTO supertag_metadata (tag_id, tag_name, normalized_name)
+        VALUES ('todo-tag-id', 'todo', 'todo')
+      `);
+
+      db.run(`
+        INSERT INTO supertag_fields (tag_id, field_label_id, field_name, normalized_name, inferred_data_type, field_order)
+        VALUES ('todo-tag-id', 'status-field-def', 'Status', 'status', 'options', 1)
+      `);
+    });
+
+    test("resolves @Name from field Values tuple children", () => {
+      // This should find 'status-active' through the field children hierarchy
+      // NOT 'wrong-active' which has the same name but is in a different context
+      const id = service.resolveReferenceByName("Active", null, "status-field-def");
+      expect(id).toBe("status-active");
+    });
+
+    test("resolves @Name with spaces from field children", () => {
+      const id = service.resolveReferenceByName("Next Up", null, "status-field-def");
+      expect(id).toBe("status-next");
+    });
+
+    test("resolves @Name in buildNodePayload for options field without targetSupertagId", () => {
+      const payload = service.buildNodePayload("todo", "Test Todo", {
+        status: "@Active",
+      });
+
+      const statusField = payload.children!.find(
+        (c: any) => c.type === "field" && c.attributeId === "status-field-def"
+      ) as any;
+      expect(statusField).toBeDefined();
+      expect(statusField.children[0].dataType).toBe("reference");
+      expect(statusField.children[0].id).toBe("status-active");
+    });
+
+    test("returns null when option not found in field children", () => {
+      const id = service.resolveReferenceByName("NonExistentStatus", null, "status-field-def");
+      expect(id).toBeNull();
+    });
+
+    test("falls back to global search when field has no Values tuple", () => {
+      // Create a field without proper Values tuple structure
+      db.run(`
+        INSERT INTO nodes (id, name, raw_data) VALUES (
+          'broken-field-def',
+          'BrokenField',
+          '{"id":"broken-field-def","children":[]}'
+        )
+      `);
+
+      // Should fall back to global search and find the first "Active"
+      const id = service.resolveReferenceByName("Active", null, "broken-field-def");
+      // Will find either wrong-active or status-active depending on order
+      // The important thing is it doesn't crash and returns something
+      expect(id).not.toBeNull();
+    });
+  });
 });

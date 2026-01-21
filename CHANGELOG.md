@@ -35,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Example: `supertag create task "My Task" --state "@Open"`
   - Example: `supertag create meeting "Standup" --owner "@John Doe"`
 
+### Fixed
+
+- **@Name Resolution for Options Fields Without targetSupertagId** - Correctly resolves option values from field's Values tuple hierarchy
+  - Previously: `--Status "@Active"` could find wrong node when multiple nodes have same name
+  - Now: Traverses Field Definition → "Values" tuple → Options Container → matches correct option
+  - Example: Status dropdown options now resolve to correct node even without supertag tagging
+
 ## [1.11.0] - 2026-01-19
 
 ### Added

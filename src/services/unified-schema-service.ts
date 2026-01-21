@@ -482,6 +482,7 @@ export class UnifiedSchemaService {
    *
    * @param name - The display name to search for (without @ prefix)
    * @param targetSupertagId - Optional supertag ID to filter results (from field definition)
+   * @param fieldLabelId - Optional field label node ID for options field lookup
    * @returns Node ID if found, null otherwise
    *
    * @example
@@ -491,8 +492,12 @@ export class UnifiedSchemaService {
    * @example
    * // Lookup filtered by target supertag (e.g., "State" options)
    * resolveReferenceByName("Superceded", "state-tag-id")
+   *
+   * @example
+   * // Lookup from field's Values tuple children (for options without targetSupertag)
+   * resolveReferenceByName("Active", null, "jDnCkR4gIUDx")
    */
-  resolveReferenceByName(name: string, targetSupertagId?: string | null): string | null {
+  resolveReferenceByName(name: string, targetSupertagId?: string | null, fieldLabelId?: string | null): string | null {
     if (!this.checkNodesTable()) {
       return null;
     }
@@ -532,6 +537,15 @@ export class UnifiedSchemaService {
       }
     }
 
+    // If we have a field label ID, try to find option in field's Values tuple children
+    // This handles options fields without targetSupertagId (e.g., Status dropdown)
+    if (fieldLabelId) {
+      const optionId = this.findOptionInFieldChildren(trimmedName, fieldLabelId);
+      if (optionId) {
+        return optionId;
+      }
+    }
+
     // Fallback: search without supertag filter
     // First try exact match
     const exact = this.db.query(`
@@ -551,6 +565,174 @@ export class UnifiedSchemaService {
     `).get(normalizedName) as { id: string } | null;
 
     return normalized?.id ?? null;
+  }
+
+  /**
+   * Find an option value in a field's Values tuple children.
+   *
+   * Field structure in Tana:
+   *   Field Definition (attrDef) → "Values" tuple → Options Container → Option Values
+   *
+   * @param name - Option name to find
+   * @param fieldLabelId - Field definition node ID
+   * @returns Node ID if found, null otherwise
+   */
+  private findOptionInFieldChildren(name: string, fieldLabelId: string): string | null {
+    // Get the field label node to find its children
+    const fieldNode = this.db.query(`
+      SELECT raw_data FROM nodes WHERE id = ?
+    `).get(fieldLabelId) as { raw_data: string } | null;
+
+    if (!fieldNode) {
+      return null;
+    }
+
+    let fieldData: { children?: string[] };
+    try {
+      fieldData = JSON.parse(fieldNode.raw_data);
+    } catch {
+      return null;
+    }
+
+    if (!fieldData.children || fieldData.children.length === 0) {
+      return null;
+    }
+
+    // Find the "Values" tuple child
+    const valuesTupleId = this.findValuesTupleChild(fieldData.children);
+    if (!valuesTupleId) {
+      return null;
+    }
+
+    // Get the Values tuple node to find its children (options container or direct options)
+    const tupleNode = this.db.query(`
+      SELECT raw_data FROM nodes WHERE id = ?
+    `).get(valuesTupleId) as { raw_data: string } | null;
+
+    if (!tupleNode) {
+      return null;
+    }
+
+    let tupleData: { children?: string[] };
+    try {
+      tupleData = JSON.parse(tupleNode.raw_data);
+    } catch {
+      return null;
+    }
+
+    if (!tupleData.children || tupleData.children.length === 0) {
+      return null;
+    }
+
+    // Collect all potential option IDs - either direct children or children of container nodes
+    const optionIds = this.collectOptionIds(tupleData.children);
+
+    // Search for matching name among options
+    return this.findNodeByNameInList(name, optionIds);
+  }
+
+  /**
+   * Find the "Values" tuple child in a list of node IDs.
+   */
+  private findValuesTupleChild(childIds: string[]): string | null {
+    if (childIds.length === 0) return null;
+
+    // Query all children at once for efficiency
+    const placeholders = childIds.map(() => "?").join(",");
+    const rows = this.db.query(`
+      SELECT id, name, json_extract(raw_data, '$.props._docType') as docType
+      FROM nodes
+      WHERE id IN (${placeholders})
+    `).all(...childIds) as Array<{ id: string; name: string; docType: string | null }>;
+
+    // Find the "Values" tuple
+    for (const row of rows) {
+      if (row.name === "Values" && row.docType === "tuple") {
+        return row.id;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Collect option IDs from tuple children.
+   * Options may be direct children or nested inside a container node.
+   */
+  private collectOptionIds(childIds: string[]): string[] {
+    const optionIds: string[] = [];
+
+    for (const childId of childIds) {
+      // Skip system nodes
+      if (childId.startsWith("SYS_")) {
+        continue;
+      }
+
+      // Get the child node to check if it's a container
+      const childNode = this.db.query(`
+        SELECT raw_data, name FROM nodes WHERE id = ?
+      `).get(childId) as { raw_data: string; name: string } | null;
+
+      if (!childNode) {
+        continue;
+      }
+
+      let childData: { children?: string[] };
+      try {
+        childData = JSON.parse(childNode.raw_data);
+      } catch {
+        // Not valid JSON, treat as direct option
+        optionIds.push(childId);
+        continue;
+      }
+
+      // If it has children, it might be a container - add both the container and its children
+      if (childData.children && childData.children.length > 0) {
+        // Add the container's children as potential options
+        for (const grandchildId of childData.children) {
+          if (!grandchildId.startsWith("SYS_")) {
+            optionIds.push(grandchildId);
+          }
+        }
+      }
+
+      // Also add the node itself as a potential option (might be a direct option)
+      optionIds.push(childId);
+    }
+
+    return optionIds;
+  }
+
+  /**
+   * Find a node by name in a list of node IDs.
+   */
+  private findNodeByNameInList(name: string, nodeIds: string[]): string | null {
+    if (nodeIds.length === 0) return null;
+
+    const trimmedName = name.trim();
+    const normalizedName = normalizeName(trimmedName);
+
+    // Query all nodes at once
+    const placeholders = nodeIds.map(() => "?").join(",");
+    const rows = this.db.query(`
+      SELECT id, name FROM nodes WHERE id IN (${placeholders})
+    `).all(...nodeIds) as Array<{ id: string; name: string }>;
+
+    // First try exact match
+    for (const row of rows) {
+      if (row.name === trimmedName) {
+        return row.id;
+      }
+    }
+
+    // Then try normalized match
+    for (const row of rows) {
+      if (normalizeName(row.name) === normalizedName) {
+        return row.id;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -741,7 +923,7 @@ export class UnifiedSchemaService {
           // Matches Tana's native @mention behavior
           if (strValue.startsWith("@")) {
             const lookupName = strValue.slice(1); // Remove @ prefix
-            const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId);
+            const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId, field.attributeId);
             if (resolvedId) {
               fieldChildren.push({
                 dataType: "reference",
@@ -811,7 +993,7 @@ export class UnifiedSchemaService {
             // F-094: Support @Name syntax even for unknown field types
             if (strValue.startsWith("@")) {
               const lookupName = strValue.slice(1);
-              const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId);
+              const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId, field.attributeId);
               if (resolvedId) {
                 fieldChildren.push({
                   dataType: "reference",
@@ -829,7 +1011,7 @@ export class UnifiedSchemaService {
           // F-094: Support @Name syntax even for unknown field types
           if (strValue.startsWith("@")) {
             const lookupName = strValue.slice(1);
-            const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId);
+            const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId, field.attributeId);
             if (resolvedId) {
               fieldChildren.push({
                 dataType: "reference",
