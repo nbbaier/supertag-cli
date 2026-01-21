@@ -47,18 +47,11 @@ export class TanaApiClient {
     // Convert TanaNodes to API format (if they're not already TanaApiNode)
     const apiNodes = nodes.map(node => {
       // Check if already a TanaApiNode (has supertags array with id)
-      let apiNode: TanaApiNode;
       if ('supertags' in node && Array.isArray(node.supertags)) {
-        apiNode = node as TanaApiNode;
-      } else {
-        // Otherwise convert from TanaNode
-        apiNode = tanaNodeToApiNode(node as TanaNode);
+        return node as TanaApiNode;
       }
-      // Sanitize name: replace newlines with spaces (Tana API rejects newlines)
-      if (apiNode.name) {
-        apiNode.name = apiNode.name.replace(/[\r\n]+/g, ' ').trim();
-      }
-      return apiNode;
+      // Otherwise convert from TanaNode
+      return tanaNodeToApiNode(node as TanaNode);
     });
 
     // Validate payload
