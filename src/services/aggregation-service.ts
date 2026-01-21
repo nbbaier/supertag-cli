@@ -11,8 +11,10 @@ import type {
   AggregateResult,
   GroupBySpec,
   TimePeriod,
+  WhereClause,
+  WhereGroup,
 } from "../query/types";
-import { isTimePeriod, isGroupByField, isGroupByTime } from "../query/types";
+import { isTimePeriod, isGroupByField, isGroupByTime, isWhereGroup } from "../query/types";
 
 /**
  * Service for executing aggregation queries on Tana nodes.
@@ -172,9 +174,21 @@ export class AggregationService {
     }
 
     // WHERE clause for tag filter
+    const whereConditions: string[] = [];
     if (ast.find !== "*") {
-      sql += " WHERE ta.tag_name = ?";
+      whereConditions.push("ta.tag_name = ?");
       params.push(ast.find);
+    }
+
+    // Add user-specified WHERE conditions
+    if (ast.where && ast.where.length > 0) {
+      const { conditions, params: whereParams } = this.buildWhereConditions(ast.where);
+      whereConditions.push(...conditions);
+      params.push(...whereParams);
+    }
+
+    if (whereConditions.length > 0) {
+      sql += " WHERE " + whereConditions.join(" AND ");
     }
 
     // GROUP BY
@@ -204,11 +218,8 @@ export class AggregationService {
       groups[key] = Number(row.count);
     }
 
-    // Calculate total (separate query for accuracy)
-    const totalSql = ast.find === "*"
-      ? "SELECT COUNT(*) AS total FROM nodes"
-      : "SELECT COUNT(DISTINCT n.id) AS total FROM nodes n INNER JOIN tag_applications ta ON ta.data_node_id = n.id WHERE ta.tag_name = ?";
-    const totalParams: SQLQueryBindings[] = ast.find === "*" ? [] : [ast.find];
+    // Calculate total (separate query for accuracy, includes WHERE filter)
+    const { sql: totalSql, params: totalParams } = this.buildTotalQuery(ast);
     const totalRow = this.db.query(totalSql).get(...totalParams) as { total: number };
     const total = totalRow?.total ?? 0;
 
@@ -237,6 +248,36 @@ export class AggregationService {
     }
 
     return result;
+  }
+
+  /**
+   * Build total count query with WHERE conditions
+   */
+  private buildTotalQuery(ast: AggregateAST): { sql: string; params: SQLQueryBindings[] } {
+    const params: SQLQueryBindings[] = [];
+    const conditions: string[] = [];
+
+    let sql = "SELECT COUNT(DISTINCT n.id) AS total FROM nodes n";
+
+    // Join with tag_applications if filtering by tag
+    if (ast.find !== "*") {
+      sql += " INNER JOIN tag_applications ta ON ta.data_node_id = n.id";
+      conditions.push("ta.tag_name = ?");
+      params.push(ast.find);
+    }
+
+    // Add user-specified WHERE conditions
+    if (ast.where && ast.where.length > 0) {
+      const { conditions: whereConditions, params: whereParams } = this.buildWhereConditions(ast.where);
+      conditions.push(...whereConditions);
+      params.push(...whereParams);
+    }
+
+    if (conditions.length > 0) {
+      sql += " WHERE " + conditions.join(" AND ");
+    }
+
+    return { sql, params };
   }
 
   /**
@@ -275,10 +316,22 @@ export class AggregationService {
       sql += " " + joins.join(" ");
     }
 
-    // WHERE clause for tag filter
+    // WHERE clause for tag filter and user-specified conditions
+    const whereConditions: string[] = [];
     if (ast.find !== "*") {
-      sql += " WHERE ta.tag_name = ?";
+      whereConditions.push("ta.tag_name = ?");
       params.push(ast.find);
+    }
+
+    // Add user-specified WHERE conditions
+    if (ast.where && ast.where.length > 0) {
+      const { conditions, params: whereParams } = this.buildWhereConditions(ast.where);
+      whereConditions.push(...conditions);
+      params.push(...whereParams);
+    }
+
+    if (whereConditions.length > 0) {
+      sql += " WHERE " + whereConditions.join(" AND ");
     }
 
     // GROUP BY both dimensions
@@ -305,11 +358,8 @@ export class AggregationService {
       groups[key1][key2] = count;
     }
 
-    // Calculate total (separate query for accuracy)
-    const totalSql = ast.find === "*"
-      ? "SELECT COUNT(*) AS total FROM nodes"
-      : "SELECT COUNT(DISTINCT n.id) AS total FROM nodes n INNER JOIN tag_applications ta ON ta.data_node_id = n.id WHERE ta.tag_name = ?";
-    const totalParams: SQLQueryBindings[] = ast.find === "*" ? [] : [ast.find];
+    // Calculate total (separate query for accuracy, includes WHERE filter)
+    const { sql: totalSql, params: totalParams } = this.buildTotalQuery(ast);
     const totalRow = this.db.query(totalSql).get(...totalParams) as { total: number };
     const total = totalRow?.total ?? 0;
 
@@ -340,9 +390,7 @@ export class AggregationService {
       // Field-based grouping requires LEFT JOIN to field_values
       const fieldName = spec.field!;
       const joinAlias = `fv${index}`;
-      const join = `LEFT JOIN field_values ${joinAlias} ON ${joinAlias}.parent_id = n.id AND ${joinAlias}.field_name = ?`;
-      // Note: We'll need to add the field name to params in the caller
-      // For now, inline it (since SQLite allows expressions in GROUP BY)
+      // Inline the field name (since SQLite allows expressions in GROUP BY)
       const joinWithParam = `LEFT JOIN field_values ${joinAlias} ON ${joinAlias}.parent_id = n.id AND ${joinAlias}.field_name = '${fieldName.replace(/'/g, "''")}'`;
       const expr = `${joinAlias}.value_text`;
       return { expr, alias, join: joinWithParam };
@@ -354,5 +402,135 @@ export class AggregationService {
     const joinWithParam = `LEFT JOIN field_values ${joinAlias} ON ${joinAlias}.parent_id = n.id AND ${joinAlias}.field_name = '${fieldName.replace(/'/g, "''")}'`;
     const expr = `${joinAlias}.value_text`;
     return { expr, alias, join: joinWithParam };
+  }
+
+  /**
+   * Build WHERE clauses for filtering
+   *
+   * @param where - Array of where clauses from AST
+   * @param startIndex - Starting index for join aliases (to avoid conflicts with groupBy joins)
+   * @returns Object with SQL conditions, params, and any required joins
+   */
+  private buildWhereConditions(
+    where: (WhereClause | WhereGroup)[],
+    startIndex: number = 10
+  ): { conditions: string[]; params: SQLQueryBindings[]; joins: string[] } {
+    const conditions: string[] = [];
+    const params: SQLQueryBindings[] = [];
+    const joins: string[] = [];
+
+    let joinIndex = startIndex;
+    for (const clause of where) {
+      if (isWhereGroup(clause)) {
+        // Handle OR/AND groups
+        const groupResult = this.buildWhereGroup(clause, joinIndex);
+        if (groupResult.sql) {
+          conditions.push(groupResult.sql);
+          params.push(...groupResult.params);
+          joins.push(...groupResult.joins);
+          joinIndex += groupResult.joinCount;
+        }
+      } else {
+        const result = this.buildSingleWhereCondition(clause, joinIndex);
+        if (result.sql) {
+          conditions.push(result.sql);
+          params.push(...result.params);
+          if (result.join) {
+            joins.push(result.join);
+          }
+          joinIndex++;
+        }
+      }
+    }
+
+    return { conditions, params, joins };
+  }
+
+  /**
+   * Build SQL for a WHERE group (OR/AND)
+   */
+  private buildWhereGroup(
+    group: WhereGroup,
+    startIndex: number
+  ): { sql: string; params: SQLQueryBindings[]; joins: string[]; joinCount: number } {
+    const parts: string[] = [];
+    const params: SQLQueryBindings[] = [];
+    const joins: string[] = [];
+    let joinIndex = startIndex;
+
+    for (const clause of group.clauses) {
+      const result = this.buildSingleWhereCondition(clause as WhereClause, joinIndex);
+      if (result.sql) {
+        parts.push(result.sql);
+        params.push(...result.params);
+        if (result.join) {
+          joins.push(result.join);
+        }
+        joinIndex++;
+      }
+    }
+
+    const operator = group.type === "or" ? " OR " : " AND ";
+    return {
+      sql: parts.length > 0 ? `(${parts.join(operator)})` : "",
+      params,
+      joins,
+      joinCount: joinIndex - startIndex,
+    };
+  }
+
+  /**
+   * Build SQL for a single WHERE condition on a field value
+   */
+  private buildSingleWhereCondition(
+    clause: WhereClause,
+    index: number
+  ): { sql: string; params: SQLQueryBindings[]; join?: string } {
+    const { field, operator, value } = clause;
+    const params: SQLQueryBindings[] = [];
+
+    // Handle is_empty specially - use NOT EXISTS subquery
+    if (operator === "is_empty") {
+      const sql = `NOT EXISTS (SELECT 1 FROM field_values wfv${index} WHERE wfv${index}.parent_id = n.id AND wfv${index}.field_name = ? AND wfv${index}.value_text IS NOT NULL AND wfv${index}.value_text != '')`;
+      return { sql, params: [field] };
+    }
+
+    // For other operators, use a correlated subquery with EXISTS
+    // This avoids JOIN conflicts with GROUP BY
+    const alias = `wfv${index}`;
+    let condition: string;
+
+    switch (operator) {
+      case "=":
+        condition = `${alias}.value_text = ?`;
+        params.push(String(value));
+        break;
+      case "!=":
+        condition = `${alias}.value_text != ?`;
+        params.push(String(value));
+        break;
+      case "~":
+      case "contains":
+        condition = `${alias}.value_text LIKE ?`;
+        params.push(`%${value}%`);
+        break;
+      case ">":
+      case "<":
+      case ">=":
+      case "<=":
+        condition = `CAST(${alias}.value_text AS REAL) ${operator} ?`;
+        params.push(value as SQLQueryBindings);
+        break;
+      default:
+        // Default to equality
+        condition = `${alias}.value_text = ?`;
+        params.push(String(value));
+    }
+
+    // Use EXISTS subquery to filter
+    const sql = `EXISTS (SELECT 1 FROM field_values ${alias} WHERE ${alias}.parent_id = n.id AND ${alias}.field_name = ? AND ${condition})`;
+    params.unshift(field); // Add field name as first param
+
+    return { sql, params };
   }
 }

@@ -9,6 +9,8 @@
  *   supertag aggregate --tag task --group-by Status,Priority
  *   supertag aggregate --tag meeting --group-by month
  *   supertag aggregate --tag task --group-by Status --show-percent --top 5
+ *   supertag aggregate --tag task --group-by Priority --where "Status=Active"
+ *   supertag aggregate --tag task --group-by month --where "Status!=Cancelled" --where "Priority=High"
  */
 
 import { Command } from "commander";
@@ -33,6 +35,8 @@ import type {
   AggregateResult,
   GroupBySpec,
   NestedGroups,
+  WhereClause,
+  QueryOperator,
 } from "../query/types";
 
 interface AggregateOptions extends StandardOptions {
@@ -42,6 +46,54 @@ interface AggregateOptions extends StandardOptions {
   top?: number;
   format?: OutputFormat;
   header?: boolean;
+  where?: string[];
+}
+
+/**
+ * Parse a single CLI WHERE expression like "Status=Active" or "Status!=Cancelled"
+ *
+ * Supported formats:
+ * - Field=Value (equals)
+ * - Field!=Value (not equals)
+ * - Field~Value (contains)
+ *
+ * @param expr - CLI expression string
+ * @returns Parsed WhereClause
+ */
+function parseWhereExpression(expr: string): WhereClause {
+  // Try different operators in order of specificity
+  const operators: { pattern: RegExp; operator: QueryOperator }[] = [
+    { pattern: /^(.+?)!=(.+)$/, operator: "!=" },
+    { pattern: /^(.+?)~(.+)$/, operator: "contains" },
+    { pattern: /^(.+?)>=(.+)$/, operator: ">=" },
+    { pattern: /^(.+?)<=(.+)$/, operator: "<=" },
+    { pattern: /^(.+?)>(.+)$/, operator: ">" },
+    { pattern: /^(.+?)<(.+)$/, operator: "<" },
+    { pattern: /^(.+?)=(.+)$/, operator: "=" },
+  ];
+
+  for (const { pattern, operator } of operators) {
+    const match = expr.match(pattern);
+    if (match) {
+      return {
+        field: match[1].trim(),
+        operator,
+        value: match[2].trim(),
+      };
+    }
+  }
+
+  // Special case: is_empty (field with no value)
+  if (expr.includes("is_empty")) {
+    const field = expr.replace("is_empty", "").trim();
+    return {
+      field,
+      operator: "is_empty",
+      value: "",
+    };
+  }
+
+  throw new Error(`Invalid WHERE expression: ${expr}. Use format: Field=Value or Field!=Value`);
 }
 
 /**
@@ -172,6 +224,7 @@ export function createAggregateCommand(): Command {
     .description("Group and count nodes by field values or time periods")
     .requiredOption("--tag <tagname>", "Supertag to aggregate (e.g., task, meeting)")
     .option("--group-by <fields>", "Field(s) to group by (comma-separated, omit for total count)")
+    .option("--where <condition>", "Filter condition (Field=Value, Field!=Value, Field~Value). Can be used multiple times.", (val: string, arr: string[]) => [...arr, val], [] as string[])
     .option("--show-percent", "Show percentage of total alongside counts")
     .option("--top <n>", "Return only top N groups by count", parseInt);
 
@@ -235,6 +288,12 @@ export function createAggregateCommand(): Command {
         process.exit(1);
       }
 
+      // Parse WHERE conditions if provided
+      let whereConditions: WhereClause[] | undefined;
+      if (options.where && options.where.length > 0) {
+        whereConditions = options.where.map(parseWhereExpression);
+      }
+
       // Build AST
       const ast: AggregateAST = {
         find: options.tag,
@@ -243,6 +302,7 @@ export function createAggregateCommand(): Command {
         showPercent: options.showPercent,
         top: options.top,
         limit: options.limit,
+        where: whereConditions,
       };
 
       // Execute aggregation

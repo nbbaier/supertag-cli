@@ -35,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Example: `supertag create task "My Task" --state "@Open"`
   - Example: `supertag create meeting "Standup" --owner "@John Doe"`
 
+- **Aggregate --where Clause (F-095)** - Filter nodes before aggregation
+  - Use `--where` to filter by field values before counting
+  - Multiple `--where` flags combine with AND logic
+  - Supports operators: `=`, `!=`, `~` (contains), `>`, `<`, `>=`, `<=`
+  - Example: `supertag aggregate --tag task --group-by Priority --where "Status=Active"`
+  - Example: `supertag aggregate --tag task --group-by month --where "Status!=Cancelled" --where "Priority=High"`
+
 ### Fixed
 
 - **@Name Resolution for Options Fields Without targetSupertagId** - Correctly resolves option values from field's Values tuple hierarchy
