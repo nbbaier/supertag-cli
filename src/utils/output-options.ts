@@ -126,28 +126,27 @@ export interface ResolveFormatContext {
 }
 
 /**
- * Resolve output format from CLI flags, env var, config, and TTY detection
+ * Resolve output format from CLI flags, env var, and config
  *
  * Precedence (highest to lowest):
  * 1. Explicit --format flag
  * 2. Legacy --json/--pretty flags (backward compatibility)
  * 3. SUPERTAG_FORMAT environment variable
  * 4. Config file format setting
- * 5. TTY detection (table for interactive, json for pipes)
+ * 5. Default: table (Unix-style TSV output)
  *
  * @param options - CLI options including format, json, pretty
- * @param context - Context including TTY detection
+ * @param _context - Reserved for future use
  * @returns Resolved output format
  *
  * @example
  * resolveOutputFormat({ format: 'csv' })  // => 'csv'
  * resolveOutputFormat({ json: true })     // => 'json' (legacy)
- * resolveOutputFormat({}, { isTTY: true }) // => 'table' (default for terminal)
- * resolveOutputFormat({}, { isTTY: false }) // => 'json' (default for pipes)
+ * resolveOutputFormat({})                 // => 'table' (default)
  */
 export function resolveOutputFormat(
   options?: ResolveFormatOptions,
-  context?: ResolveFormatContext
+  _context?: ResolveFormatContext
 ): OutputFormat {
   // Handle undefined/null options
   if (!options) {
@@ -194,8 +193,7 @@ export function resolveOutputFormat(
     return config.format;
   }
 
-  // 6. TTY detection (smart defaults)
-  // Default: table for interactive terminal, json for pipes
-  const isTTY = context?.isTTY ?? process.stdout.isTTY ?? false;
-  return isTTY ? 'table' : 'json';
+  // 6. Default to table format (Unix-style output)
+  // Users who want JSON for pipes can use --format json or --json
+  return 'table';
 }

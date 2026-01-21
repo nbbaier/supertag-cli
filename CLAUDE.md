@@ -290,7 +290,7 @@ The build script:
 3. `--pretty` flag (legacy, maps to table)
 4. `SUPERTAG_FORMAT` environment variable
 5. Config file `output.format` setting
-6. TTY detection: `table` for terminals, `json` for pipes (lowest)
+6. Default: `table` (Unix-style TSV output)
 
 **Example usage:**
 ```bash

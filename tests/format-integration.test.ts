@@ -82,13 +82,13 @@ describe("Format Integration Tests (Spec 060)", () => {
     });
 
     it("TTY detection used as fallback", () => {
-      // TTY -> table
+      // Default is always table (Unix-style output)
       const formatTTY = resolveOutputFormat({}, { isTTY: true });
       expect(formatTTY).toBe("table");
 
-      // Non-TTY -> json
+      // Context is no longer used - always defaults to table
       const formatPipe = resolveOutputFormat({}, { isTTY: false });
-      expect(formatPipe).toBe("json");
+      expect(formatPipe).toBe("table");
     });
   });
 

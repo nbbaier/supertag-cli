@@ -186,7 +186,9 @@ export function createAggregateCommand(): Command {
     const outputOpts = resolveOutputOptions(options);
     // --format pretty should enable pretty output mode
     const isPretty = outputOpts.pretty || (options.format as string) === "pretty";
-    const format = resolveOutputFormat({ format: options.format, json: options.json, pretty: outputOpts.pretty });
+    // Pass options.pretty (undefined when not specified) not outputOpts.pretty (defaults to false)
+    // to let TTY detection work correctly
+    const format = resolveOutputFormat({ format: options.format, json: options.json, pretty: options.pretty });
 
     // Create service
     const service = new AggregationService(dbPath);
