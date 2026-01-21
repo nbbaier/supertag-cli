@@ -5,7 +5,7 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.3] - 2026-01-21
+## [1.12.4] - 2026-01-21
 
 ### Fixed
 
@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Previously: `select name,Status` produced header `id,name,created,updated,name,Status`
   - Now: Core fields (id, name, created, updated) are deduplicated when also in select clause
   - Example: `find todo select name,Status limit 5` now shows proper columns
+
+## [1.12.3] - 2026-01-21
+
+_Incomplete release - use 1.12.4 instead_
 
 ## [1.12.2] - 2026-01-21
 
