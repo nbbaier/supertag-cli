@@ -5,7 +5,7 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.5] - 2026-01-21
+## [1.12.6] - 2026-01-21
 
 ### Fixed
 
@@ -19,9 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Previously: `select name,Status` produced header `id,name,created,updated,name,Status`
   - Now: Core fields (id, name, created, updated) are deduplicated when also in select clause
 
+- **Query Field Resolution with Duplicate Supertags** - Fixed `select *` returning no fields when multiple supertags share the same name
+  - Previously: Field resolver picked first supertag by DB order, often the wrong one
+  - Now: Picks supertag with most inheritance/fields (matching `tags fields` behavior)
+  - Example: `find project select *` now correctly resolves to the project with fields
+
+## [1.12.5] - 2026-01-21
+
+_Incomplete release - use 1.12.6 instead_
+
 ## [1.12.4] - 2026-01-21
 
-_Incomplete release - use 1.12.5 instead_
+_Incomplete release - use 1.12.6 instead_
 
 ## [1.12.3] - 2026-01-21
 

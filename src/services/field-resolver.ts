@@ -25,14 +25,27 @@ export class FieldResolver {
    * Get field names defined on a supertag, including inherited fields.
    * Own fields come first, then inherited fields, all in field_order.
    *
+   * When multiple supertags have the same name, selects the one with
+   * the most inheritance/fields (matching tags fields behavior).
+   *
    * @param tagName - Supertag name (e.g., "person", "employee")
    * @returns Array of field names in order
    */
   getSupertagFields(tagName: string): string[] {
-    // First, get the tag_id for this tag name
+    // Find the best matching supertag (most inheritance/fields) when duplicates exist
+    // This matches the behavior in supertag-metadata-service.ts findAllTagsByName()
     const tagRow = this.db
-      .query("SELECT tag_id FROM supertags WHERE tag_name = ? LIMIT 1")
-      .get(tagName) as { tag_id: string } | null;
+      .query(`
+        SELECT
+          sm.tag_id,
+          (SELECT COUNT(*) FROM supertag_fields sf WHERE sf.tag_id = sm.tag_id) as field_count,
+          (SELECT COUNT(*) FROM supertag_parents sp WHERE sp.child_tag_id = sm.tag_id) as parent_count
+        FROM supertag_metadata sm
+        WHERE sm.tag_name = ? OR sm.normalized_name = ?
+        ORDER BY parent_count DESC, field_count DESC
+        LIMIT 1
+      `)
+      .get(tagName, tagName.toLowerCase()) as { tag_id: string } | null;
 
     if (!tagRow) {
       return [];
