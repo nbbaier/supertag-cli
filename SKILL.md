@@ -195,10 +195,22 @@ Create new nodes in Tana with supertags, fields, and references.
 
 **IMPORTANT:** Never end a node name with an inline reference - always add text after `</span>`.
 
+**@Name reference syntax (F-094):**
+Use `@Name` prefix in field values to reference existing nodes by display name instead of node ID:
+```json
+{"fields": {"State": "@Open", "Owner": "@John Doe"}}
+```
+- Automatically looks up the node by name in the database
+- Filters by field's target supertag for precise matching
+- Falls back to creating a new node if name not found
+- Works with comma-separated values: `"@Alice,@Bob"`
+
 **Example:**
 ```
 Create a todo called "Review PR #123" with status Active
 Create a meeting "Team Standup" with date field set to 2025-12-25
+Create a task "Bug fix" with state set to @Open (reference existing node)
+Create a meeting "Standup" with owner @John Doe
 ```
 
 ### tana_supertags

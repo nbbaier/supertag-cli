@@ -124,6 +124,11 @@ supertag stats                               # Statistics
 supertag create todo "Task name" --status active
 supertag create meeting "Team Standup" --date 2025-12-06
 supertag create video,towatch "Tutorial" --url https://example.com
+
+# Reference existing nodes by name with @ prefix
+supertag create task "My Task" --state "@Open"
+supertag create meeting "Standup" --owner "@John Doe"
+supertag create task "Project" --assignees "@Alice,@Bob"
 ```
 
 ### QUERY - Unified Query Language

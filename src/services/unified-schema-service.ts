@@ -475,6 +475,85 @@ export class UnifiedSchemaService {
   }
 
   /**
+   * Resolve a reference by name to a node ID (F-094).
+   *
+   * Used when field values are prefixed with "@" to indicate lookup by name
+   * instead of raw node ID. This matches Tana's native @mention behavior.
+   *
+   * @param name - The display name to search for (without @ prefix)
+   * @param targetSupertagId - Optional supertag ID to filter results (from field definition)
+   * @returns Node ID if found, null otherwise
+   *
+   * @example
+   * // Lookup by name only
+   * resolveReferenceByName("Superceded")
+   *
+   * @example
+   * // Lookup filtered by target supertag (e.g., "State" options)
+   * resolveReferenceByName("Superceded", "state-tag-id")
+   */
+  resolveReferenceByName(name: string, targetSupertagId?: string | null): string | null {
+    if (!this.checkNodesTable()) {
+      return null;
+    }
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      return null;
+    }
+
+    // If we have a target supertag, filter by it for more precise matching
+    if (targetSupertagId) {
+      // First try exact name match with supertag filter
+      const exactWithTag = this.db.query(`
+        SELECT n.id
+        FROM nodes n
+        INNER JOIN tag_applications ta ON ta.data_node_id = n.id
+        WHERE n.name = ? AND ta.tag_id = ?
+        LIMIT 1
+      `).get(trimmedName, targetSupertagId) as { id: string } | null;
+
+      if (exactWithTag) {
+        return exactWithTag.id;
+      }
+
+      // Try normalized name match with supertag filter
+      const normalizedName = normalizeName(trimmedName);
+      const normalizedWithTag = this.db.query(`
+        SELECT n.id
+        FROM nodes n
+        INNER JOIN tag_applications ta ON ta.data_node_id = n.id
+        WHERE LOWER(REPLACE(REPLACE(n.name, ' ', ''), '-', '')) = ? AND ta.tag_id = ?
+        LIMIT 1
+      `).get(normalizedName, targetSupertagId) as { id: string } | null;
+
+      if (normalizedWithTag) {
+        return normalizedWithTag.id;
+      }
+    }
+
+    // Fallback: search without supertag filter
+    // First try exact match
+    const exact = this.db.query(`
+      SELECT id FROM nodes WHERE name = ? LIMIT 1
+    `).get(trimmedName) as { id: string } | null;
+
+    if (exact) {
+      return exact.id;
+    }
+
+    // Try normalized match
+    const normalizedName = normalizeName(trimmedName);
+    const normalized = this.db.query(`
+      SELECT id FROM nodes
+      WHERE LOWER(REPLACE(REPLACE(name, ' ', ''), '-', '')) = ?
+      LIMIT 1
+    `).get(normalizedName) as { id: string } | null;
+
+    return normalized?.id ?? null;
+  }
+
+  /**
    * Build a UnifiedSupertag from a database row.
    * Includes loading fields for the supertag.
    */
@@ -657,8 +736,33 @@ export class UnifiedSchemaService {
             : [value];
         for (const v of refValues) {
           const strValue = String(v);
+
+          // F-094: @Name syntax for reference by name lookup
+          // Matches Tana's native @mention behavior
+          if (strValue.startsWith("@")) {
+            const lookupName = strValue.slice(1); // Remove @ prefix
+            const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId);
+            if (resolvedId) {
+              fieldChildren.push({
+                dataType: "reference",
+                id: resolvedId,
+              } as TanaApiNode);
+            } else {
+              // Name not found - create new node with the name (without @ prefix)
+              if (field.targetSupertagId) {
+                fieldChildren.push({
+                  name: lookupName,
+                  supertags: [{ id: field.targetSupertagId }],
+                });
+              } else {
+                fieldChildren.push({
+                  name: lookupName,
+                });
+              }
+            }
+          }
           // Check if it's a node ID (8+ alphanumeric chars with dashes/underscores)
-          if (/^[A-Za-z0-9_-]{8,}$/.test(strValue)) {
+          else if (/^[A-Za-z0-9_-]{8,}$/.test(strValue)) {
             fieldChildren.push({
               dataType: "reference",
               id: strValue,
@@ -703,10 +807,40 @@ export class UnifiedSchemaService {
         // Handle arrays (multiple values)
         if (Array.isArray(value)) {
           for (const v of value) {
-            fieldChildren.push({ name: String(v) });
+            const strValue = String(v);
+            // F-094: Support @Name syntax even for unknown field types
+            if (strValue.startsWith("@")) {
+              const lookupName = strValue.slice(1);
+              const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId);
+              if (resolvedId) {
+                fieldChildren.push({
+                  dataType: "reference",
+                  id: resolvedId,
+                } as TanaApiNode);
+              } else {
+                fieldChildren.push({ name: lookupName });
+              }
+            } else {
+              fieldChildren.push({ name: strValue });
+            }
           }
         } else {
-          fieldChildren.push({ name: String(value) });
+          const strValue = String(value);
+          // F-094: Support @Name syntax even for unknown field types
+          if (strValue.startsWith("@")) {
+            const lookupName = strValue.slice(1);
+            const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId);
+            if (resolvedId) {
+              fieldChildren.push({
+                dataType: "reference",
+                id: resolvedId,
+              } as TanaApiNode);
+            } else {
+              fieldChildren.push({ name: lookupName });
+            }
+          } else {
+            fieldChildren.push({ name: strValue });
+          }
         }
     }
 

@@ -5,7 +5,7 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.12.0] - 2026-01-21
 
 ### Added
 
@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `supertag search "query" --semantic --min-score 0.5` - Only results with >= 50% similarity
   - Accepts decimal (0-1) or percentage (0-100) values
   - Example: `--min-score 0.75` or `--min-score 75` both mean 75% threshold
+
+- **@Name Reference Resolution (F-094)** - Reference nodes by display name instead of ID
+  - Use `@Name` syntax in field values to lookup nodes by name: `--state "@Open"`
+  - Matches Tana's native @mention behavior
+  - Automatically filters by field's target supertag for precise matching
+  - Falls back to creating new node if name not found
+  - Works with comma-separated values: `--assignees "@John Doe,@Jane Doe"`
+  - Works even for fields without explicit dataType
+  - Example: `supertag create task "My Task" --state "@Open"`
+  - Example: `supertag create meeting "Standup" --owner "@John Doe"`
 
 ## [1.11.0] - 2026-01-19
 
