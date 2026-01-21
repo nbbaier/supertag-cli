@@ -105,9 +105,9 @@ describe("--select parameter support", () => {
       if (!cleanTag) return;
 
       const tagName = cleanTag.tagName;
-      const result = await $`bun run src/index.ts tags show ${tagName} --select id,name`.text();
+      const result = await $`bun run src/index.ts tags show ${tagName} --select id,name --json`.text();
 
-      // Non-TTY now defaults to JSON format per Spec 060
+      // Explicit --json flag for JSON output (table is default)
       const parsed = JSON.parse(result);
       expect(parsed).toHaveProperty("id");
       expect(parsed).toHaveProperty("name");
