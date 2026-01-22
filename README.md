@@ -347,6 +347,18 @@ supertag-export setup        # Install Playwright browser
 
 This installs the Chromium browser needed for automated Tana exports.
 
+#### Workspace Discovery
+
+Automatically discover Tana workspace IDs via network capture:
+
+```bash
+supertag-export discover              # Discover all workspaces
+supertag-export discover --add        # Auto-add discovered workspaces to config
+supertag-export discover --update     # Update existing workspaces with rootFileIds
+```
+
+Captures network traffic to find workspace IDs and rootFileIds, simplifying initial setup. First discovered workspace is auto-added as "main" if no workspaces are configured.
+
 #### Export Commands
 
 ```bash
