@@ -142,6 +142,23 @@ supertag create meeting "Standup" --owner "@John Doe"
 supertag create task "Project" --assignees "@Alice,@Bob"
 ```
 
+### FORMAT - JSON to Tana Paste
+
+Convert JSON data to Tana Paste format for bulk import:
+
+```bash
+# From stdin
+echo '{"name": "Test Node"}' | supertag format
+
+# From file
+cat data.json | supertag format
+
+# From API response
+curl https://api.example.com/data | supertag format
+```
+
+Useful for integrating external data sources and bulk imports into Tana.
+
 ### QUERY - Unified Query Language
 
 SQL-like queries for complex filtering in a single command.
