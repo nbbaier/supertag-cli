@@ -732,6 +732,16 @@ For manual installation or troubleshooting, see the platform-specific guides:
 
 ## Troubleshooting
 
+### Paths
+
+Display all configuration and data paths:
+
+```bash
+supertag paths
+```
+
+Shows locations for configuration files, databases, caches, and export directories. Useful for troubleshooting and understanding where supertag stores its data.
+
 ### Common Issues
 
 | Problem | Solution |
