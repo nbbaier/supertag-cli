@@ -495,7 +495,17 @@ supertag attachments get --id <nodeId> -o ./file.png # Custom output path
 ### SERVER - Webhook API
 
 ```bash
-supertag server start --port 3100 --daemon
+# Start the server
+supertag server start [--port <port>]    # Run in foreground
+supertag server start --daemon           # Run as background daemon
+
+# Stop the server (daemon mode)
+supertag server stop
+
+# Check server status
+supertag server status
+
+# Example API call
 curl http://localhost:3100/search -d '{"query": "meeting"}'
 ```
 
