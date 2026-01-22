@@ -551,9 +551,32 @@ See [MCP Documentation](./docs/mcp.md) for setup guides.
 
 ### WORKSPACES - Multi-Workspace
 
+Manage multiple Tana workspaces with separate databases and configurations.
+
 ```bash
+# List all workspaces
 supertag workspace list
-supertag workspace add <rootFileId> --alias work
+
+# Add a new workspace
+supertag workspace add <alias> --workspace-id <id> --token <token>
+
+# Remove a workspace
+supertag workspace remove <alias>
+
+# Set default workspace
+supertag workspace set-default <alias>
+
+# Show workspace details
+supertag workspace show <alias>
+
+# Enable/disable a workspace
+supertag workspace enable <alias>
+supertag workspace disable <alias>
+
+# Update workspace configuration
+supertag workspace update <alias> [options]
+
+# Use a specific workspace in commands
 supertag search "meeting" -w work
 ```
 
