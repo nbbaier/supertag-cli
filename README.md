@@ -40,6 +40,7 @@
   - [CODEGEN - Generate Effect Schema Classes](#codegen---generate-effect-schema-classes)
   - [MCP - AI Tool Integration](#mcp---ai-tool-integration)
   - [WORKSPACES - Multi-Workspace](#workspaces---multi-workspace)
+  - [SCHEMA - Supertag Registry](#schema---supertag-registry)
   - [OUTPUT - Display Formatting](#output---display-formatting)
 - [Examples](#examples)
 - [Installation](#installation)
@@ -610,6 +611,29 @@ supertag search "meeting" -w work
 ```
 
 See [Workspaces Documentation](./docs/workspaces.md) for details.
+
+### SCHEMA - Supertag Registry
+
+Manage the supertag schema registry. The registry stores your workspace's supertag definitions including fields and inheritance relationships.
+
+```bash
+# Sync schemas from Tana export (updates field definitions)
+supertag schema sync
+
+# List all registered supertags
+supertag schema list
+
+# Show details for a specific supertag (fields, options, inheritance)
+supertag schema show meeting
+
+# Search supertags by name
+supertag schema search "task"
+
+# Use specific workspace
+supertag schema list -w work
+```
+
+**Output formats:** `--format table` (default), `--format json`, `--format names` (list command only)
 
 ### OUTPUT - Display Formatting
 
