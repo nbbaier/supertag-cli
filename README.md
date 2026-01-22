@@ -68,6 +68,17 @@ This installs everything: Bun, Playwright, Chromium, supertag-cli, and configure
 
 > **Need manual installation?** See platform-specific guides: [Windows](./docs/INSTALL-WINDOWS.md) | [macOS](./docs/INSTALL-MACOS.md) | [Linux](./docs/INSTALL-LINUX.md)
 
+### Migration (Upgrading from Older Versions)
+
+If upgrading from an older version of supertag-cli, migrate your database to the new XDG-compliant location:
+
+```bash
+supertag migrate           # Migrate database to new location
+supertag migrate --dry-run # Preview migration without making changes
+```
+
+This moves your database from the legacy location to the standard XDG paths (`~/.local/share/supertag/`).
+
 ### 1. Configure API Token
 
 Get your token from: https://app.tana.inc/?bundle=settings&panel=api
