@@ -259,20 +259,20 @@ describe('resolveOutputFormat (Spec 060)', () => {
     });
   });
 
-  describe('TTY detection for smart defaults', () => {
-    it('should return table when stdout is TTY (interactive)', () => {
-      // When no options and stdout is a TTY, default to table
-      const format = resolveOutputFormat({}, { isTTY: true });
+  describe('default format', () => {
+    it('should return table as default (Unix-style output)', () => {
+      // Default is always table for consistent Unix CLI behavior
+      const format = resolveOutputFormat({});
       expect(format).toBe('table');
     });
 
-    it('should return json when stdout is not TTY (piped)', () => {
-      // When no options and stdout is piped, default to json
+    it('should return table even when context suggests pipe', () => {
+      // Context is no longer used for TTY detection
       const format = resolveOutputFormat({}, { isTTY: false });
-      expect(format).toBe('json');
+      expect(format).toBe('table');
     });
 
-    it('should prefer explicit format over TTY detection', () => {
+    it('should prefer explicit format over default', () => {
       const format = resolveOutputFormat({ format: 'csv' }, { isTTY: true });
       expect(format).toBe('csv');
     });
@@ -281,14 +281,14 @@ describe('resolveOutputFormat (Spec 060)', () => {
   describe('undefined/null handling', () => {
     it('should handle undefined options', () => {
       const format = resolveOutputFormat(undefined as unknown as {});
-      // Should return a valid format, not crash
-      expect(['json', 'table']).toContain(format);
+      // Should return table (default), not crash
+      expect(format).toBe('table');
     });
 
     it('should handle empty options object', () => {
       const format = resolveOutputFormat({});
-      // Should return a valid format based on TTY detection
-      expect(['json', 'table']).toContain(format);
+      // Should return table (default)
+      expect(format).toBe('table');
     });
   });
 });

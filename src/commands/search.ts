@@ -66,6 +66,7 @@ interface SearchOptions extends StandardOptions {
   format?: OutputFormat;
   header?: boolean;
   includeDescendants?: boolean;
+  minScore?: string;
 }
 
 /**
@@ -89,6 +90,56 @@ function buildSelectedOutput(
 }
 
 /**
+ * Parse min-score option value to a normalized decimal (0-1)
+ *
+ * Accepts:
+ * - Decimal values: 0.75 → 0.75
+ * - Percentage values: 75 → 0.75
+ * - Edge cases: 0 → 0, 100 → 1
+ *
+ * @param value - String value from CLI option
+ * @returns Normalized score (0-1) or undefined
+ */
+export function parseMinScore(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+
+  const num = parseFloat(value);
+  if (isNaN(num)) return undefined;
+
+  // Determine if this is a percentage (>1) or decimal
+  // Special case: "1.0" or "0.5" are clearly decimals
+  // Numbers > 1 without decimal point are treated as percentages
+  let score: number;
+  if (num > 1 && !value.includes(".")) {
+    // Treat as percentage
+    score = num / 100;
+  } else {
+    // Treat as decimal
+    score = num;
+  }
+
+  // Clamp to [0, 1]
+  return Math.max(0, Math.min(1, score));
+}
+
+/**
+ * Filter search results by minimum similarity score
+ *
+ * @param results - Array of search results with similarity scores
+ * @param minScore - Minimum similarity threshold (0-1)
+ * @returns Filtered results with similarity >= minScore
+ */
+export function filterByMinScore<T extends { similarity: number }>(
+  results: T[],
+  minScore: number | undefined
+): T[] {
+  if (minScore === undefined || minScore === null || minScore <= 0) {
+    return results;
+  }
+  return results.filter((r) => r.similarity >= minScore);
+}
+
+/**
  * Create the unified search command
  */
 export function createSearchCommand(): Command {
@@ -98,6 +149,7 @@ export function createSearchCommand(): Command {
     .description("Search across your Tana data (FTS, semantic, or by tag)")
     .argument("[query]", "Search query (required for FTS/semantic)")
     .option("--semantic", "Use semantic (vector) search instead of FTS")
+    .option("--min-score <threshold>", "Minimum similarity threshold for semantic search (0-1 or 0-100)")
     .option("-t, --tag <tagname>", "Find nodes with a specific supertag")
     .option("--include-descendants", "Include nodes with supertags inheriting from --tag")
     .option("-f, --field <filter>", "Filter by field value (e.g., 'Location=Zurich' or 'Location~Zur')")
@@ -373,6 +425,7 @@ async function handleSemanticSearch(
   const limit = options.limit ? parseInt(String(options.limit)) : 10;
   const depth = options.depth ? parseInt(String(options.depth)) : 0;
   const includeAncestor = options.ancestor !== false;
+  const minScore = parseMinScore(options.minScore);
 
   // Check if LanceDB exists
   const lanceDbPath = wsContext.dbPath.replace(/\.db$/, ".lance");
@@ -405,7 +458,9 @@ async function handleSemanticSearch(
 
     await withDatabase({ dbPath, readonly: true }, async (ctx) => {
       const { db } = ctx;
-      const results = filterAndDeduplicateResults(db, rawResults, limit);
+      const dedupedResults = filterAndDeduplicateResults(db, rawResults, limit);
+      // Apply min-score filter after deduplication
+      const results = filterByMinScore(dedupedResults, minScore);
       const searchTime = performance.now() - startTime;
 
       if (results.length === 0) {
@@ -610,8 +665,8 @@ async function queryNodesWithFieldFilter(
   const sqlParts = [
     `SELECT DISTINCT n.id, n.name, n.created
     FROM nodes n
-    JOIN tag_applications ta ON n.id = ta.node_id
-    JOIN field_values fv ON n.id = fv.node_id
+    JOIN tag_applications ta ON n.id = ta.data_node_id
+    JOIN field_values fv ON n.id = fv.parent_id
     WHERE ta.tag_name = ?
       AND fv.field_name = ?`,
   ];
@@ -619,11 +674,11 @@ async function queryNodesWithFieldFilter(
 
   // Add value filter based on operator
   if (operator === "=") {
-    sqlParts.push("AND fv.field_value = ?");
+    sqlParts.push("AND fv.value_text = ?");
     params.push(value);
   } else {
     // Partial match with LIKE
-    sqlParts.push("AND fv.field_value LIKE ?");
+    sqlParts.push("AND fv.value_text LIKE ?");
     params.push(`%${value}%`);
   }
 

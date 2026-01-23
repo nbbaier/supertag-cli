@@ -438,32 +438,36 @@ export const batchCreateSchema = z.object({
 });
 export type BatchCreateInput = z.infer<typeof batchCreateSchema>;
 
-// Zod v4 internal type definition
-interface ZodDef {
-  type: string;
-  innerType?: { _zod?: { def: ZodDef } };
-  defaultValue?: unknown;
-  entries?: Record<string, unknown>;
-  element?: { _zod?: { def: ZodDef } };
-  options?: Array<{ _zod?: { def: ZodDef } }>;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyZodType = z.ZodType<any, any, any>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ZodDef = any;
+
+/**
+ * Get the internal definition from a Zod schema (Zod 3.x)
+ */
 function getZodDef(schema: AnyZodType): ZodDef | undefined {
-  // Zod v4 uses _zod.def for internal structure
-  return (schema as unknown as { _zod?: { def: ZodDef } })._zod?.def;
+  // Zod v3 uses _def for internal structure
+  return (schema as unknown as { _def?: ZodDef })._def;
+}
+
+/**
+ * Get the type name from a Zod definition (Zod 3.x uses typeName)
+ */
+function getTypeName(def: ZodDef): string | undefined {
+  return def?.typeName;
 }
 
 /**
  * Convert Zod schema to JSON Schema for MCP tool registration
- * Compatible with Zod v4
+ * Compatible with Zod v3
  */
 export function zodToJsonSchema(schema: AnyZodType): Record<string, unknown> {
   const def = getZodDef(schema);
+  const typeName = getTypeName(def);
 
-  if (def?.type === 'object' || 'shape' in schema) {
+  if (typeName === 'ZodObject' || 'shape' in schema) {
     const shape = (schema as z.ZodObject<z.ZodRawShape>).shape;
     const properties: Record<string, unknown> = {};
     const required: string[] = [];
@@ -498,58 +502,63 @@ function zodTypeToJsonSchema(zodType: AnyZodType): Record<string, unknown> {
 
   // Get the internal definition
   let def = getZodDef(zodType);
+  let typeName = getTypeName(def);
 
-  // Unwrap optional/default/nullable/pipe using Zod v4 structure
-  while (def && ['optional', 'default', 'nullable', 'pipe'].includes(def.type)) {
-    if (def.type === 'default' && def.defaultValue !== undefined) {
-      base.default = def.defaultValue;
+  // Unwrap optional/default/nullable/effects using Zod v3 structure
+  while (def && ['ZodOptional', 'ZodDefault', 'ZodNullable', 'ZodEffects'].includes(typeName || '')) {
+    if (typeName === 'ZodDefault' && def.defaultValue !== undefined) {
+      base.default = typeof def.defaultValue === 'function' ? def.defaultValue() : def.defaultValue;
     }
 
-    // For pipe (transform), check 'in' schema
-    if (def.type === 'pipe') {
-      const pipeDef = def as unknown as { in?: { _zod?: { def: ZodDef } } };
-      if (pipeDef.in?._zod?.def) {
-        def = pipeDef.in._zod.def;
-        continue;
-      }
+    // For ZodEffects (transform), check the inner schema
+    if (typeName === 'ZodEffects' && def.schema) {
+      def = getZodDef(def.schema);
+      typeName = getTypeName(def);
+      continue;
     }
 
-    if (def.innerType?._zod?.def) {
-      def = def.innerType._zod.def;
+    if (def.innerType) {
+      def = getZodDef(def.innerType);
+      typeName = getTypeName(def);
     } else {
       break;
     }
   }
 
-  if (!def) {
+  if (!def || !typeName) {
     return { ...base, type: 'string' };
   }
 
-  switch (def.type) {
-    case 'string':
+  switch (typeName) {
+    case 'ZodString':
       return { ...base, type: 'string' };
-    case 'number':
+    case 'ZodNumber':
       return { ...base, type: 'number' };
-    case 'boolean':
+    case 'ZodBoolean':
       return { ...base, type: 'boolean' };
-    case 'enum':
-      return { ...base, type: 'string', enum: def.entries ? Object.values(def.entries) : [] };
-    case 'array':
-      if (def.element?._zod?.def) {
-        const elementType = { _zod: { def: def.element._zod.def } } as AnyZodType;
-        return { ...base, type: 'array', items: zodTypeToJsonSchema(elementType) };
+    case 'ZodEnum':
+      return { ...base, type: 'string', enum: def.values || [] };
+    case 'ZodArray':
+      if (def.type) {
+        return { ...base, type: 'array', items: zodTypeToJsonSchema(def.type) };
       }
       return { ...base, type: 'array' };
-    case 'record':
+    case 'ZodRecord':
       return { ...base, type: 'object', additionalProperties: true };
-    case 'union':
+    case 'ZodUnion':
       if (def.options) {
         const options = def.options
-          .filter(opt => opt._zod?.def)
-          .map(opt => zodTypeToJsonSchema({ _zod: { def: opt._zod!.def } } as AnyZodType));
+          .filter((opt: AnyZodType) => getZodDef(opt))
+          .map((opt: AnyZodType) => zodTypeToJsonSchema(opt));
         return { ...base, oneOf: options };
       }
       return { ...base, type: 'string' };
+    case 'ZodLazy':
+      // For lazy types (recursive schemas), return a generic object
+      // Resolving them would cause infinite recursion
+      return { ...base, type: 'object' };
+    case 'ZodObject':
+      return zodToJsonSchema(zodType);
     default:
       return { ...base, type: 'string' };
   }
@@ -557,19 +566,18 @@ function zodTypeToJsonSchema(zodType: AnyZodType): Record<string, unknown> {
 
 function isOptional(zodType: AnyZodType): boolean {
   const def = getZodDef(zodType);
-  if (!def) return false;
+  const typeName = getTypeName(def);
+
+  if (!def || !typeName) return false;
 
   // Check for optional, default, nullable types
-  if (['optional', 'default', 'nullable'].includes(def.type)) {
+  if (['ZodOptional', 'ZodDefault', 'ZodNullable'].includes(typeName)) {
     return true;
   }
 
-  // Handle pipe (transform) - check the 'in' schema
-  if (def.type === 'pipe') {
-    const pipeDef = def as unknown as { in?: { _zod?: { def: ZodDef } } };
-    if (pipeDef.in?._zod?.def) {
-      return isOptional({ _zod: { def: pipeDef.in._zod.def } } as AnyZodType);
-    }
+  // Handle ZodEffects (transform) - check the inner schema
+  if (typeName === 'ZodEffects' && def.schema) {
+    return isOptional(def.schema);
   }
 
   return false;

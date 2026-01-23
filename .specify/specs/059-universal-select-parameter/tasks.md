@@ -18,91 +18,91 @@ completed: 0
 
 ### Group 1: Foundation (Core Projection Utility)
 
-- [ ] **T-1.1** Create select projection types [T]
+- [x] **T-1.1** Create select projection types [T]
   - File: `src/utils/select-projection.ts`
   - Test: `tests/utils/select-projection.test.ts`
   - Description: Define `SelectPath` and `SelectProjection` interfaces
 
-- [ ] **T-1.2** Implement parseSelectPaths function [T] (depends: T-1.1)
+- [x] **T-1.2** Implement parseSelectPaths function [T] (depends: T-1.1)
   - File: `src/utils/select-projection.ts`
   - Test: `tests/utils/select-projection.test.ts`
   - Description: Parse comma-separated or array input into SelectProjection
 
-- [ ] **T-1.3** Implement applyProjection function [T] (depends: T-1.1)
+- [x] **T-1.3** Implement applyProjection function [T] (depends: T-1.1)
   - File: `src/utils/select-projection.ts`
   - Test: `tests/utils/select-projection.test.ts`
   - Description: Apply projection to single object, handle nested paths with dot notation
 
-- [ ] **T-1.4** Implement applyProjectionToArray function [T] (depends: T-1.3)
+- [x] **T-1.4** Implement applyProjectionToArray function [T] (depends: T-1.3)
   - File: `src/utils/select-projection.ts`
   - Test: `tests/utils/select-projection.test.ts`
   - Description: Apply projection to array of objects, handle edge cases
 
 ### Group 2: MCP Schema Updates
 
-- [ ] **T-2.1** Add selectSchema to MCP schemas [T] (depends: T-1.4)
+- [x] **T-2.1** Add selectSchema to MCP schemas [T] (depends: T-1.4)
   - File: `src/mcp/schemas.ts`
   - Test: `tests/mcp/select-parameter.test.ts`
   - Description: Create reusable Zod schema for select parameter
 
-- [ ] **T-2.2** Update tana_search with select [T] [P] (depends: T-2.1)
+- [x] **T-2.2** Update tana_search with select [T] [P] (depends: T-2.1)
   - Files: `src/mcp/schemas.ts`, `src/mcp/tools/search.ts`
   - Test: `tests/mcp/select-parameter.test.ts`
   - Description: Add select to searchSchema, apply projection in tool
 
-- [ ] **T-2.3** Update tana_tagged with select [T] [P] (depends: T-2.1)
+- [x] **T-2.3** Update tana_tagged with select [T] [P] (depends: T-2.1)
   - Files: `src/mcp/schemas.ts`, `src/mcp/tools/tagged.ts`
   - Test: `tests/mcp/select-parameter.test.ts`
   - Description: Add select to taggedSchema, apply projection in tool
 
-- [ ] **T-2.4** Update tana_semantic_search with select [T] [P] (depends: T-2.1)
+- [x] **T-2.4** Update tana_semantic_search with select [T] [P] (depends: T-2.1)
   - Files: `src/mcp/schemas.ts`, `src/mcp/tools/semantic-search.ts`
   - Test: `tests/mcp/select-parameter.test.ts`
   - Description: Add select to semanticSearchSchema, apply projection in tool
 
-- [ ] **T-2.5** Update tana_node with select [T] [P] (depends: T-2.1)
+- [x] **T-2.5** Update tana_node with select [T] [P] (depends: T-2.1)
   - Files: `src/mcp/schemas.ts`, `src/mcp/tools/node.ts`
   - Test: `tests/mcp/select-parameter.test.ts`
   - Description: Add select to nodeSchema, apply projection in tool
 
-- [ ] **T-2.6** Update tana_field_values with select [T] [P] (depends: T-2.1)
+- [x] **T-2.6** Update tana_field_values with select [T] [P] (depends: T-2.1)
   - Files: `src/mcp/schemas.ts`, `src/mcp/tools/field-values.ts`
   - Test: `tests/mcp/select-parameter.test.ts`
   - Description: Add select to fieldValuesSchema, apply projection in tool
 
 ### Group 3: CLI Integration
 
-- [ ] **T-3.1** Add parseSelectOption helper [T] (depends: T-1.4)
+- [x] **T-3.1** Add parseSelectOption helper [T] (depends: T-1.4)
   - File: `src/commands/helpers.ts`
   - Test: `tests/commands/helpers.test.ts`
   - Description: Parse CLI --select string into array format
 
-- [ ] **T-3.2** Update search command with --select [T] (depends: T-3.1)
+- [x] **T-3.2** Update search command with --select [T] (depends: T-3.1)
   - File: `src/commands/search.ts`
   - Test: `tests/e2e/select-cli.test.ts`
   - Description: Add --select option, apply projection to all output modes
 
-- [ ] **T-3.3** Update nodes show command with --select [T] (depends: T-3.1)
+- [x] **T-3.3** Update nodes show command with --select [T] (depends: T-3.1)
   - File: `src/commands/nodes.ts`
   - Test: `tests/e2e/select-cli.test.ts`
   - Description: Add --select option to nodes show subcommand
 
-- [ ] **T-3.4** Update fields command with --select [T] (depends: T-3.1)
+- [x] **T-3.4** Update fields command with --select [T] (depends: T-3.1)
   - File: `src/commands/fields.ts`
   - Test: `tests/e2e/select-cli.test.ts`
   - Description: Add --select option to fields values subcommand
 
 ### Group 4: Documentation & Finalization
 
-- [ ] **T-4.1** Update README.md (depends: T-3.4)
+- [x] **T-4.1** Update README.md (depends: T-3.4)
   - File: `README.md`
   - Description: Add --select examples to CLI documentation
 
-- [ ] **T-4.2** Update SKILL.md (depends: T-2.6)
+- [x] **T-4.2** Update SKILL.md (depends: T-2.6)
   - File: `SKILL.md`
   - Description: Document select parameter for all MCP tools
 
-- [ ] **T-4.3** Final integration test [T] (depends: T-3.4, T-2.6)
+- [x] **T-4.3** Final integration test [T] (depends: T-3.4, T-2.6)
   - Test: `tests/integration/select-integration.test.ts`
   - Description: End-to-end test of select across CLI and MCP
 

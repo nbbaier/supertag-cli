@@ -2,7 +2,37 @@
 
 This guide covers installing Supertag CLI on macOS (Apple Silicon and Intel).
 
-## Prerequisites
+---
+
+## Quick Install (Recommended)
+
+Run this single command in Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.sh | bash
+```
+
+This automatically:
+- Installs Bun runtime (if needed)
+- Installs Playwright and Chromium browser
+- Downloads the correct supertag-cli for your Mac (ARM64 or Intel)
+- Configures PATH
+- Sets up MCP for Claude Desktop/Cursor (if installed)
+
+**After installation**, verify with:
+```bash
+supertag --version
+```
+
+If this works, skip to [Step 5: Configure API Token](#step-5-configure-api-token).
+
+---
+
+## Manual Installation
+
+If the quick install doesn't work, follow these manual steps.
+
+### Prerequisites
 
 - macOS 11 (Big Sur) or later
 - Terminal access
@@ -10,7 +40,7 @@ This guide covers installing Supertag CLI on macOS (Apple Silicon and Intel).
 
 ---
 
-## Step 1: Download and Extract
+### Step 1: Download and Extract
 
 1. Go to [GitHub Releases](https://github.com/jcfischer/supertag-cli/releases)
 2. Download the appropriate version:
@@ -33,7 +63,7 @@ sudo mv supertag-cli-macos-* /usr/local/supertag-cli
 
 ---
 
-## Step 2: Remove Quarantine
+### Step 2: Remove Quarantine
 
 macOS marks downloaded files as "quarantined" for security. Remove this flag:
 
@@ -54,7 +84,7 @@ If macOS shows "cannot be opened because the developer cannot be verified":
 
 ---
 
-## Step 3: Add to PATH
+### Step 3: Add to PATH
 
 ### Option A: Symlinks (Recommended)
 
@@ -90,7 +120,7 @@ supertag --version
 
 ---
 
-## Step 4: Configure API Token
+### Step 4: Configure API Token
 
 Get your Tana API token from: https://app.tana.inc/?bundle=settings&panel=api
 
@@ -118,7 +148,7 @@ source ~/.bash_profile
 
 ---
 
-## Step 5: Install Playwright (Required for Export)
+### Step 5: Install Playwright (Required for Export)
 
 The `supertag-export` tool requires Playwright for browser automation. Due to Playwright's native dependencies, it must be installed globally.
 
@@ -181,7 +211,7 @@ A browser window should open for Tana login.
 
 ---
 
-## Step 6: Create Export Directory
+### Step 6: Create Export Directory
 
 ```bash
 mkdir -p ~/Documents/Tana-Export/main
@@ -189,7 +219,7 @@ mkdir -p ~/Documents/Tana-Export/main
 
 ---
 
-## Step 7: First Run
+### Step 7: First Run
 
 ```bash
 # 1. Login to Tana (opens browser)

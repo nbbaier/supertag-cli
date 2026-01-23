@@ -237,6 +237,22 @@ class Parser {
       };
     }
 
+    // Check for "is empty" or "is null" syntax
+    if (this.match(TokenType.KEYWORD, "is")) {
+      this.advance();
+      // Expect "empty" or "null" after "is"
+      if (this.match(TokenType.KEYWORD, "empty") || this.match(TokenType.KEYWORD, "null")) {
+        this.advance();
+        return {
+          field,
+          operator: "is_empty",
+          value: true,
+          negated: negated || undefined,
+        };
+      }
+      throw new ParseError("Expected 'empty' or 'null' after 'is'");
+    }
+
     // Parse operator
     const opToken = this.current();
     if (!opToken || opToken.type !== TokenType.OPERATOR) {
@@ -320,28 +336,55 @@ class Parser {
 
   /**
    * Parse select clause: "select" field_list
+   *
+   * Supports:
+   * - Single quoted list: select "name,email,phone"
+   * - Unquoted comma-separated: select name,email,phone
+   * - Mixed quoted and unquoted: select name,Status,'Due Date'
    */
   private parseSelectClause(): string[] {
     this.expect(TokenType.KEYWORD, "select");
 
     const fields: string[] = [];
 
+    // Parse first field (required)
     const token = this.current();
     if (!token) {
       throw new ParseError("Expected field name after 'select'");
     }
 
+    // Handle first token
     if (token.type === TokenType.STRING) {
-      // Quoted comma-separated list
       const value = String(token.value);
       this.advance();
-      fields.push(...value.split(",").map((f) => f.trim()).filter(Boolean));
+      // Check if this is the only token and contains commas (legacy syntax)
+      if (!this.match(TokenType.COMMA)) {
+        // Single quoted string with comma-separated list inside
+        fields.push(...value.split(",").map((f) => f.trim()).filter(Boolean));
+        return fields;
+      }
+      // Otherwise it's a single quoted field name
+      fields.push(value);
     } else if (token.type === TokenType.IDENTIFIER) {
-      // Single field
       fields.push(String(token.value));
       this.advance();
     } else {
       throw new ParseError(`Unexpected token type ${token.type} for select`);
+    }
+
+    // Parse additional comma-separated fields (can be quoted or unquoted)
+    while (this.match(TokenType.COMMA)) {
+      this.advance(); // consume comma
+      const nextToken = this.current();
+      if (nextToken?.type === TokenType.IDENTIFIER) {
+        fields.push(String(nextToken.value));
+        this.advance();
+      } else if (nextToken?.type === TokenType.STRING) {
+        fields.push(String(nextToken.value));
+        this.advance();
+      } else {
+        break;
+      }
     }
 
     return fields;

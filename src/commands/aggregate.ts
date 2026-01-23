@@ -9,11 +9,12 @@
  *   supertag aggregate --tag task --group-by Status,Priority
  *   supertag aggregate --tag meeting --group-by month
  *   supertag aggregate --tag task --group-by Status --show-percent --top 5
+ *   supertag aggregate --tag task --group-by Priority --where "Status=Active"
+ *   supertag aggregate --tag task --group-by month --where "Status!=Cancelled" --where "Priority=High"
  */
 
 import { Command } from "commander";
 import { AggregationService } from "../services/aggregation-service";
-import { resolveWorkspaceContext } from "../config/workspace-resolver";
 import {
   resolveDbPath,
   checkDb,
@@ -34,15 +35,99 @@ import type {
   AggregateResult,
   GroupBySpec,
   NestedGroups,
+  WhereClause,
+  QueryOperator,
 } from "../query/types";
 
 interface AggregateOptions extends StandardOptions {
   tag: string;
-  groupBy: string;
+  groupBy?: string;
   showPercent?: boolean;
   top?: number;
   format?: OutputFormat;
   header?: boolean;
+  where?: string[];
+}
+
+/**
+ * Parse a single CLI WHERE expression like "Status=Active" or "Status!=Cancelled"
+ *
+ * Supported formats:
+ * - Field=Value (equals)
+ * - Field!=Value (not equals)
+ * - Field~Value (contains)
+ *
+ * @param expr - CLI expression string
+ * @returns Parsed WhereClause
+ */
+function parseWhereExpression(expr: string): WhereClause {
+  // Try different operators in order of specificity
+  const operators: { pattern: RegExp; operator: QueryOperator }[] = [
+    { pattern: /^(.+?)!=(.+)$/, operator: "!=" },
+    { pattern: /^(.+?)~(.+)$/, operator: "contains" },
+    { pattern: /^(.+?)>=(.+)$/, operator: ">=" },
+    { pattern: /^(.+?)<=(.+)$/, operator: "<=" },
+    { pattern: /^(.+?)>(.+)$/, operator: ">" },
+    { pattern: /^(.+?)<(.+)$/, operator: "<" },
+    { pattern: /^(.+?)=(.+)$/, operator: "=" },
+  ];
+
+  for (const { pattern, operator } of operators) {
+    const match = expr.match(pattern);
+    if (match) {
+      return {
+        field: match[1].trim(),
+        operator,
+        value: match[2].trim(),
+      };
+    }
+  }
+
+  // Special case: is_empty (field with no value)
+  if (expr.includes("is_empty")) {
+    const field = expr.replace("is_empty", "").trim();
+    return {
+      field,
+      operator: "is_empty",
+      value: "",
+    };
+  }
+
+  throw new Error(`Invalid WHERE expression: ${expr}. Use format: Field=Value or Field!=Value`);
+}
+
+/**
+ * Get display width of string (accounts for emojis taking 2 columns)
+ */
+function getDisplayWidth(str: string): number {
+  // Simple heuristic: count emoji characters as 2 width
+  // This handles most common cases
+  let width = 0;
+  for (const char of str) {
+    const code = char.codePointAt(0) ?? 0;
+    // Emoji ranges (simplified - covers most common emojis)
+    if (
+      (code >= 0x1F300 && code <= 0x1F9FF) || // Misc Symbols, Emoticons, etc.
+      (code >= 0x2600 && code <= 0x26FF) ||   // Misc Symbols
+      (code >= 0x2700 && code <= 0x27BF) ||   // Dingbats
+      (code >= 0xFE00 && code <= 0xFE0F) ||   // Variation Selectors
+      (code >= 0x1F000 && code <= 0x1FFFF)    // Extended emoji
+    ) {
+      width += 2;
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+/**
+ * Pad string to target width (accounts for display width)
+ */
+function padToWidth(str: string, targetWidth: number): string {
+  const displayWidth = getDisplayWidth(str);
+  const padding = Math.max(0, targetWidth - displayWidth);
+  return str + " ".repeat(padding);
 }
 
 /**
@@ -55,26 +140,38 @@ function formatFlatResult(
 ): void {
   const groupLabel = groupBySpec[0].field ?? groupBySpec[0].period ?? "group";
 
+  // Calculate column widths
+  const entries = Object.entries(result.groups);
+  const groupColWidth = Math.max(
+    getDisplayWidth(groupLabel),
+    ...entries.map(([key]) => getDisplayWidth(key))
+  ) + 2; // Add padding
+
+  const countColWidth = Math.max(
+    getDisplayWidth("Count"),
+    ...entries.map(([, count]) => getDisplayWidth(formatNumber(count as number, true)))
+  ) + 2;
+
   // Header
-  const headerCols = [groupLabel, "Count"];
-  if (showPercent && result.percentages) {
-    headerCols.push("Percent");
-  }
   console.log(`\n${header(EMOJI.aggregate, `Aggregation Results`)}\n`);
-  console.log(`   ${headerCols.join("\t")}`);
-  console.log(`   ${"─".repeat(40)}`);
+  let headerLine = `   ${padToWidth(groupLabel, groupColWidth)}${padToWidth("Count", countColWidth)}`;
+  if (showPercent && result.percentages) {
+    headerLine += "Percent";
+  }
+  console.log(headerLine);
+  console.log(`   ${"─".repeat(groupColWidth + countColWidth + (showPercent ? 10 : 0))}`);
 
   // Rows
-  for (const [key, count] of Object.entries(result.groups)) {
-    const cols = [key, formatNumber(count as number, true)];
+  for (const [key, count] of entries) {
+    let row = `   ${padToWidth(key, groupColWidth)}${padToWidth(formatNumber(count as number, true), countColWidth)}`;
     if (showPercent && result.percentages) {
-      cols.push(`${result.percentages[key]}%`);
+      row += `${result.percentages[key]}%`;
     }
-    console.log(`   ${cols.join("\t")}`);
+    console.log(row);
   }
 
   // Footer
-  console.log(`   ${"─".repeat(40)}`);
+  console.log(`   ${"─".repeat(groupColWidth + countColWidth + (showPercent ? 10 : 0))}`);
   console.log(`   Total: ${formatNumber(result.total, true)} nodes in ${result.groupCount} groups`);
 
   if (result.warning) {
@@ -126,7 +223,8 @@ export function createAggregateCommand(): Command {
   aggregate
     .description("Group and count nodes by field values or time periods")
     .requiredOption("--tag <tagname>", "Supertag to aggregate (e.g., task, meeting)")
-    .requiredOption("--group-by <fields>", "Field(s) to group by (comma-separated)")
+    .option("--group-by <fields>", "Field(s) to group by (comma-separated, omit for total count)")
+    .option("--where <condition>", "Filter condition (Field=Value, Field!=Value, Field~Value). Can be used multiple times.", (val: string, arr: string[]) => [...arr, val], [] as string[])
     .option("--show-percent", "Show percentage of total alongside counts")
     .option("--top <n>", "Return only top N groups by count", parseInt);
 
@@ -138,18 +236,45 @@ export function createAggregateCommand(): Command {
       process.exit(1);
     }
 
-    const wsContext = resolveWorkspaceContext({
-      workspace: options.workspace,
-      requireDatabase: false, // Already checked via resolveDbPath
-    });
-
     const outputOpts = resolveOutputOptions(options);
-    const format = resolveOutputFormat({ format: options.format, json: options.json, pretty: outputOpts.pretty });
+    // --format pretty should enable pretty output mode
+    const isPretty = outputOpts.pretty || (options.format as string) === "pretty";
+    // Pass options.pretty (undefined when not specified) not outputOpts.pretty (defaults to false)
+    // to let TTY detection work correctly
+    const format = resolveOutputFormat({ format: options.format, json: options.json, pretty: options.pretty });
 
     // Create service
     const service = new AggregationService(dbPath);
 
     try {
+      // Handle total-count-only mode (no --group-by)
+      if (!options.groupBy) {
+        const result = service.countOnly(options.tag);
+
+        if (format === "json" || format === "minimal") {
+          console.log(formatJsonOutput(result));
+        } else if (format === "csv") {
+          if (options.header !== false) {
+            console.log("tag,total");
+          }
+          console.log(`"${options.tag}",${result.total}`);
+        } else if (format === "jsonl") {
+          console.log(JSON.stringify({ tag: options.tag, total: result.total }));
+        } else if (format === "ids") {
+          console.log(options.tag);
+        } else {
+          // Table format (default)
+          if (isPretty) {
+            console.log(`\n${header(EMOJI.aggregate, `Total Count`)}\n`);
+            console.log(`   ${options.tag}: ${formatNumber(result.total, true)}`);
+            console.log("");
+          } else {
+            console.log(tsv(options.tag, result.total));
+          }
+        }
+        return;
+      }
+
       // Parse group-by specification
       const groupBySpec = service.parseGroupBy(options.groupBy);
 
@@ -163,6 +288,12 @@ export function createAggregateCommand(): Command {
         process.exit(1);
       }
 
+      // Parse WHERE conditions if provided
+      let whereConditions: WhereClause[] | undefined;
+      if (options.where && options.where.length > 0) {
+        whereConditions = options.where.map(parseWhereExpression);
+      }
+
       // Build AST
       const ast: AggregateAST = {
         find: options.tag,
@@ -171,6 +302,7 @@ export function createAggregateCommand(): Command {
         showPercent: options.showPercent,
         top: options.top,
         limit: options.limit,
+        where: whereConditions,
       };
 
       // Execute aggregation
@@ -242,7 +374,7 @@ export function createAggregateCommand(): Command {
       } else {
         // Table format (default)
         const isNested = groupBySpec.length > 1;
-        if (outputOpts.pretty) {
+        if (isPretty) {
           if (isNested) {
             formatNestedResult(result, groupBySpec, !!options.showPercent);
           } else {

@@ -292,20 +292,20 @@ Tests:
 **Action:** Test in Chrome, Firefox, Safari, Edge
 
 Checklist:
-- [ ] Graph renders
-- [ ] Controls work (rotate, zoom, pan)
-- [ ] Selection works
-- [ ] Highlighting works
-- [ ] Performance acceptable (500 nodes)
-- [ ] Works offline
+- [x] Graph renders
+- [x] Controls work (rotate, zoom, pan)
+- [x] Selection works
+- [x] Highlighting works
+- [x] Performance acceptable (500 nodes)
+- [x] Works offline
 
 ### T-15.2: Performance Testing
 **Action:** Generate graphs with 100, 300, 500 nodes
 
 Checklist:
-- [ ] Initial render < 3s
-- [ ] 60fps interaction
-- [ ] No memory leaks
+- [x] Initial render < 3s
+- [x] 60fps interaction
+- [x] No memory leaks
 
 ---
 

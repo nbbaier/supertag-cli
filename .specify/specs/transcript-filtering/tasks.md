@@ -18,68 +18,68 @@ completed: 0
 
 ### Group 1: Foundation (Content Filter Changes)
 
-- [ ] **T-1.1** Exclude transcripts from SYSTEM_DOC_TYPES [T]
+- [x] **T-1.1** Exclude transcripts from SYSTEM_DOC_TYPES [T]
   - File: `src/embeddings/content-filter.ts`
   - Test: `tests/embeddings/content-filter-transcripts.test.ts`
   - Description: Move `transcript` and `transcriptLine` from CONTENT_DOC_TYPES to SYSTEM_DOC_TYPES so they're excluded by default
 
-- [ ] **T-1.2** Add includeTranscripts option to ContentFilterOptions [T]
+- [x] **T-1.2** Add includeTranscripts option to ContentFilterOptions [T]
   - File: `src/embeddings/content-filter.ts`
   - Test: `tests/embeddings/content-filter-transcripts.test.ts`
   - Description: Add `includeTranscripts?: boolean` option and update `buildContentFilterQuery()` to conditionally include transcript types when flag is true
 
 ### Group 2: Core Data Access Layer
 
-- [ ] **T-2.1** Create transcript types [T] [P]
+- [x] **T-2.1** Create transcript types [T] [P]
   - File: `src/db/transcript.ts`
   - Test: `tests/db/transcript.test.ts`
   - Description: Define TranscriptSummary, TranscriptLine, TranscriptSearchResult interfaces and isTranscriptNode() helper
 
-- [ ] **T-2.2** Implement getTranscriptForMeeting() [T] [P] (depends: T-2.1)
+- [x] **T-2.2** Implement getTranscriptForMeeting() [T] [P] (depends: T-2.1)
   - File: `src/db/transcript.ts`
   - Test: `tests/db/transcript.test.ts`
   - Description: Resolve SYS_A199 metanode link from meeting to transcript
 
-- [ ] **T-2.3** Implement getTranscriptLines() [T] [P] (depends: T-2.1)
+- [x] **T-2.3** Implement getTranscriptLines() [T] [P] (depends: T-2.1)
   - File: `src/db/transcript.ts`
   - Test: `tests/db/transcript.test.ts`
   - Description: Get transcript lines with SYS_A252-254 metadata (speaker, timing), preserving order
 
-- [ ] **T-2.4** Implement getMeetingsWithTranscripts() [T] (depends: T-2.2)
+- [x] **T-2.4** Implement getMeetingsWithTranscripts() [T] (depends: T-2.2)
   - File: `src/db/transcript.ts`
   - Test: `tests/db/transcript.test.ts`
   - Description: List all meetings that have SYS_A199 transcript links, with line counts
 
-- [ ] **T-2.5** Implement searchTranscripts() [T] (depends: T-2.1)
+- [x] **T-2.5** Implement searchTranscripts() [T] (depends: T-2.1)
   - File: `src/db/transcript.ts`
   - Test: `tests/db/transcript.test.ts`
   - Description: FTS search within transcriptLine nodes only, return with meeting context
 
 ### Group 3: CLI Commands
 
-- [ ] **T-3.1** Create transcript list command [T] (depends: T-2.4)
+- [x] **T-3.1** Create transcript list command [T] (depends: T-2.4)
   - File: `src/commands/transcript.ts`
   - Test: `tests/commands/transcript.test.ts`
   - Description: `supertag transcript list` with --limit, --json options
 
-- [ ] **T-3.2** Create transcript show command [T] (depends: T-2.2, T-2.3)
+- [x] **T-3.2** Create transcript show command [T] (depends: T-2.2, T-2.3)
   - File: `src/commands/transcript.ts`
   - Test: `tests/commands/transcript.test.ts`
   - Description: `supertag transcript show <meeting-id>` with formatted output and --json
 
-- [ ] **T-3.3** Create transcript search command [T] (depends: T-2.5)
+- [x] **T-3.3** Create transcript search command [T] (depends: T-2.5)
   - File: `src/commands/transcript.ts`
   - Test: `tests/commands/transcript.test.ts`
   - Description: `supertag transcript search <query>` with --limit, --json options
 
 ### Group 4: Integration
 
-- [ ] **T-4.1** Wire transcript command into main CLI [T] (depends: T-3.1, T-3.2, T-3.3)
+- [x] **T-4.1** Wire transcript command into main CLI [T] (depends: T-3.1, T-3.2, T-3.3)
   - File: `src/index.ts`
   - Test: `tests/commands/transcript.test.ts`
   - Description: Register transcript command group in main CLI
 
-- [ ] **T-4.2** Add --include-transcripts to search and embed commands [T] (depends: T-1.2)
+- [x] **T-4.2** Add --include-transcripts to search and embed commands [T] (depends: T-1.2)
   - Files: `src/commands/search.ts`, `src/commands/embed.ts`
   - Test: `tests/commands/search-transcripts.test.ts`
   - Description: Add flag to both search (FTS + semantic) and embed generate commands

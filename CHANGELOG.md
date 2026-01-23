@@ -5,6 +5,242 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.6] - 2026-01-21
+
+### Fixed
+
+- **Query Parser Select Clause** - Complete fix for field selection syntax
+  - Unquoted comma-separated: `select name,email,phone`
+  - Mixed quoted and unquoted: `select name,Status,'Due Date'`
+  - Field names with spaces: `select name,"Due Date",Status`
+  - Added COMMA token type to tokenizer for proper field list parsing
+
+- **Query Output Duplicate Columns** - Fixed duplicate columns when selecting core fields
+  - Previously: `select name,Status` produced header `id,name,created,updated,name,Status`
+  - Now: Core fields (id, name, created, updated) are deduplicated when also in select clause
+
+- **Query Field Resolution with Duplicate Supertags** - Fixed `select *` returning no fields when multiple supertags share the same name
+  - Previously: Field resolver picked first supertag by DB order, often the wrong one
+  - Now: Picks supertag with most inheritance/fields (matching `tags fields` behavior)
+  - Example: `find project select *` now correctly resolves to the project with fields
+
+## [1.12.5] - 2026-01-21
+
+_Incomplete release - use 1.12.6 instead_
+
+## [1.12.4] - 2026-01-21
+
+_Incomplete release - use 1.12.6 instead_
+
+## [1.12.3] - 2026-01-21
+
+_Incomplete release - use 1.12.4 instead_
+
+## [1.12.2] - 2026-01-21
+
+### Fixed
+
+- **Export Status Display Bug (Issue #32)** - Fixed `supertag-export status` always showing "Token expired"
+  - Bug: `showStatus()` passed `AuthResult` object to `isTokenValid()` instead of `AuthResult.auth`
+  - Now correctly shows token validity and expiration time
+  - Also displays auth method (cached/refreshed/browser) for debugging
+
+- **Export Token Refresh (Issue #33)** - Fixed automated exports failing after 60 minutes
+  - Root cause: `supertag-export login` did not extract Firebase API key needed for token refresh
+  - Added `extractFirebaseApiKey()` to extract API key from browser's IndexedDB during login
+  - Login now polls for successful authentication and auto-extracts the API key
+  - API key is saved to config.json enabling unattended token refresh
+  - Fixes "Method doesn't allow unregistered callers" 403 errors in scheduled exports
+
+## [1.12.1] - 2026-01-21
+
+### Fixed
+
+- **Core Node Fields in Aggregate --where** - WHERE clause now supports filtering by core node fields like `name`
+  - Previously: `--where "name~keyword"` returned 0 results
+  - Now: Core fields (name, created, updated) filter directly on nodes table
+  - Example: `supertag aggregate --tag todo --group-by Priority --where "name~urgent"`
+
+- **Default Output Format** - Changed default output from JSON to table (TSV)
+  - All query commands now default to human-readable table format
+  - Fixes inconsistency where piped output was JSON but terminal was table
+  - Use `--format json` or `--json` for JSON output
+
+- **Aggregate Table Alignment** - Fixed column alignment for entries containing emojis
+  - Emoji characters now correctly counted as 2-column width
+  - Tables align properly regardless of emoji content
+
+- **CI Test Compatibility** - Fixed test database schemas for CI environment
+  - Corrected field_values column names (parent_id, value_text)
+  - Corrected tag_applications column names (data_node_id)
+
+## [1.12.0] - 2026-01-21
+
+### Added
+
+- **Query Field Output with Select Clause (F-093)** - Include custom field values in query output
+  - `select *` returns all supertag fields including inherited fields
+  - `select "Email,Phone"` returns specific fields by name
+  - No select clause = core fields only (backward compatible)
+  - Multi-value fields are comma-joined
+  - Works with all output formats (table, json, csv, jsonl)
+  - New `is empty` operator for querying empty/missing field values
+  - Example: `supertag query "find contact select *"`
+  - Example: `supertag query "find contact select 'Email,Phone,Company'"`
+  - Example: `supertag query "find task where Status is empty"`
+
+- **Semantic Search --min-score Option** - Filter results by minimum similarity threshold
+  - `supertag search "query" --semantic --min-score 0.5` - Only results with >= 50% similarity
+  - Accepts decimal (0-1) or percentage (0-100) values
+  - Example: `--min-score 0.75` or `--min-score 75` both mean 75% threshold
+
+- **@Name Reference Resolution (F-094)** - Reference nodes by display name instead of ID
+  - Use `@Name` syntax in field values to lookup nodes by name: `--state "@Open"`
+  - Matches Tana's native @mention behavior
+  - Automatically filters by field's target supertag for precise matching
+  - Falls back to creating new node if name not found
+  - Works with comma-separated values: `--assignees "@John Doe,@Jane Doe"`
+  - Works even for fields without explicit dataType
+  - Example: `supertag create task "My Task" --state "@Open"`
+  - Example: `supertag create meeting "Standup" --owner "@John Doe"`
+
+- **Aggregate --where Clause (F-095)** - Filter nodes before aggregation
+  - Use `--where` to filter by field values before counting
+  - Multiple `--where` flags combine with AND logic
+  - Supports operators: `=`, `!=`, `~` (contains), `>`, `<`, `>=`, `<=`
+  - Example: `supertag aggregate --tag task --group-by Priority --where "Status=Active"`
+  - Example: `supertag aggregate --tag task --group-by month --where "Status!=Cancelled" --where "Priority=High"`
+
+### Fixed
+
+- **@Name Resolution for Options Fields Without targetSupertagId** - Correctly resolves option values from field's Values tuple hierarchy
+  - Previously: `--Status "@Active"` could find wrong node when multiple nodes have same name
+  - Now: Traverses Field Definition → "Values" tuple → Options Container → matches correct option
+  - Example: Status dropdown options now resolve to correct node even without supertag tagging
+
+## [1.11.0] - 2026-01-19
+
+### Added
+
+- **Lite Binary (supertag-lite)** - Lightweight build without embedding support for environments with native module issues
+  - Excludes `embed` and `server` commands that depend on `@lancedb/lancedb` native module
+  - Fixes "exit 137" crash in environments where Bun's --compile has issues with native modules
+  - Includes all core functionality: create, post, tags, fields, search, nodes, stats, sync, batch, etc.
+  - Perfect for Raycast extensions, Docker containers, CI/CD pipelines
+  - New build script: `bun run build:lite`
+  - Compiles successfully without native module dependencies
+  - Documented in README-LITE.md
+
+### Fixed
+
+- **Compiled Binary Crash on macOS** - Fixed supertag binary crashing with exit code 137 (SIGKILL)
+  - Root cause: Bun's --compile feature incompatibility with @lancedb/lancedb native ARM64 module
+  - Solution: Created lite build that excludes embedding functionality
+  - Raycast extension and other distribution packages now use supertag-lite
+
+## [1.10.0] - 2026-01-18
+
+### Added
+
+- **Field Default Values (F-092)** - Auto-populate field default values when creating nodes
+  - Extracts default values from Tana supertag definitions during sync
+  - Automatically applies defaults for fields not provided by user
+  - Explicit empty values override defaults
+  - Shared implementation between CLI and MCP (no code duplication)
+  - New database columns: `default_value_id` and `default_value_text` in `supertag_fields`
+
+- **Unified Field Format (F-091)** - Both MCP and CLI now accept fields in two formats:
+  - Nested format (recommended): `{ "fields": { "Status": "Done" } }`
+  - Flat format (legacy): `{ "Status": "Done" }`
+  - Mixed format merges both, with nested taking precedence
+  - New `normalizeFieldInput()` utility in `src/services/field-normalizer.ts`
+  - 35 unit tests + 30 integration tests for field normalization
+
+## [1.9.8] - 2026-01-17
+
+### Added
+
+- **Interactive Launchd Setup in Installer** - Installer now prompts to set up background services during installation
+  - Option to install webhook server (starts on login)
+  - Option to install scheduled sync with customizable schedule (every 4/6 hours, twice daily, once daily, or custom)
+  - New `--no-launchd` flag to skip this step
+  - `SKIP_LAUNCHD=true` environment variable also supported
+
+- **Interactive Menu for install-launchd.sh** - Running without parameters now shows a menu instead of defaulting to server
+  - Choose between server, scheduled sync, or both
+  - Schedule selection when installing sync service
+  - Custom hours input (e.g., "6,12,18" for 6 AM, noon, 6 PM)
+
+- **Custom Sync Schedule Support** - Scheduled sync now supports custom hours via `SYNC_HOURS` environment variable
+  - Example: `SYNC_HOURS="6,18" ./install-launchd.sh daily` for twice-daily sync
+  - Generates proper launchd StartCalendarInterval entries
+
+## [1.9.7] - 2026-01-17
+
+### Fixed
+
+- **Scripts Not Included in Install** - Fixed `install-launchd.sh` and other scripts not being available after installation
+  - Root cause: Installer only copied binaries, not the `scripts/`, `launchd/`, and `docs/` directories
+  - Added copying of these directories during installation
+  - Fixed early skip logic that prevented re-downloading when version matched (users couldn't get scripts even after re-running installer)
+  - Scripts now available at `~/.supertag-cli/scripts/` for launchd setup and maintenance
+
+- **Interactive Prompts in curl|bash Install** - Fixed install prompts not working when running via `curl | bash`
+  - Root cause: stdin consumed by pipe, breaking `read` commands
+  - Added `</dev/tty` to all interactive prompts
+
+- **NODE_PATH Unbound Variable** - Fixed "NODE_PATH: unbound variable" error when NODE_PATH not previously set
+  - Used `${NODE_PATH:+:$NODE_PATH}` for set -u safety
+
+## [1.9.6] - 2026-01-17
+
+### Fixed
+
+- **Playwright Not Found After Install** - Fixed `supertag-export` failing with "Cannot find package 'playwright'" error immediately after installation
+  - Root cause: `NODE_PATH` was only written to shell config, not exported in current session
+  - Users running `supertag-export login` in same terminal session couldn't find globally installed Playwright
+  - Added immediate `export NODE_PATH` in install script for current session
+  - Added prominent yellow warning: "IMPORTANT: Open a new terminal window before continuing!"
+  - Thanks to user feedback for reporting this installation issue
+
+## [1.9.5] - 2026-01-12
+
+### Fixed
+
+- **Tags List Count Always 1** - Fixed `supertag tags list` showing node count as 1 for all supertags
+  - Root cause: `getNodeCountsBySupertag()` queried the `supertags` table (tag definitions - one row per tag) instead of `tag_applications` table (node-to-tag mappings)
+  - Changed SQL query to use `tag_applications` with `COUNT(DISTINCT data_node_id)` to count actual tagged nodes
+  - Added regression test to prevent recurrence
+
+### Added
+
+- **Snapshot Freshness Diagnostic** - Export now shows snapshot timestamp and age to help diagnose stale data issues
+  - Displays "Snapshot: 2026-01-12 15:13:37 (6h ago)" after node count
+  - Shows warning if snapshot is >24 hours old: "⚠️ Snapshot is 2d ago old - may be missing recent changes"
+  - Added troubleshooting section to `docs/export.md` explaining stale snapshot behavior
+  - Note: Tana generates snapshots periodically, not on-demand - recent changes may not appear immediately
+
+## [1.9.4] - 2026-01-12
+
+### Fixed
+
+- **Field Values with Inline References Truncated** - Fixed field values containing multiple inline node references being truncated to only the first reference (#26)
+  - Root cause: Three duplicate `formatValue()` functions used `.match()` which only returns the first regex match
+  - Created centralized `formatInlineRefs()` utility using `.replace()` with global regex to process ALL inline references
+  - Affected: CLI `nodes show`, MCP `tana_node_show`, and internal display functions
+  - Example: `"Meeting with [[abc]] and [[def]]"` now displays completely instead of `"[[abc]]"` only
+  - Added 35 unit tests covering all edge cases (multiple refs, adjacent refs, mixed node+date refs, etc.)
+
+## [1.9.2] - 2026-01-11
+
+### Fixed
+
+- **Claude Desktop MCP Compatibility** - Fixed `supertag-mcp` binary crashing on startup with Claude Desktop (#24)
+  - Root cause: Zod 4.x bundling issue with Bun's compiler caused `TypeError: undefined is not a constructor` error in `_custom` function
+  - Downgraded from Zod 4.x to Zod 3.25.x which bundles correctly with Bun
+  - Updated `zodToJsonSchema` helper to use Zod 3.x internal structure (`_def.typeName` instead of `_zod.def.type`)
+  - MCP SDK supports both Zod 3.25+ and Zod 4.x, so compatibility is maintained
+
 ## [1.9.1] - 2026-01-09
 
 ### Fixed

@@ -107,21 +107,21 @@ completed: 14
     - Default: `stopped` or `running\t3100\t12345\t9240` (TSV)
     - Pretty: Status icons, endpoint list, helpful commands
 
-- [ ] **T-3.2** Update `embed config --show` command [T] (depends: T-3.1)
+- [x] **T-3.2** Update `embed config --show` command [T] (depends: T-3.1)
   - File: `src/commands/embed.ts`
   - Test: `tests/commands/embed.test.ts`
   - Description: Dual-mode output for embedding config
     - Default: `model\tbge-m3` (TSV key-value)
     - Pretty: 🧠 emoji, connection status check
 
-- [ ] **T-3.3** Update `nodes show` command [T] (depends: T-3.2)
+- [x] **T-3.3** Update `nodes show` command [T] (depends: T-3.2)
   - File: `src/commands/show.ts`
   - Test: `tests/commands/show.test.ts`
   - Description: Consistent with `search --show` format
 
 ### Group 4: Polish
 
-- [ ] **T-4.1** Add --verbose flag behavior [T] (depends: T-3.3)
+- [x] **T-4.1** Add --verbose flag behavior [T] (depends: T-3.3)
   - Files: `src/commands/search.ts`, `src/commands/tags.ts`, others
   - Test: `tests/commands/verbose.test.ts`
   - Description: Additional detail when verbose flag is set
@@ -129,7 +129,7 @@ completed: 14
     - `--verbose` in tags: shows tag IDs
     - Update help text for all affected commands
 
-- [ ] **T-4.2** Add tips (--pretty only) (depends: T-4.1)
+- [x] **T-4.2** Add tips (--pretty only) (depends: T-4.1)
   - Files: Multiple command files
   - Description: Contextual hints in pretty mode
     - Show tips only when `--pretty` and not `--show`
@@ -207,12 +207,12 @@ For each task marked [T]:
 
 ## Verification Checklist (Per Task)
 
-- [ ] `bun test` passes
-- [ ] Default output is TSV, pipe-friendly
-- [ ] `--pretty` output has emojis and formatting
-- [ ] `--json` output unchanged
-- [ ] `--human-dates` shows localized dates
-- [ ] Help text updated if flags added
+- [x] `bun test` passes
+- [x] Default output is TSV, pipe-friendly
+- [x] `--pretty` output has emojis and formatting
+- [x] `--json` output unchanged
+- [x] `--human-dates` shows localized dates
+- [x] Help text updated if flags added
 
 ## Blockers & Issues
 

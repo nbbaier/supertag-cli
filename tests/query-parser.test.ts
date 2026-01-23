@@ -89,6 +89,29 @@ describe("Query Parser", () => {
       expect(clause.value).toBe(true);
     });
 
+    it("should parse 'is empty' operator", () => {
+      const ast = parseQuery("find task where Status is empty");
+      const clause = ast.where![0] as WhereClause;
+      expect(clause.field).toBe("Status");
+      expect(clause.operator).toBe("is_empty");
+      expect(clause.value).toBe(true);
+    });
+
+    it("should parse 'is null' operator", () => {
+      const ast = parseQuery("find task where Status is null");
+      const clause = ast.where![0] as WhereClause;
+      expect(clause.field).toBe("Status");
+      expect(clause.operator).toBe("is_empty");
+      expect(clause.value).toBe(true);
+    });
+
+    it("should parse 'not is empty' (negated)", () => {
+      const ast = parseQuery("find task where not Status is empty");
+      const clause = ast.where![0] as WhereClause;
+      expect(clause.operator).toBe("is_empty");
+      expect(clause.negated).toBe(true);
+    });
+
     it("should parse quoted string values", () => {
       const ast = parseQuery('find task where Name = "Q4 Planning"');
       const clause = ast.where![0] as WhereClause;
@@ -152,6 +175,37 @@ describe("Query Parser", () => {
       // Note: For simplicity, select takes a single identifier or a quoted comma list
       const ast = parseQuery('find task select "name, created, Status"');
       expect(ast.select).toContain("name");
+    });
+
+    it("should parse select with unquoted comma-separated fields", () => {
+      const ast = parseQuery("find person select name,email");
+      expect(ast.select).toEqual(["name", "email"]);
+    });
+
+    it("should parse select with unquoted comma-separated fields and spaces", () => {
+      const ast = parseQuery("find person select name, email, phone");
+      expect(ast.select).toEqual(["name", "email", "phone"]);
+    });
+
+    it("should parse select with mixed quoted and unquoted fields", () => {
+      const ast = parseQuery("find todo select name,Status,'Due Date'");
+      expect(ast.select).toEqual(["name", "Status", "Due Date"]);
+    });
+
+    it("should parse select with double-quoted field names with spaces", () => {
+      const ast = parseQuery('find todo select name,"Due Date",Status');
+      expect(ast.select).toEqual(["name", "Due Date", "Status"]);
+    });
+
+    it("should parse 'select *' as wildcard for all fields", () => {
+      const ast = parseQuery("find person select *");
+      expect(ast.select).toEqual(["*"]);
+    });
+
+    it("should parse 'select *' with other clauses", () => {
+      const ast = parseQuery("find person where Email exists select * limit 10");
+      expect(ast.select).toEqual(["*"]);
+      expect(ast.limit).toBe(10);
     });
   });
 

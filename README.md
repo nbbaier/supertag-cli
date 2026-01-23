@@ -40,6 +40,7 @@
   - [CODEGEN - Generate Effect Schema Classes](#codegen---generate-effect-schema-classes)
   - [MCP - AI Tool Integration](#mcp---ai-tool-integration)
   - [WORKSPACES - Multi-Workspace](#workspaces---multi-workspace)
+  - [SCHEMA - Supertag Registry](#schema---supertag-registry)
   - [OUTPUT - Display Formatting](#output---display-formatting)
 - [Examples](#examples)
 - [Installation](#installation)
@@ -52,19 +53,34 @@
 
 ## Quick Start
 
-> **Need detailed instructions?** See platform-specific guides: [Windows](./docs/INSTALL-WINDOWS.md) | [macOS](./docs/INSTALL-MACOS.md) | [Linux](./docs/INSTALL-LINUX.md)
+### One-Line Install (Recommended)
 
-### 1. Download and Extract
-
+**macOS / Linux:**
 ```bash
-unzip supertag-cli-vX.Y.Z-macos-arm64.zip
-cd supertag-cli-macos-arm64
-
-# macOS: Remove quarantine
-xattr -d com.apple.quarantine ./supertag ./supertag-mcp ./supertag-export
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.sh | bash
 ```
 
-### 2. Configure API Token
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.ps1 | iex
+```
+
+This installs everything: Bun, Playwright, Chromium, supertag-cli, and configures MCP.
+
+> **Need manual installation?** See platform-specific guides: [Windows](./docs/INSTALL-WINDOWS.md) | [macOS](./docs/INSTALL-MACOS.md) | [Linux](./docs/INSTALL-LINUX.md)
+
+### Migration (Upgrading from Older Versions)
+
+If upgrading from an older version of supertag-cli, migrate your database to the new XDG-compliant location:
+
+```bash
+supertag migrate           # Migrate database to new location
+supertag migrate --dry-run # Preview migration without making changes
+```
+
+This moves your database from the legacy location to the standard XDG paths (`~/.local/share/supertag/`).
+
+### 1. Configure API Token
 
 Get your token from: https://app.tana.inc/?bundle=settings&panel=api
 
@@ -72,16 +88,16 @@ Get your token from: https://app.tana.inc/?bundle=settings&panel=api
 ./supertag config --token "your_token_here"
 ```
 
-### 3. Login and Export
+### 2. Login and Export
 
 ```bash
-./supertag-export login      # Opens browser for Tana login
-./supertag-export discover   # Find your workspaces
-./supertag-export run        # Export your data
-./supertag sync index        # Index the export
+supertag-export login      # Opens browser for Tana login
+supertag-export discover   # Find your workspaces
+supertag-export run        # Export your data
+supertag sync index        # Index the export
 ```
 
-### 4. Start Using
+### 3. Start Using
 
 ```bash
 ./supertag search "meeting"                    # Full-text search
@@ -99,6 +115,7 @@ Get your token from: https://app.tana.inc/?bundle=settings&panel=api
 ```bash
 supertag search "project"                    # Full-text search
 supertag search "project" --semantic         # Semantic search
+supertag search "ideas" --semantic --min-score 0.5  # Filter by similarity
 supertag search --tag todo                   # All nodes with #todo tag
 supertag search "groceries" --tag todo       # #todo nodes containing "groceries"
 supertag search --tag meeting --field "Location=Zurich"  # Filter by field
@@ -119,7 +136,29 @@ supertag stats                               # Statistics
 supertag create todo "Task name" --status active
 supertag create meeting "Team Standup" --date 2025-12-06
 supertag create video,towatch "Tutorial" --url https://example.com
+
+# Reference existing nodes by name with @ prefix
+supertag create task "My Task" --state "@Open"
+supertag create meeting "Standup" --owner "@John Doe"
+supertag create task "Project" --assignees "@Alice,@Bob"
 ```
+
+### FORMAT - JSON to Tana Paste
+
+Convert JSON data to Tana Paste format for bulk import:
+
+```bash
+# From stdin
+echo '{"name": "Test Node"}' | supertag format
+
+# From file
+cat data.json | supertag format
+
+# From API response
+curl https://api.example.com/data | supertag format
+```
+
+Useful for integrating external data sources and bulk imports into Tana.
 
 ### QUERY - Unified Query Language
 
@@ -146,8 +185,14 @@ supertag query "find task where parent.tags ~ project"
 # Sort and limit results
 supertag query "find meeting order by -created limit 10"
 
-# Field projection
-supertag query "find todo" --select id,name,fields.Status
+# Include all supertag fields in output
+supertag query "find contact select *"
+
+# Include specific supertag fields
+supertag query "find contact select 'Email,Phone,Company'"
+
+# Find nodes with empty/missing field values
+supertag query "find task where Status is empty"
 ```
 
 **Operators:**
@@ -158,10 +203,16 @@ supertag query "find todo" --select id,name,fields.Status
 | `~` | Contains | `Name ~ John` |
 | `>`, `<`, `>=`, `<=` | Comparison | `Priority >= 2` |
 | `exists` | Field has value | `Due exists` |
+| `is empty` | Field is empty or missing | `Status is empty` |
 | `not` | Negation | `not Status = Done` |
 | `and`, `or` | Logical | `A and (B or C)` |
 
 **Relative Dates:** `today`, `yesterday`, `7d`, `30d`, `1w`, `1m`, `1y`
+
+**Select Clause** (inline in query):
+- No select = Core fields only (id, name, created)
+- `select *` = All supertag fields including inherited
+- `select "Email,Phone"` = Specific fields by name
 
 ### BATCH - Multi-Node Operations
 
@@ -286,6 +337,30 @@ See [Graph Traversal Documentation](./docs/graph-traversal.md) for more examples
 
 ### EXPORT - Automated Backup
 
+#### Setup
+
+Before running exports for the first time, install the required browser:
+
+```bash
+supertag-export setup        # Install Playwright browser
+```
+
+This installs the Chromium browser needed for automated Tana exports.
+
+#### Workspace Discovery
+
+Automatically discover Tana workspace IDs via network capture:
+
+```bash
+supertag-export discover              # Discover all workspaces
+supertag-export discover --add        # Auto-add discovered workspaces to config
+supertag-export discover --update     # Update existing workspaces with rootFileIds
+```
+
+Captures network traffic to find workspace IDs and rootFileIds, simplifying initial setup. First discovered workspace is auto-added as "main" if no workspaces are configured.
+
+#### Export Commands
+
 ```bash
 supertag-export login        # First-time login
 supertag-export run          # Export workspace
@@ -294,6 +369,17 @@ supertag-export run --all    # Export all workspaces
 
 See [Export Documentation](./docs/export.md) for details.
 
+#### Export Cleanup
+
+Remove old export files to free disk space:
+
+```bash
+supertag sync cleanup             # Remove old exports, keep most recent
+supertag sync cleanup --keep 3    # Keep 3 most recent files
+supertag sync cleanup --all       # Clean up all workspaces
+supertag sync cleanup --dry-run   # Preview what would be deleted
+```
+
 ### EMBED - Semantic Search
 
 ```bash
@@ -301,6 +387,10 @@ supertag embed config --model bge-m3    # Configure
 supertag embed generate                  # Generate embeddings
 supertag embed generate --include-fields # Include field values in context
 supertag search "ideas" --semantic       # Search by meaning
+
+# Maintenance and diagnostics
+supertag embed filter-stats              # Show content filter breakdown
+supertag embed maintain                  # LanceDB maintenance (compact, rebuild)
 ```
 
 See [Embeddings Documentation](./docs/embeddings.md) for details.
@@ -405,7 +495,17 @@ supertag attachments get --id <nodeId> -o ./file.png # Custom output path
 ### SERVER - Webhook API
 
 ```bash
-supertag server start --port 3100 --daemon
+# Start the server
+supertag server start [--port <port>]    # Run in foreground
+supertag server start --daemon           # Run as background daemon
+
+# Stop the server (daemon mode)
+supertag server stop
+
+# Check server status
+supertag server status
+
+# Example API call
 curl http://localhost:3100/search -d '{"query": "meeting"}'
 ```
 
@@ -518,13 +618,59 @@ See [MCP Documentation](./docs/mcp.md) for setup guides.
 
 ### WORKSPACES - Multi-Workspace
 
+Manage multiple Tana workspaces with separate databases and configurations.
+
 ```bash
+# List all workspaces
 supertag workspace list
-supertag workspace add <rootFileId> --alias work
+
+# Add a new workspace
+supertag workspace add <alias> --workspace-id <id> --token <token>
+
+# Remove a workspace
+supertag workspace remove <alias>
+
+# Set default workspace
+supertag workspace set-default <alias>
+
+# Show workspace details
+supertag workspace show <alias>
+
+# Enable/disable a workspace
+supertag workspace enable <alias>
+supertag workspace disable <alias>
+
+# Update workspace configuration
+supertag workspace update <alias> [options]
+
+# Use a specific workspace in commands
 supertag search "meeting" -w work
 ```
 
 See [Workspaces Documentation](./docs/workspaces.md) for details.
+
+### SCHEMA - Supertag Registry
+
+Manage the supertag schema registry. The registry stores your workspace's supertag definitions including fields and inheritance relationships.
+
+```bash
+# Sync schemas from Tana export (updates field definitions)
+supertag schema sync
+
+# List all registered supertags
+supertag schema list
+
+# Show details for a specific supertag (fields, options, inheritance)
+supertag schema show meeting
+
+# Search supertags by name
+supertag schema search "task"
+
+# Use specific workspace
+supertag schema list -w work
+```
+
+**Output formats:** `--format table` (default), `--format json`, `--format names` (list command only)
 
 ### OUTPUT - Display Formatting
 
@@ -629,37 +775,45 @@ See [examples/tui-todo/README.md](./examples/tui-todo/README.md) for full docume
 
 ## Installation
 
-**Detailed installation guides:**
+### One-Line Install (Recommended)
+
+The installer handles everything: Bun runtime, Playwright, Chromium browser, supertag-cli binaries, PATH configuration, and MCP auto-setup.
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.ps1 | iex
+```
+
+**Options:**
+```bash
+./install.sh --version 1.9.0    # Install specific version
+./install.sh --no-mcp           # Skip MCP auto-configuration
+```
+
+### Uninstall
+
+```bash
+# macOS/Linux
+curl -fsSL https://raw.githubusercontent.com/jcfischer/supertag-cli/main/uninstall.sh | bash
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/uninstall.ps1 | iex
+```
+
+### Manual Installation
+
+For manual installation or troubleshooting, see the platform-specific guides:
 
 | Platform | Guide |
 |----------|-------|
 | **Windows** | [Windows Installation Guide](./docs/INSTALL-WINDOWS.md) |
 | **macOS** | [macOS Installation Guide](./docs/INSTALL-MACOS.md) |
 | **Linux** | [Linux Installation Guide](./docs/INSTALL-LINUX.md) |
-
-### Quick Install (macOS/Linux)
-
-```bash
-# Download and extract from GitHub Releases
-unzip supertag-cli-vX.Y.Z-*.zip
-cd supertag-cli-*
-
-# macOS: Remove quarantine
-xattr -d com.apple.quarantine ./supertag ./supertag-mcp ./supertag-export
-
-# Symlink to PATH
-sudo ln -s $(pwd)/supertag /usr/local/bin/supertag
-sudo ln -s $(pwd)/supertag-export /usr/local/bin/supertag-export
-sudo ln -s $(pwd)/supertag-mcp /usr/local/bin/supertag-mcp
-
-# Install Playwright for browser automation
-curl -fsSL https://bun.sh/install | bash
-bunx playwright install chromium
-```
-
-### Playwright (Required for Export)
-
-The `supertag-export` tool requires Playwright for browser automation. See the platform-specific guides above for detailed instructions.
 
 ---
 
@@ -690,6 +844,16 @@ The `supertag-export` tool requires Playwright for browser automation. See the p
 ---
 
 ## Troubleshooting
+
+### Paths
+
+Display all configuration and data paths:
+
+```bash
+supertag paths
+```
+
+Shows locations for configuration files, databases, caches, and export directories. Useful for troubleshooting and understanding where supertag stores its data.
 
 ### Common Issues
 

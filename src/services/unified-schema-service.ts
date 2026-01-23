@@ -45,6 +45,9 @@ export interface UnifiedField {
   order: number;
   targetSupertagId?: string | null;
   targetSupertagName?: string | null;
+  // Default value (Spec 092)
+  defaultValueId?: string | null;
+  defaultValueText?: string | null;
 }
 
 /**
@@ -472,6 +475,267 @@ export class UnifiedSchemaService {
   }
 
   /**
+   * Resolve a reference by name to a node ID (F-094).
+   *
+   * Used when field values are prefixed with "@" to indicate lookup by name
+   * instead of raw node ID. This matches Tana's native @mention behavior.
+   *
+   * @param name - The display name to search for (without @ prefix)
+   * @param targetSupertagId - Optional supertag ID to filter results (from field definition)
+   * @param fieldLabelId - Optional field label node ID for options field lookup
+   * @returns Node ID if found, null otherwise
+   *
+   * @example
+   * // Lookup by name only
+   * resolveReferenceByName("Superceded")
+   *
+   * @example
+   * // Lookup filtered by target supertag (e.g., "State" options)
+   * resolveReferenceByName("Superceded", "state-tag-id")
+   *
+   * @example
+   * // Lookup from field's Values tuple children (for options without targetSupertag)
+   * resolveReferenceByName("Active", null, "jDnCkR4gIUDx")
+   */
+  resolveReferenceByName(name: string, targetSupertagId?: string | null, fieldLabelId?: string | null): string | null {
+    if (!this.checkNodesTable()) {
+      return null;
+    }
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      return null;
+    }
+
+    // If we have a target supertag, filter by it for more precise matching
+    if (targetSupertagId) {
+      // First try exact name match with supertag filter
+      const exactWithTag = this.db.query(`
+        SELECT n.id
+        FROM nodes n
+        INNER JOIN tag_applications ta ON ta.data_node_id = n.id
+        WHERE n.name = ? AND ta.tag_id = ?
+        LIMIT 1
+      `).get(trimmedName, targetSupertagId) as { id: string } | null;
+
+      if (exactWithTag) {
+        return exactWithTag.id;
+      }
+
+      // Try normalized name match with supertag filter
+      const normalizedName = normalizeName(trimmedName);
+      const normalizedWithTag = this.db.query(`
+        SELECT n.id
+        FROM nodes n
+        INNER JOIN tag_applications ta ON ta.data_node_id = n.id
+        WHERE LOWER(REPLACE(REPLACE(n.name, ' ', ''), '-', '')) = ? AND ta.tag_id = ?
+        LIMIT 1
+      `).get(normalizedName, targetSupertagId) as { id: string } | null;
+
+      if (normalizedWithTag) {
+        return normalizedWithTag.id;
+      }
+    }
+
+    // If we have a field label ID, try to find option in field's Values tuple children
+    // This handles options fields without targetSupertagId (e.g., Status dropdown)
+    if (fieldLabelId) {
+      const optionId = this.findOptionInFieldChildren(trimmedName, fieldLabelId);
+      if (optionId) {
+        return optionId;
+      }
+    }
+
+    // Fallback: search without supertag filter
+    // First try exact match
+    const exact = this.db.query(`
+      SELECT id FROM nodes WHERE name = ? LIMIT 1
+    `).get(trimmedName) as { id: string } | null;
+
+    if (exact) {
+      return exact.id;
+    }
+
+    // Try normalized match
+    const normalizedName = normalizeName(trimmedName);
+    const normalized = this.db.query(`
+      SELECT id FROM nodes
+      WHERE LOWER(REPLACE(REPLACE(name, ' ', ''), '-', '')) = ?
+      LIMIT 1
+    `).get(normalizedName) as { id: string } | null;
+
+    return normalized?.id ?? null;
+  }
+
+  /**
+   * Find an option value in a field's Values tuple children.
+   *
+   * Field structure in Tana:
+   *   Field Definition (attrDef) → "Values" tuple → Options Container → Option Values
+   *
+   * @param name - Option name to find
+   * @param fieldLabelId - Field definition node ID
+   * @returns Node ID if found, null otherwise
+   */
+  private findOptionInFieldChildren(name: string, fieldLabelId: string): string | null {
+    // Get the field label node to find its children
+    const fieldNode = this.db.query(`
+      SELECT raw_data FROM nodes WHERE id = ?
+    `).get(fieldLabelId) as { raw_data: string } | null;
+
+    if (!fieldNode) {
+      return null;
+    }
+
+    let fieldData: { children?: string[] };
+    try {
+      fieldData = JSON.parse(fieldNode.raw_data);
+    } catch {
+      return null;
+    }
+
+    if (!fieldData.children || fieldData.children.length === 0) {
+      return null;
+    }
+
+    // Find the "Values" tuple child
+    const valuesTupleId = this.findValuesTupleChild(fieldData.children);
+    if (!valuesTupleId) {
+      return null;
+    }
+
+    // Get the Values tuple node to find its children (options container or direct options)
+    const tupleNode = this.db.query(`
+      SELECT raw_data FROM nodes WHERE id = ?
+    `).get(valuesTupleId) as { raw_data: string } | null;
+
+    if (!tupleNode) {
+      return null;
+    }
+
+    let tupleData: { children?: string[] };
+    try {
+      tupleData = JSON.parse(tupleNode.raw_data);
+    } catch {
+      return null;
+    }
+
+    if (!tupleData.children || tupleData.children.length === 0) {
+      return null;
+    }
+
+    // Collect all potential option IDs - either direct children or children of container nodes
+    const optionIds = this.collectOptionIds(tupleData.children);
+
+    // Search for matching name among options
+    return this.findNodeByNameInList(name, optionIds);
+  }
+
+  /**
+   * Find the "Values" tuple child in a list of node IDs.
+   */
+  private findValuesTupleChild(childIds: string[]): string | null {
+    if (childIds.length === 0) return null;
+
+    // Query all children at once for efficiency
+    const placeholders = childIds.map(() => "?").join(",");
+    const rows = this.db.query(`
+      SELECT id, name, json_extract(raw_data, '$.props._docType') as docType
+      FROM nodes
+      WHERE id IN (${placeholders})
+    `).all(...childIds) as Array<{ id: string; name: string; docType: string | null }>;
+
+    // Find the "Values" tuple
+    for (const row of rows) {
+      if (row.name === "Values" && row.docType === "tuple") {
+        return row.id;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Collect option IDs from tuple children.
+   * Options may be direct children or nested inside a container node.
+   */
+  private collectOptionIds(childIds: string[]): string[] {
+    const optionIds: string[] = [];
+
+    for (const childId of childIds) {
+      // Skip system nodes
+      if (childId.startsWith("SYS_")) {
+        continue;
+      }
+
+      // Get the child node to check if it's a container
+      const childNode = this.db.query(`
+        SELECT raw_data, name FROM nodes WHERE id = ?
+      `).get(childId) as { raw_data: string; name: string } | null;
+
+      if (!childNode) {
+        continue;
+      }
+
+      let childData: { children?: string[] };
+      try {
+        childData = JSON.parse(childNode.raw_data);
+      } catch {
+        // Not valid JSON, treat as direct option
+        optionIds.push(childId);
+        continue;
+      }
+
+      // If it has children, it might be a container - add both the container and its children
+      if (childData.children && childData.children.length > 0) {
+        // Add the container's children as potential options
+        for (const grandchildId of childData.children) {
+          if (!grandchildId.startsWith("SYS_")) {
+            optionIds.push(grandchildId);
+          }
+        }
+      }
+
+      // Also add the node itself as a potential option (might be a direct option)
+      optionIds.push(childId);
+    }
+
+    return optionIds;
+  }
+
+  /**
+   * Find a node by name in a list of node IDs.
+   */
+  private findNodeByNameInList(name: string, nodeIds: string[]): string | null {
+    if (nodeIds.length === 0) return null;
+
+    const trimmedName = name.trim();
+    const normalizedName = normalizeName(trimmedName);
+
+    // Query all nodes at once
+    const placeholders = nodeIds.map(() => "?").join(",");
+    const rows = this.db.query(`
+      SELECT id, name FROM nodes WHERE id IN (${placeholders})
+    `).all(...nodeIds) as Array<{ id: string; name: string }>;
+
+    // First try exact match
+    for (const row of rows) {
+      if (row.name === trimmedName) {
+        return row.id;
+      }
+    }
+
+    // Then try normalized match
+    for (const row of rows) {
+      if (normalizeName(row.name) === normalizedName) {
+        return row.id;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Build a UnifiedSupertag from a database row.
    * Includes loading fields for the supertag.
    */
@@ -512,7 +776,7 @@ export class UnifiedSchemaService {
     // Use prepared statement for performance
     if (!this.fieldsStatement) {
       this.fieldsStatement = this.db.query(`
-        SELECT tag_id, field_name, field_label_id, field_order, normalized_name, description, inferred_data_type, target_supertag_id, target_supertag_name
+        SELECT tag_id, field_name, field_label_id, field_order, normalized_name, description, inferred_data_type, target_supertag_id, target_supertag_name, default_value_id, default_value_text
         FROM supertag_fields
         WHERE tag_id = ?
         ORDER BY field_order
@@ -530,6 +794,8 @@ export class UnifiedSchemaService {
       inferred_data_type: string | null;
       target_supertag_id: string | null;
       target_supertag_name: string | null;
+      default_value_id: string | null;
+      default_value_text: string | null;
     }>;
 
     return rows.map((row) => ({
@@ -542,6 +808,8 @@ export class UnifiedSchemaService {
       order: row.field_order,
       targetSupertagId: row.target_supertag_id,
       targetSupertagName: row.target_supertag_name,
+      defaultValueId: row.default_value_id,
+      defaultValueText: row.default_value_text,
     }));
   }
 
@@ -650,8 +918,33 @@ export class UnifiedSchemaService {
             : [value];
         for (const v of refValues) {
           const strValue = String(v);
+
+          // F-094: @Name syntax for reference by name lookup
+          // Matches Tana's native @mention behavior
+          if (strValue.startsWith("@")) {
+            const lookupName = strValue.slice(1); // Remove @ prefix
+            const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId, field.attributeId);
+            if (resolvedId) {
+              fieldChildren.push({
+                dataType: "reference",
+                id: resolvedId,
+              } as TanaApiNode);
+            } else {
+              // Name not found - create new node with the name (without @ prefix)
+              if (field.targetSupertagId) {
+                fieldChildren.push({
+                  name: lookupName,
+                  supertags: [{ id: field.targetSupertagId }],
+                });
+              } else {
+                fieldChildren.push({
+                  name: lookupName,
+                });
+              }
+            }
+          }
           // Check if it's a node ID (8+ alphanumeric chars with dashes/underscores)
-          if (/^[A-Za-z0-9_-]{8,}$/.test(strValue)) {
+          else if (/^[A-Za-z0-9_-]{8,}$/.test(strValue)) {
             fieldChildren.push({
               dataType: "reference",
               id: strValue,
@@ -696,10 +989,40 @@ export class UnifiedSchemaService {
         // Handle arrays (multiple values)
         if (Array.isArray(value)) {
           for (const v of value) {
-            fieldChildren.push({ name: String(v) });
+            const strValue = String(v);
+            // F-094: Support @Name syntax even for unknown field types
+            if (strValue.startsWith("@")) {
+              const lookupName = strValue.slice(1);
+              const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId, field.attributeId);
+              if (resolvedId) {
+                fieldChildren.push({
+                  dataType: "reference",
+                  id: resolvedId,
+                } as TanaApiNode);
+              } else {
+                fieldChildren.push({ name: lookupName });
+              }
+            } else {
+              fieldChildren.push({ name: strValue });
+            }
           }
         } else {
-          fieldChildren.push({ name: String(value) });
+          const strValue = String(value);
+          // F-094: Support @Name syntax even for unknown field types
+          if (strValue.startsWith("@")) {
+            const lookupName = strValue.slice(1);
+            const resolvedId = this.resolveReferenceByName(lookupName, field.targetSupertagId, field.attributeId);
+            if (resolvedId) {
+              fieldChildren.push({
+                dataType: "reference",
+                id: resolvedId,
+              } as TanaApiNode);
+            } else {
+              fieldChildren.push({ name: lookupName });
+            }
+          } else {
+            fieldChildren.push({ name: strValue });
+          }
         }
     }
 
@@ -714,10 +1037,11 @@ export class UnifiedSchemaService {
    * Build a Tana API node payload for one or more supertags.
    *
    * Replicates SchemaRegistry.buildNodePayload using database data.
+   * Auto-populates default field values when user doesn't provide a value (Spec 092).
    *
    * @param supertagInput Single supertag name, comma-separated names, or array of names
    * @param nodeName Node name
-   * @param fieldValues Field values
+   * @param fieldValues Field values (explicit empty string overrides default)
    * @returns TanaApiNode payload ready for Input API
    */
   buildNodePayload(
@@ -743,6 +1067,11 @@ export class UnifiedSchemaService {
     // Get combined fields from all supertags
     const allFields = this.getFieldsForMultipleSupertags(supertags);
 
+    // Normalize field names provided by user for comparison
+    const userFieldNames = new Set(
+      Object.keys(fieldValues).map((name) => normalizeName(name))
+    );
+
     const children: (TanaApiNode | TanaApiFieldNode)[] = [];
 
     // Process each provided field value
@@ -761,6 +1090,26 @@ export class UnifiedSchemaService {
       }
     }
 
+    // Spec 092: Apply default values for fields not provided by user
+    for (const field of allFields) {
+      // Skip if user provided a value (including explicit empty)
+      if (userFieldNames.has(field.normalizedName)) {
+        continue;
+      }
+
+      // Skip if no default value defined
+      if (!field.defaultValueId) {
+        continue;
+      }
+
+      // Build field node using default value
+      // Use reference type if we have a node ID (for options/reference fields)
+      const fieldNode = this.buildDefaultFieldNode(field);
+      if (fieldNode) {
+        children.push(fieldNode);
+      }
+    }
+
     // Deduplicate supertag IDs (in case same tag resolved via different names)
     const uniqueTagIds = [...new Set(supertags.map((s) => s.id))];
 
@@ -768,6 +1117,37 @@ export class UnifiedSchemaService {
       name: nodeName,
       supertags: uniqueTagIds.map((id) => ({ id })),
       children: children.length > 0 ? children : undefined,
+    };
+  }
+
+  /**
+   * Build a field node using the field's default value.
+   * Used for auto-populating defaults (Spec 092).
+   */
+  private buildDefaultFieldNode(field: UnifiedField): TanaApiFieldNode | null {
+    if (!field.defaultValueId) {
+      return null;
+    }
+
+    const fieldChildren: TanaApiNode[] = [];
+
+    // For reference/options fields, use the node ID as a reference
+    if (field.dataType === "reference" || field.dataType === "options") {
+      fieldChildren.push({
+        dataType: "reference",
+        id: field.defaultValueId,
+      } as TanaApiNode);
+    } else if (field.defaultValueText) {
+      // For other field types, use the text value
+      fieldChildren.push({ name: field.defaultValueText });
+    } else {
+      return null;
+    }
+
+    return {
+      type: "field",
+      attributeId: field.attributeId,
+      children: fieldChildren,
     };
   }
 

@@ -2,10 +2,10 @@
 
 ## Task List
 
-- [ ] **T-1** Add contains prefix parsing to `convertInputToAST` [T]
-- [ ] **T-2** Add unit tests for prefix parsing [T]
-- [ ] **T-3** Verify integration with real database [T]
-- [ ] **T-4** Rebuild MCP binary
+- [x] **T-1** Add contains prefix parsing to `convertInputToAST` [T]
+- [x] **T-2** Add unit tests for prefix parsing [T]
+- [x] **T-3** Verify integration with real database [T]
+- [x] **T-4** Rebuild MCP binary
 
 ## Task Details
 

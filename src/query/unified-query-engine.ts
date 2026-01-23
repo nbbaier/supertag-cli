@@ -11,6 +11,7 @@ import type { QueryAST, WhereClause, WhereGroup, QueryOperator } from "./types";
 import { isWhereGroup } from "./types";
 import { parseDateValue, isRelativeDateValue } from "./date-resolver";
 import { buildPagination, buildOrderBy } from "../db/query-builder";
+import { FieldResolver } from "../services/field-resolver";
 
 /**
  * Query execution result
@@ -19,6 +20,8 @@ export interface QueryResult {
   results: Record<string, unknown>[];
   count: number;
   hasMore: boolean;
+  /** Field names included in output (when select clause used) */
+  fieldNames?: string[];
 }
 
 /**
@@ -53,19 +56,63 @@ export class UnifiedQueryEngine {
     const { sql, params } = this.buildQuery(resolvedAst);
     const results = this.db.query(sql).all(...params) as Record<string, unknown>[];
 
-    // Apply projection if select specified
-    const projectedResults = ast.select
-      ? results.map((r) => this.projectFields(r, ast.select!))
-      : results;
-
     // Calculate hasMore
     const limit = ast.limit ?? 100;
     const hasMore = results.length === limit;
 
+    // Handle field output if select clause is present
+    if (ast.select && ast.select.length > 0) {
+      return this.executeWithFields(ast, results, hasMore);
+    }
+
+    // No select clause - return core fields only (backward compatible)
     return {
-      results: projectedResults,
-      count: projectedResults.length,
+      results,
+      count: results.length,
       hasMore,
+    };
+  }
+
+  /**
+   * Execute query with field value resolution
+   */
+  private executeWithFields(
+    ast: QueryAST,
+    results: Record<string, unknown>[],
+    hasMore: boolean
+  ): QueryResult {
+    const fieldResolver = new FieldResolver(this.db);
+
+    // Determine which fields to include
+    let fieldNames: string[];
+    if (ast.select!.includes("*")) {
+      // Get all fields for this supertag
+      fieldNames = fieldResolver.getSupertagFields(ast.find);
+    } else {
+      fieldNames = ast.select!;
+    }
+
+    // Get node IDs
+    const nodeIds = results.map((r) => r.id as string);
+
+    // Resolve field values
+    const fieldValuesMap = fieldResolver.resolveFields(nodeIds, fieldNames);
+
+    // Merge field values into results
+    const resultsWithFields = results.map((r) => {
+      const nodeId = r.id as string;
+      const fields = fieldValuesMap.get(nodeId) ?? {};
+      return {
+        ...r,
+        fields,
+      };
+    });
+
+    return {
+      results: resultsWithFields,
+      count: resultsWithFields.length,
+      hasMore,
+      fieldNames,
     };
   }
 
@@ -298,6 +345,10 @@ export class UnifiedQueryEngine {
       case "exists":
         sql = value ? `${column} IS NOT NULL` : `${column} IS NULL`;
         break;
+      case "is_empty":
+        // For core fields, check if NULL or empty string
+        sql = `(${column} IS NULL OR ${column} = '')`;
+        break;
       default:
         throw new QueryValidationError(`Unknown operator: ${operator}`);
     }
@@ -403,6 +454,15 @@ export class UnifiedQueryEngine {
           return { sql, params: [fieldName], join: undefined };
         }
         break;
+      case "is_empty":
+        // Match if field doesn't exist OR value is NULL/empty
+        // Use NOT EXISTS with condition for non-empty values
+        sql = "NOT EXISTS (SELECT 1 FROM field_values fv2 WHERE fv2.parent_id = n.id AND fv2.field_name = ? AND fv2.value_text IS NOT NULL AND fv2.value_text != '')";
+        if (clause.negated) {
+          // Negated: field exists AND has non-empty value
+          sql = "EXISTS (SELECT 1 FROM field_values fv2 WHERE fv2.parent_id = n.id AND fv2.field_name = ? AND fv2.value_text IS NOT NULL AND fv2.value_text != '')";
+        }
+        return { sql, params: [fieldName], join: undefined };
     }
 
     return { sql: `(${sql})`, params, join };

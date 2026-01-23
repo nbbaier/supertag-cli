@@ -64,8 +64,9 @@ export function createQueryCommand(): Command {
       throw error;
     }
 
-    // Override limit/offset from CLI options if provided
-    if (options.limit) {
+    // Override limit from CLI options only if query doesn't specify one
+    // This allows 'find person limit 10' to work while still respecting --limit flag
+    if (options.limit && ast.limit === undefined) {
       ast.limit = parseInt(String(options.limit));
     }
 
@@ -107,6 +108,10 @@ export function createQueryCommand(): Command {
         verbose: outputOpts.verbose,
       });
 
+      // Determine if we have field output
+      const hasFields = result.fieldNames && result.fieldNames.length > 0;
+      const fieldNames = result.fieldNames || [];
+
       // Table format: pretty output
       if (format === "table") {
         const headerText = outputOpts.verbose
@@ -114,23 +119,39 @@ export function createQueryCommand(): Command {
           : `Query results (${result.count})`;
         console.log(`\n${header(EMOJI.search, headerText)}:\n`);
 
-        // Build table
-        const tableHeaders = ["#", "Name", "ID", "Created"];
+        // Filter out core field names from custom fields to avoid duplicate columns
+        const tableCoreFieldNames = new Set(["id", "name", "created", "updated"]);
+        const tableCustomFieldNames = fieldNames.filter((f) => !tableCoreFieldNames.has(f.toLowerCase()));
+
+        // Build table headers - core fields + custom fields
+        const tableHeaders = ["#", "Name", "ID", "Created", ...tableCustomFieldNames];
+        const tableAligns: ("left" | "right")[] = ["right", "left", "left", "left", ...tableCustomFieldNames.map(() => "left" as const)];
+
         const tableRows = result.results.map((node, i) => {
           const created = node.created
             ? (outputOpts.humanDates
               ? new Date(node.created as number).toLocaleDateString()
               : formatDateISO(node.created as number))
             : "";
-          return [
+          const row = [
             String(i + 1),
             ((node.name as string) || "(unnamed)").substring(0, 50),
             node.id as string,
             created,
           ];
+
+          // Add custom field values (excluding core fields already included above)
+          if (hasFields) {
+            const fields = (node as any).fields || {};
+            for (const fieldName of tableCustomFieldNames) {
+              row.push(String(fields[fieldName] || ""));
+            }
+          }
+
+          return row;
         });
 
-        console.log(table(tableHeaders, tableRows, { align: ["right", "left", "left", "left"] }));
+        console.log(table(tableHeaders, tableRows, { align: tableAligns }));
 
         if (result.hasMore) {
           console.log(tip(`More results available. Use 'limit' and 'offset' for pagination.`));
@@ -142,14 +163,29 @@ export function createQueryCommand(): Command {
         return;
       }
 
-      // Other formats: use formatter
-      const headers = ["id", "name", "created", "updated"];
-      const rows = result.results.map((node) => [
-        String(node.id),
-        String(node.name || ""),
-        node.created ? formatDateISO(node.created as number) : "",
-        node.updated ? formatDateISO(node.updated as number) : "",
-      ]);
+      // Other formats: use formatter with dynamic columns
+      // Filter out core field names from custom fields to avoid duplicate columns
+      const coreFieldNames = new Set(["id", "name", "created", "updated"]);
+      const customFieldNames = fieldNames.filter((f) => !coreFieldNames.has(f.toLowerCase()));
+      const headers = ["id", "name", "created", "updated", ...customFieldNames];
+      const rows = result.results.map((node) => {
+        const row = [
+          String(node.id),
+          String(node.name || ""),
+          node.created ? formatDateISO(node.created as number) : "",
+          node.updated ? formatDateISO(node.updated as number) : "",
+        ];
+
+        // Add custom field values (excluding core fields already included above)
+        if (hasFields) {
+          const fields = (node as any).fields || {};
+          for (const fieldName of customFieldNames) {
+            row.push(String(fields[fieldName] || ""));
+          }
+        }
+
+        return row;
+      });
 
       formatter.table(headers, rows);
       formatter.finalize();

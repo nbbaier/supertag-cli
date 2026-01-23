@@ -18,50 +18,50 @@ completed: 0
 
 ### Group 1: Foundation (Types)
 
-- [ ] **T-1.1** Add aggregation types to query/types.ts [T] [P]
+- [x] **T-1.1** Add aggregation types to query/types.ts [T] [P]
   - File: `src/query/types.ts`
   - Test: `tests/query/aggregation-types.test.ts`
   - Description: Add AggregateAST, GroupBySpec, AggregateFunction, AggregateResult types
   - Acceptance: Types compile, test validates structure
 
-- [ ] **T-1.2** Add MCP schema for tana_aggregate [P]
+- [x] **T-1.2** Add MCP schema for tana_aggregate [P]
   - File: `src/mcp/schemas.ts`
   - Description: Add Zod schema for tana_aggregate input validation
   - Acceptance: Schema validates valid/invalid inputs
 
 ### Group 2: Core Service
 
-- [ ] **T-2.1** Create AggregationService skeleton [T] (depends: T-1.1)
+- [x] **T-2.1** Create AggregationService skeleton [T] (depends: T-1.1)
   - File: `src/services/aggregation-service.ts`
   - Test: `tests/services/aggregation-service.test.ts`
   - Description: Create class with constructor accepting Database
   - Acceptance: Service instantiates, basic test passes
 
-- [ ] **T-2.2** Implement parseGroupBy [T] (depends: T-2.1)
+- [x] **T-2.2** Implement parseGroupBy [T] (depends: T-2.1)
   - File: `src/services/aggregation-service.ts`
   - Test: `tests/services/aggregation-service.test.ts`
   - Description: Parse "Status,month" -> GroupBySpec[]
   - Acceptance: Parses field names, time periods (day/week/month/quarter/year)
 
-- [ ] **T-2.3** Implement formatTimePeriod [T] (depends: T-2.1)
+- [x] **T-2.3** Implement formatTimePeriod [T] (depends: T-2.1)
   - File: `src/services/aggregation-service.ts`
   - Test: `tests/services/aggregation-service.test.ts`
   - Description: Generate SQLite strftime expressions for time grouping
   - Acceptance: Returns correct strftime for each period type
 
-- [ ] **T-2.4** Implement single-field aggregation [T] (depends: T-2.2, T-2.3)
+- [x] **T-2.4** Implement single-field aggregation [T] (depends: T-2.2, T-2.3)
   - File: `src/services/aggregation-service.ts`
   - Test: `tests/services/aggregation-service.test.ts`
   - Description: GROUP BY single field with COUNT(*)
   - Acceptance: Returns { "Done": 10, "Open": 5 } structure
 
-- [ ] **T-2.5** Implement two-field nested aggregation [T] (depends: T-2.4)
+- [x] **T-2.5** Implement two-field nested aggregation [T] (depends: T-2.4)
   - File: `src/services/aggregation-service.ts`
   - Test: `tests/services/aggregation-service.test.ts`
   - Description: GROUP BY two fields with nested result structure
   - Acceptance: Returns { "Done": { "High": 5, "Low": 5 }, ... }
 
-- [ ] **T-2.6** Implement showPercent and top options [T] (depends: T-2.4)
+- [x] **T-2.6** Implement showPercent and top options [T] (depends: T-2.4)
   - File: `src/services/aggregation-service.ts`
   - Test: `tests/services/aggregation-service.test.ts`
   - Description: Calculate percentages, limit to top N groups
@@ -69,38 +69,38 @@ completed: 0
 
 ### Group 3: CLI Command
 
-- [ ] **T-3.1** Create aggregate CLI command [T] (depends: T-2.5, T-2.6)
+- [x] **T-3.1** Create aggregate CLI command [T] (depends: T-2.5, T-2.6)
   - File: `src/commands/aggregate.ts`
   - Test: `tests/commands/aggregate.test.ts`
   - Description: supertag aggregate --tag --group-by --where --format
   - Acceptance: Command parses args, calls service, formats output
 
-- [ ] **T-3.2** Register CLI command in index.ts (depends: T-3.1)
+- [x] **T-3.2** Register CLI command in index.ts (depends: T-3.1)
   - File: `src/index.ts`
   - Description: Add aggregate command to main CLI program
   - Acceptance: `supertag aggregate --help` works
 
 ### Group 4: MCP Tool
 
-- [ ] **T-4.1** Create tana_aggregate MCP tool [T] (depends: T-2.5, T-2.6, T-1.2)
+- [x] **T-4.1** Create tana_aggregate MCP tool [T] (depends: T-2.5, T-2.6, T-1.2)
   - File: `src/mcp/tools/aggregate.ts`
   - Test: `tests/mcp/aggregate.test.ts`
   - Description: MCP tool that wraps AggregationService
   - Acceptance: Tool returns grouped results via MCP protocol
 
-- [ ] **T-4.2** Register MCP tool (depends: T-4.1)
+- [x] **T-4.2** Register MCP tool (depends: T-4.1)
   - Files: `src/mcp/tool-registry.ts`, `src/mcp/index.ts`
   - Description: Register tana_aggregate in MCP server
   - Acceptance: Tool appears in tana_capabilities, callable via MCP
 
 ### Group 5: Documentation
 
-- [ ] **T-5.1** Update tana_capabilities (depends: T-4.2)
+- [x] **T-5.1** Update tana_capabilities (depends: T-4.2)
   - File: `src/mcp/tools/capabilities.ts`
   - Description: Add tana_aggregate to capabilities list
   - Acceptance: Shows in capabilities output with description
 
-- [ ] **T-5.2** Update documentation (depends: T-3.2, T-4.2)
+- [x] **T-5.2** Update documentation (depends: T-3.2, T-4.2)
   - Files: `CHANGELOG.md`, `README.md`
   - Description: Document aggregate command and MCP tool
   - Acceptance: Usage examples in docs

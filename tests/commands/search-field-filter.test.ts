@@ -40,19 +40,25 @@ describe("Search Field Filter CLI Commands", () => {
 
     db.run(`
       CREATE TABLE IF NOT EXISTS field_values (
-        node_id TEXT,
-        field_name TEXT,
-        field_value TEXT,
-        PRIMARY KEY (node_id, field_name)
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tuple_id TEXT NOT NULL,
+        parent_id TEXT NOT NULL,
+        field_def_id TEXT NOT NULL,
+        field_name TEXT NOT NULL,
+        value_node_id TEXT NOT NULL,
+        value_text TEXT NOT NULL,
+        value_order INTEGER DEFAULT 0,
+        created INTEGER
       )
     `);
 
     db.run(`
       CREATE TABLE IF NOT EXISTS tag_applications (
-        node_id TEXT,
-        tag_id TEXT,
-        tag_name TEXT,
-        PRIMARY KEY (node_id, tag_id)
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tuple_node_id TEXT NOT NULL,
+        data_node_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        tag_name TEXT NOT NULL
       )
     `);
 
@@ -72,23 +78,23 @@ describe("Search Field Filter CLI Commands", () => {
         [node.id, node.name, node.created]
       );
       db.run(
-        `INSERT INTO tag_applications (node_id, tag_id, tag_name) VALUES (?, ?, ?)`,
-        [node.id, "meeting-tag", "meeting"]
+        `INSERT INTO tag_applications (tuple_node_id, data_node_id, tag_id, tag_name) VALUES (?, ?, ?, ?)`,
+        [`tuple-${node.id}`, node.id, "meeting-tag", "meeting"]
       );
     }
 
     // Insert field values (Location field for meetings)
     const fieldValues = [
-      { node_id: "meeting1", field_name: "Location", field_value: "Zurich" },
-      { node_id: "meeting2", field_name: "Location", field_value: "Berlin" },
-      { node_id: "meeting3", field_name: "Location", field_value: "Zurich" },
-      { node_id: "meeting4", field_name: "Location", field_value: "Remote" },
+      { parent_id: "meeting1", field_name: "Location", value_text: "Zurich" },
+      { parent_id: "meeting2", field_name: "Location", value_text: "Berlin" },
+      { parent_id: "meeting3", field_name: "Location", value_text: "Zurich" },
+      { parent_id: "meeting4", field_name: "Location", value_text: "Remote" },
     ];
 
     for (const fv of fieldValues) {
       db.run(
-        `INSERT INTO field_values (node_id, field_name, field_value) VALUES (?, ?, ?)`,
-        [fv.node_id, fv.field_name, fv.field_value]
+        `INSERT INTO field_values (tuple_id, parent_id, field_def_id, field_name, value_node_id, value_text) VALUES (?, ?, ?, ?, ?, ?)`,
+        [`tuple-fv-${fv.parent_id}`, fv.parent_id, "loc-field-def", fv.field_name, `value-${fv.parent_id}`, fv.value_text]
       );
     }
 

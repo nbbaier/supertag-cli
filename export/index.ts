@@ -16,7 +16,6 @@ import { Command } from "commander";
 import { chromium } from "playwright";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
 import { $ } from "bun";
 
 // Import shared config from parent tana package
@@ -31,7 +30,7 @@ import {
 import { VERSION } from "../src/version";
 
 // Import API modules
-import { getAuthToken, isTokenValid, getTokenExpiryMinutes, type FirebaseAuth, type AuthLogger } from "./lib/auth";
+import { getAuthToken, isTokenValid, getTokenExpiryMinutes, type AuthLogger } from "./lib/auth";
 import { getAccount, getSnapshotMeta, getSnapshotUrl, downloadSnapshot } from "./lib/api";
 import { discoverWorkspaces } from "./lib/discover";
 
@@ -162,9 +161,22 @@ async function exportViaApi(options: ExportOptions): Promise<ExportResult> {
   const nodeCount = meta.metadata.nodeCount;
   const sizeBytes = meta.metadata.size;
   const homeNodeName = meta.metadata.homeNodeName.replace(/<[^>]*>/g, ''); // Strip HTML
+  const lastUpdated = meta.metadata.lastUpdated;
 
   logger.info(`Workspace: ${homeNodeName}`);
   logger.info(`Nodes: ${nodeCount.toLocaleString()}, Size: ${(sizeBytes / 1024 / 1024).toFixed(1)}MB`);
+
+  // Show snapshot freshness - helps diagnose stale data issues
+  if (lastUpdated) {
+    const snapshotDate = new Date(lastUpdated);
+    const now = new Date();
+    const ageHours = Math.round((now.getTime() - snapshotDate.getTime()) / (1000 * 60 * 60));
+    const ageDisplay = ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+    logger.info(`Snapshot: ${snapshotDate.toISOString().replace('T', ' ').slice(0, 19)} (${ageDisplay})`);
+    if (ageHours > 24) {
+      logger.warn(`⚠️  Snapshot is ${ageDisplay} old - may be missing recent changes`);
+    }
+  }
 
   // Step 4: Get download URL
   if (verbose) logger.info("Getting snapshot download URL...");
@@ -205,7 +217,49 @@ async function exportViaApi(options: ExportOptions): Promise<ExportResult> {
 }
 
 /**
+ * Extract Firebase Web API key from browser context
+ * This key is required for token refresh without browser
+ */
+async function extractFirebaseApiKey(page: any): Promise<string | null> {
+  try {
+    const apiKey = await page.evaluate(async () => {
+      return new Promise((resolve) => {
+        const request = indexedDB.open("firebaseLocalStorageDb");
+        request.onsuccess = () => {
+          const db = request.result;
+          try {
+            const transaction = db.transaction(["firebaseLocalStorage"], "readonly");
+            const store = transaction.objectStore("firebaseLocalStorage");
+            const getAllRequest = store.getAll();
+
+            getAllRequest.onsuccess = () => {
+              const results = getAllRequest.result;
+              // Find the Firebase config entry with apiKey
+              for (const entry of results) {
+                if (entry?.value?.apiKey) {
+                  resolve(entry.value.apiKey);
+                  return;
+                }
+              }
+              resolve(null);
+            };
+            getAllRequest.onerror = () => resolve(null);
+          } catch {
+            resolve(null);
+          }
+        };
+        request.onerror = () => resolve(null);
+      });
+    });
+    return apiKey;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Interactive login via browser
+ * Extracts and saves Firebase API key for token refresh
  */
 async function interactiveLogin(): Promise<void> {
   // Ensure browser is installed
@@ -216,8 +270,8 @@ async function interactiveLogin(): Promise<void> {
   logger.info("Opening browser for Tana login...");
   logger.info("");
   logger.info("1. Log in to Tana (via Google or email)");
-  logger.info("2. Once you see the Tana workspace, close the browser");
-  logger.info("3. Your session will be saved for future exports");
+  logger.info("2. Once you see the Tana workspace, the API key will be extracted");
+  logger.info("3. Close the browser when done");
   logger.info("");
 
   // Ensure browser data directory exists
@@ -244,12 +298,52 @@ async function interactiveLogin(): Promise<void> {
 
   await page.goto(TANA_APP_URL);
 
+  // Poll for successful login and extract Firebase API key
+  let apiKeyExtracted = false;
+  const checkInterval = setInterval(async () => {
+    try {
+      // Check if we're logged in (workspace visible)
+      const isLoggedIn = await page.evaluate(() => {
+        return document.querySelector("[data-testid=\"workspace\"]") !== null ||
+               document.querySelector(".workspace") !== null ||
+               !document.body.textContent?.includes("Sign in");
+      });
+
+      if (isLoggedIn && !apiKeyExtracted) {
+        // Wait a moment for tokens to be stored
+        await new Promise(r => setTimeout(r, 2000));
+
+        const apiKey = await extractFirebaseApiKey(page);
+        if (apiKey) {
+          const config = getConfig();
+          config.setFirebaseApiKey(apiKey);
+          apiKeyExtracted = true;
+          logger.info("");
+          logger.info("✓ Firebase API key extracted and saved to config");
+          logger.info("  Token refresh will now work without browser interaction");
+          logger.info("  You can close the browser.");
+        }
+      }
+    } catch {
+      // Page might be navigating, ignore errors
+    }
+  }, 3000);
+
   // Wait for user to close browser
   await new Promise<void>((resolve) => {
-    context.on("close", () => resolve());
+    context.on("close", () => {
+      clearInterval(checkInterval);
+      resolve();
+    });
   });
 
   logger.info("Login session saved.");
+  if (apiKeyExtracted) {
+    logger.info("Firebase API key saved - automated exports are now enabled.");
+  } else {
+    logger.warn("Firebase API key not extracted - token refresh may not work.");
+    logger.warn("Try logging in again and waiting until you see the workspace.");
+  }
 }
 
 /**
@@ -260,11 +354,11 @@ async function showStatus(): Promise<void> {
 
   // Check browser session
   console.log("Browser Session:");
-  const auth = await getAuthToken();
-  if (auth) {
-    if (isTokenValid(auth)) {
-      const expiresIn = getTokenExpiryMinutes(auth);
-      console.log(`  ✓ Logged in (token expires in ${expiresIn} minutes)`);
+  const authResult = await getAuthToken();
+  if (authResult) {
+    if (isTokenValid(authResult.auth)) {
+      const expiresIn = getTokenExpiryMinutes(authResult.auth);
+      console.log(`  ✓ Logged in (token expires in ${expiresIn} minutes) [${authResult.method}]`);
     } else {
       console.log("  ⚠ Token expired - run 'supertag-export login' to refresh");
     }

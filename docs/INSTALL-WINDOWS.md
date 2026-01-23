@@ -2,7 +2,37 @@
 
 This guide covers installing Supertag CLI on Windows 10/11.
 
-## Prerequisites
+---
+
+## Quick Install (Recommended)
+
+Run this command in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.ps1 | iex
+```
+
+This automatically:
+- Installs Bun runtime (if needed)
+- Installs Playwright and Chromium browser
+- Downloads supertag-cli for Windows x64
+- Configures PATH
+- Sets up MCP for Claude Desktop/Cursor (if installed)
+
+**After installation**, open a **new** PowerShell window and verify:
+```powershell
+supertag --version
+```
+
+If this works, skip to [Step 3: Configure API Token](#step-3-configure-api-token).
+
+---
+
+## Manual Installation
+
+If the quick install doesn't work, follow these manual steps.
+
+### Prerequisites
 
 - Windows 10 (1809+) or Windows 11
 - PowerShell 5.1+ (included with Windows)
@@ -10,7 +40,7 @@ This guide covers installing Supertag CLI on Windows 10/11.
 
 ---
 
-## Step 1: Download and Extract
+### Step 1: Download and Extract
 
 1. Go to [GitHub Releases](https://github.com/jcfischer/supertag-cli/releases)
 2. Download `supertag-cli-vX.Y.Z-windows-x64.zip`
@@ -45,7 +75,7 @@ You should see three executables:
 
 ---
 
-## Step 2: Add to PATH
+### Step 2: Add to PATH
 
 Adding Supertag to your PATH lets you run it from any directory.
 
@@ -103,7 +133,7 @@ You should see the version number (e.g., `0.6.4`).
 
 ---
 
-## Step 3: Configure API Token
+### Step 3: Configure API Token
 
 Get your Tana API token from: https://app.tana.inc/?bundle=settings&panel=api
 
@@ -130,7 +160,7 @@ echo $env:TANA_API_TOKEN
 
 ---
 
-## Step 4: Install Playwright (Required for Export)
+### Step 4: Install Playwright (Required for Export)
 
 The `supertag-export` tool uses Playwright for browser automation. Due to Playwright's native dependencies, it must be installed globally.
 
@@ -241,7 +271,7 @@ bunx playwright install
 
 ---
 
-## Step 5: Set Up Export Directory
+### Step 5: Set Up Export Directory
 
 Supertag expects Tana exports in a specific location:
 
@@ -252,7 +282,7 @@ mkdir "$env:USERPROFILE\Documents\Tana-Export\main" -ErrorAction SilentlyContinu
 
 ---
 
-## Step 6: First Run
+### Step 6: First Run
 
 Now let's verify everything works:
 

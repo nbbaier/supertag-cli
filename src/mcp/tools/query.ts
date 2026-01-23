@@ -8,10 +8,9 @@
 
 import { Database } from "bun:sqlite";
 import type { QueryInput } from "../schemas";
-import { UnifiedQueryEngine, type QueryResult } from "../../query/unified-query-engine";
-import type { QueryAST, WhereClause, QueryOperator } from "../../query/types";
+import { UnifiedQueryEngine } from "../../query/unified-query-engine";
+import type { QueryAST, WhereClause } from "../../query/types";
 import { resolveWorkspaceContext } from "../../config/workspace-resolver";
-import { handleMcpError } from "../error-handler";
 
 /**
  * Convert MCP input to QueryAST
@@ -104,6 +103,8 @@ export async function query(input: QueryInput): Promise<{
   results: Record<string, unknown>[];
   count: number;
   hasMore: boolean;
+  /** Field names included when select clause is used */
+  fieldNames?: string[];
 }> {
   try {
     // Resolve workspace
@@ -119,13 +120,27 @@ export async function query(input: QueryInput): Promise<{
     try {
       const result = await engine.execute(ast);
 
-      return {
+      const response: {
+        workspace: string;
+        query: QueryAST;
+        results: Record<string, unknown>[];
+        count: number;
+        hasMore: boolean;
+        fieldNames?: string[];
+      } = {
         workspace: wsContext.alias,
         query: ast,
         results: result.results,
         count: result.count,
         hasMore: result.hasMore,
       };
+
+      // Include fieldNames when select clause is used (F-093)
+      if (result.fieldNames && result.fieldNames.length > 0) {
+        response.fieldNames = result.fieldNames;
+      }
+
+      return response;
     } finally {
       db.close();
     }

@@ -31,7 +31,8 @@ export type QueryOperator =
   | "<="      // Less than or equal
   | "~"       // Contains (substring/array)
   | "contains"// Alias for ~
-  | "exists"; // Field has value
+  | "exists"  // Field has value
+  | "is_empty"; // Field is empty/null or doesn't exist
 
 /**
  * Value types in query conditions
