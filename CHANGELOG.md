@@ -5,6 +5,17 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.7] - 2026-01-26
+
+### Added
+
+- **Option Values Enumeration** - `tags show` and `tags fields` now display available option values for inline options fields
+  - Inline options show values: `Type: options (Active, Next Up, In Review, ...)`
+  - Reference fields show target: `Type: reference → project`
+  - New database column `option_values` in `supertag_fields` table stores JSON array of option names
+  - New `extractOptionValuesFromField()` function traverses field definition → "Values" tuple → option nodes
+  - MCP `tana_supertag_info` tool now includes `optionValues` array in field info
+
 ## [1.12.6] - 2026-01-21
 
 ### Fixed

@@ -29,6 +29,7 @@
   - [QUERY - Unified Query Language](#query---unified-query-language)
   - [BATCH - Multi-Node Operations](#batch---multi-node-operations)
   - [AGGREGATE - Group and Count](#aggregate---group-and-count)
+  - [TIMELINE - Time-Based Queries](#timeline---time-based-queries)
   - [RELATED - Graph Traversal](#related---graph-traversal)
   - [EXPORT - Automated Backup](#export---automated-backup)
   - [EMBED - Semantic Search](#embed---semantic-search)
@@ -124,7 +125,8 @@ supertag related <id>                        # Find related nodes
 supertag related <id> --depth 2              # Multi-hop traversal
 supertag tags top                            # Most used tags
 supertag tags inheritance manager            # Show tag hierarchy
-supertag tags fields meeting --all           # Show tag fields
+supertag tags fields meeting --all           # Show tag fields with types
+supertag tags show task                      # Show fields with option values
 supertag tags visualize                      # Inheritance graph (mermaid)
 supertag tags visualize --format dot         # Graphviz DOT format
 supertag stats                               # Statistics
@@ -285,6 +287,42 @@ Total: 100 nodes in 3 groups
 ```
 
 See [Aggregation Documentation](./docs/aggregation.md) for more examples.
+
+### TIMELINE - Time-Based Queries
+
+View activity over time periods with configurable granularity.
+
+```bash
+# Last 30 days, daily buckets (default)
+supertag timeline
+
+# Weekly view of last 3 months
+supertag timeline --from 3m --granularity week
+
+# Monthly view for a specific year
+supertag timeline --from 2025-01-01 --to 2025-12-31 --granularity month
+
+# Filter by supertag
+supertag timeline --tag meeting --granularity week
+
+# Recently created/updated items
+supertag recent                    # Last 24 hours
+supertag recent --period 7d        # Last 7 days
+supertag recent --period 1w --types meeting,task
+
+# Only created or only updated
+supertag recent --created          # Only newly created
+supertag recent --updated          # Only updated (not created)
+```
+
+**Granularity levels:** `hour`, `day`, `week`, `month`, `quarter`, `year`
+
+**Period formats:** `Nh` (hours), `Nd` (days), `Nw` (weeks), `Nm` (months), `Ny` (years)
+
+**Date formats:**
+- ISO dates: `2025-01-01`, `2025-06-15`
+- Relative: `7d` (7 days ago), `30d`, `1m`, `1w`, `1y`
+- Special: `today`, `yesterday`
 
 ### RELATED - Graph Traversal
 
