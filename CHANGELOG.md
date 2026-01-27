@@ -5,6 +5,20 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-01-27
+
+### Added
+
+- **Timeline & Temporal Queries** - New commands for time-based activity views
+  - `supertag timeline` - Time-bucketed activity with configurable granularity (hour/day/week/month/quarter/year)
+  - `supertag recent` - Recently created/updated items within a time period
+  - Support relative dates: `7d`, `1w`, `1m`, `1y` and ISO dates
+  - MCP tools: `tana_timeline`, `tana_recent`
+
+- **Community Links** - Added video course and Discord links to README
+  - Video course: https://courses.invisible.ch
+  - Discord community: https://discord.gg/MbQpMWsB
+
 ## [1.13.0] - 2026-01-26
 
 ### Added
