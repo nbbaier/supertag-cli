@@ -9,9 +9,10 @@ import { $ } from "bun";
 import { Database } from "bun:sqlite";
 import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import { getUniqueTestDir } from "../test-utils";
 
 describe("tags visualize command", () => {
-  const testDir = "/tmp/supertag-visualize-test";
+  const testDir = getUniqueTestDir("visualize");
   const testDbPath = join(testDir, "tana-index.db");
 
   beforeAll(() => {

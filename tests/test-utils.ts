@@ -50,6 +50,19 @@ export function getUniqueTestDbPath(testName: string): string {
 }
 
 /**
+ * Generate a unique test directory path for tests to avoid conflicts
+ * when tests run in parallel or random order.
+ *
+ * @param testName - Name to include in the path for debugging
+ * @returns Unique directory path (not created - caller must mkdir)
+ */
+export function getUniqueTestDir(testName: string): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 9);
+  return `/tmp/supertag-test-${testName}-${timestamp}-${random}`;
+}
+
+/**
  * Get a unique port for test servers to avoid port conflicts.
  *
  * @returns Random port in range 10000-20000
