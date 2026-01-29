@@ -21,7 +21,7 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SRC_DIR="$PROJECT_DIR/src"
-BIN_DIR="$HOME/bin"
+BIN_DIR="$HOME/.local/bin"
 
 # Binary definitions
 BINARY_NAMES=("supertag" "supertag-mcp" "supertag-export")
@@ -126,8 +126,20 @@ create_symlinks() {
                 rm -f "$target"
             fi
 
-            ln -s "$source" "$target"
-            log_info "  Linked $binary -> $target"
+            # supertag-export needs a wrapper script to run from project dir for playwright
+            if [[ "$binary" == "supertag-export" ]]; then
+                cat > "$target" << EOF
+#!/usr/bin/env bash
+# Wrapper for supertag-export - runs from project dir so Bun finds playwright
+cd "$PROJECT_DIR"
+exec "$source" "\$@"
+EOF
+                chmod +x "$target"
+                log_info "  Created wrapper $binary -> $target"
+            else
+                ln -s "$source" "$target"
+                log_info "  Linked $binary -> $target"
+            fi
         else
             log_warn "  Skipped $binary (binary not found)"
         fi
