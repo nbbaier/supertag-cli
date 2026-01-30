@@ -156,6 +156,17 @@ export interface TanaConfig {
   updateCheck?: 'enabled' | 'disabled' | 'manual';
   /** Output formatting configuration (Spec 060) */
   output?: OutputConfigSettings;
+  /** Local API configuration (F-094) */
+  localApi?: {
+    /** Whether local API is enabled (default: true) */
+    enabled: boolean;
+    /** Bearer token from Tana Desktop > Settings > Local API */
+    bearerToken?: string;
+    /** API endpoint URL (default: http://localhost:8262) */
+    endpoint: string;
+  };
+  /** Use Input API as fallback when local API is unavailable (F-094) */
+  useInputApiFallback?: boolean;
 }
 
 /**

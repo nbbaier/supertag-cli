@@ -44,6 +44,12 @@ import { VERSION } from './version';
 import { createCodegenCommand } from './commands/codegen';
 import { createUpdateCommand, checkForUpdatePassive } from './commands/update';
 import { createErrorsCommand } from './commands/errors';
+// F-094: Local API mutation commands
+import { createEditCommand } from './commands/edit';
+import { createTagCommand } from './commands/tag';
+import { createSetFieldCommand } from './commands/set-field';
+import { createTrashCommand } from './commands/trash';
+import { createDoneCommand, createUndoneCommand } from './commands/done';
 import { configureGlobalLogger } from './utils/logger';
 import { resolveOutputMode } from './utils/output-formatter';
 import { setDebugMode, formatDebugError } from './utils/debug';
@@ -100,6 +106,9 @@ program
   .option('--token <token>', 'Set API token')
   .option('--target <node>', 'Set default target node (INBOX, SCHEMA, or node ID)')
   .option('--endpoint <url>', 'Set API endpoint URL')
+  .option('--bearer-token <token>', 'Set local API bearer token')
+  .option('--local-api-url <url>', 'Set local API endpoint URL')
+  .option('--use-input-api <bool>', 'Enable Input API fallback (true/false)')
   .action(async (options) => {
     await configCommand(options);
   });
@@ -174,6 +183,14 @@ program.addCommand(createErrorsCommand());     // supertag errors [--last N] [--
 program.addCommand(createAttachmentsCommand()); // supertag attachments list|extract|get|stats
 program.addCommand(createTimelineCommand());   // supertag timeline --from 30d --granularity week
 program.addCommand(createRecentCommand());     // supertag recent --period 24h --types meeting,task
+
+// F-094: Local API mutation commands
+program.addCommand(createEditCommand());       // supertag edit <nodeId> --name --description
+program.addCommand(createTagCommand());        // supertag tag add|remove|create
+program.addCommand(createSetFieldCommand());   // supertag set-field <nodeId> <field> <value>
+program.addCommand(createTrashCommand());      // supertag trash <nodeId>
+program.addCommand(createDoneCommand());       // supertag done <nodeId>
+program.addCommand(createUndoneCommand());     // supertag undone <nodeId>
 
 /**
  * Help text with examples

@@ -38,6 +38,12 @@ import { batchCreate } from './tools/batch-create.js';
 import { query } from './tools/query.js';
 import { aggregate } from './tools/aggregate.js';
 import { timeline, recent } from './tools/timeline.js';
+import { handleUpdateNode } from './tools/update.js';
+import { handleTagAdd, handleTagRemove } from './tools/tag-operations.js';
+import { handleCreateTag } from './tools/tag-create.js';
+import { handleSetField, handleSetFieldOption } from './tools/set-field.js';
+import { handleTrashNode } from './tools/trash.js';
+import { handleDone, handleUndone } from './tools/done.js';
 import { VERSION } from '../version.js';
 import { createLogger } from '../utils/logger.js';
 import { handleMcpError } from './error-handler.js';
@@ -234,6 +240,61 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           'Recently created or updated items within a time period. Returns items ordered by most recent activity. Supports period formats: Nh (hours), Nd (days), Nw (weeks), Nm (months). Filter by types (supertags) or activity type (created vs updated). Example: { period: "7d", types: ["meeting", "task"] }',
         inputSchema: schemas.zodToJsonSchema(schemas.recentSchema),
       },
+      // Mutation tools (F-094: Local API)
+      {
+        name: 'tana_update_node',
+        description:
+          'Update a node name or description. Requires Local API (Tana Desktop running with bearer token configured).',
+        inputSchema: schemas.zodToJsonSchema(schemas.updateNodeSchema),
+      },
+      {
+        name: 'tana_tag_add',
+        description:
+          'Add one or more supertags to a node. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.tagAddSchema),
+      },
+      {
+        name: 'tana_tag_remove',
+        description:
+          'Remove one or more supertags from a node. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.tagRemoveSchema),
+      },
+      {
+        name: 'tana_create_tag',
+        description:
+          'Create a new supertag definition in the workspace. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.createTagSchema),
+      },
+      {
+        name: 'tana_set_field',
+        description:
+          'Set a text field value on a node. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.setFieldSchema),
+      },
+      {
+        name: 'tana_set_field_option',
+        description:
+          'Set a field option (dropdown/select value) on a node. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.setFieldOptionSchema),
+      },
+      {
+        name: 'tana_trash_node',
+        description:
+          'Move a node to trash. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.trashNodeSchema),
+      },
+      {
+        name: 'tana_done',
+        description:
+          'Mark a node as done (checked). Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.doneSchema),
+      },
+      {
+        name: 'tana_undone',
+        description:
+          'Mark a node as not done (unchecked). Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.undoneSchema),
+      },
     ],
   };
 });
@@ -360,6 +421,52 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'tana_recent': {
         const validated = schemas.recentSchema.parse(args);
         result = await recent(validated);
+        break;
+      }
+      // Mutation tools (F-094: Local API)
+      case 'tana_update_node': {
+        const validated = schemas.updateNodeSchema.parse(args);
+        result = await handleUpdateNode(validated);
+        break;
+      }
+      case 'tana_tag_add': {
+        const validated = schemas.tagAddSchema.parse(args);
+        result = await handleTagAdd(validated);
+        break;
+      }
+      case 'tana_tag_remove': {
+        const validated = schemas.tagRemoveSchema.parse(args);
+        result = await handleTagRemove(validated);
+        break;
+      }
+      case 'tana_create_tag': {
+        const validated = schemas.createTagSchema.parse(args);
+        result = await handleCreateTag(validated);
+        break;
+      }
+      case 'tana_set_field': {
+        const validated = schemas.setFieldSchema.parse(args);
+        result = await handleSetField(validated);
+        break;
+      }
+      case 'tana_set_field_option': {
+        const validated = schemas.setFieldOptionSchema.parse(args);
+        result = await handleSetFieldOption(validated);
+        break;
+      }
+      case 'tana_trash_node': {
+        const validated = schemas.trashNodeSchema.parse(args);
+        result = await handleTrashNode(validated);
+        break;
+      }
+      case 'tana_done': {
+        const validated = schemas.doneSchema.parse(args);
+        result = await handleDone(validated);
+        break;
+      }
+      case 'tana_undone': {
+        const validated = schemas.undoneSchema.parse(args);
+        result = await handleUndone(validated);
         break;
       }
       default:

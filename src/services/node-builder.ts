@@ -293,7 +293,7 @@ export async function createNode(
   // Lazy imports to avoid circular dependencies
   const { getSchemaRegistry } = await import('../commands/schema');
   const { ConfigManager } = await import('../config/manager');
-  const { createApiClient } = await import('../api/client');
+  const { resolveBackend } = await import('../api/backend-resolver');
   const { resolveWorkspace } = await import('../config/paths');
 
   // Get configuration
@@ -348,18 +348,10 @@ export async function createNode(
     };
   }
 
-  // Check for API token (only needed for actual posting)
-  const apiToken = config.apiToken;
-  if (!apiToken) {
-    throw new Error(
-      'API token not configured. Set it via: supertag config --token <token>'
-    );
-  }
+  // Resolve backend (Local API or Input API based on config)
+  const backend = await resolveBackend();
 
-  // Create API client and post
-  const client = createApiClient(apiToken, config.apiEndpoint);
-
-  const response = await client.postNodes(target, [payload], false);
+  const response = await backend.createNodes(target, [payload], false);
 
   if (response.success) {
     return {

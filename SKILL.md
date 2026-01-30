@@ -35,7 +35,7 @@ Get a lightweight overview of available tools, categorized by function.
 - **query**: tana_search, tana_semantic_search, tana_tagged, tana_field_values, tana_batch_get, tana_query, tana_timeline, tana_recent
 - **explore**: tana_node, tana_related, tana_stats, tana_supertags, tana_supertag_info
 - **transcript**: tana_transcript_list, tana_transcript_show, tana_transcript_search
-- **mutate**: tana_create, tana_batch_create
+- **mutate**: tana_create, tana_batch_create, tana_update_node, tana_tag_add, tana_tag_remove, tana_create_tag, tana_set_field, tana_set_field_option, tana_trash_node, tana_done, tana_undone
 - **system**: tana_sync, tana_cache_clear, tana_capabilities, tana_tool_schema
 
 **Example:**
@@ -301,6 +301,87 @@ Create 3 todo items: "Task A", "Task B", "Task C"
 Create meeting notes with children for agenda items
 Validate batch create with dry-run before creating
 ```
+
+### tana_update_node
+Update a node's name or description. Requires Local API (Tana Desktop running).
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID to update |
+| `name` | string | No | New node name |
+| `description` | string | No | New node description |
+
+### tana_tag_add
+Add supertags to a node. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+| `tagIds` | array | Yes | Supertag IDs to add |
+
+### tana_tag_remove
+Remove supertags from a node. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+| `tagIds` | array | Yes | Supertag IDs to remove |
+
+### tana_create_tag
+Create a new supertag definition. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Supertag name |
+| `description` | string | No | Optional description |
+
+### tana_set_field
+Set a text field value on a node. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+| `attributeId` | string | Yes | Field attribute ID |
+| `content` | string | Yes | Field value |
+
+### tana_set_field_option
+Set a field option (dropdown) value on a node. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+| `attributeId` | string | Yes | Field attribute ID |
+| `optionId` | string | Yes | Option ID to set |
+
+### tana_trash_node
+Move a node to trash. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID to trash |
+
+### tana_done
+Mark a node as done (checked). Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+
+### tana_undone
+Mark a node as not done (unchecked). Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
 
 ### tana_query
 Unified query that combines tag filtering, field filtering, date ranges, and full-text search in a single expressive query. Replaces multi-step discovery→query→filter workflows.

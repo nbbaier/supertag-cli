@@ -28,6 +28,7 @@
 - [Capabilities](#capabilities)
   - [READ - Query Workspace](#read---query-workspace)
   - [WRITE - Create Nodes](#write---create-nodes)
+  - [MUTATE - Edit Existing Nodes](#mutate---edit-existing-nodes)
   - [QUERY - Unified Query Language](#query---unified-query-language)
   - [BATCH - Multi-Node Operations](#batch---multi-node-operations)
   - [AGGREGATE - Group and Count](#aggregate---group-and-count)
@@ -160,6 +161,35 @@ supertag create task "My Task" --state "@Open"
 supertag create meeting "Standup" --owner "@John Doe"
 supertag create task "Project" --assignees "@Alice,@Bob"
 ```
+
+### MUTATE - Edit Existing Nodes
+
+Requires Tana Desktop running with Local API enabled. Configure with:
+```bash
+supertag config --bearer-token <token>   # From Tana Desktop > Settings > Local API
+```
+
+```bash
+# Update node name or description
+supertag edit <nodeId> --name "New name"
+supertag edit <nodeId> --description "Updated description"
+
+# Tag operations
+supertag tag add <nodeId> <tagId1> <tagId2>
+supertag tag remove <nodeId> <tagId>
+supertag tag create "sprint" --description "Sprint supertag"
+
+# Set field values
+supertag set-field <nodeId> <attributeId> "value"
+supertag set-field <nodeId> <attributeId> --option-id <optionId>
+
+# Check/uncheck and trash
+supertag done <nodeId>
+supertag undone <nodeId>
+supertag trash <nodeId> --confirm
+```
+
+**Note:** These commands require the Local API backend. If Tana Desktop isn't running, supertag falls back to the Input API (which only supports create operations).
 
 ### FORMAT - JSON to Tana Paste
 

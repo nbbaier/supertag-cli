@@ -718,6 +718,74 @@ export const recentSchema = z.object({
 });
 export type RecentInput = z.infer<typeof recentSchema>;
 
+// =============================================================================
+// Mutation Schemas (F-094: Local API)
+// =============================================================================
+
+// tana_update_node
+export const updateNodeSchema = z.object({
+  nodeId: z.string().min(1).describe('Tana node ID to update'),
+  name: z.string().optional().describe('New node name/title (null to clear)'),
+  description: z.string().optional().describe('New node description (null to clear)'),
+});
+export type UpdateNodeInput = z.infer<typeof updateNodeSchema>;
+
+// tana_tag_add
+export const tagAddSchema = z.object({
+  nodeId: z.string().min(1).describe('Tana node ID to add tags to'),
+  tagIds: z.array(z.string().min(1)).min(1).describe('Array of supertag IDs to add'),
+});
+export type TagAddInput = z.infer<typeof tagAddSchema>;
+
+// tana_tag_remove
+export const tagRemoveSchema = z.object({
+  nodeId: z.string().min(1).describe('Tana node ID to remove tags from'),
+  tagIds: z.array(z.string().min(1)).min(1).describe('Array of supertag IDs to remove'),
+});
+export type TagRemoveInput = z.infer<typeof tagRemoveSchema>;
+
+// tana_create_tag
+export const createTagSchema = z.object({
+  name: z.string().min(1).describe('Name for the new supertag'),
+  description: z.string().optional().describe('Optional description for the tag'),
+  color: z.string().optional().describe('Optional color for the tag'),
+});
+export type CreateTagInput = z.infer<typeof createTagSchema>;
+
+// tana_set_field
+export const setFieldSchema = z.object({
+  nodeId: z.string().min(1).describe('Tana node ID to set field on'),
+  attributeId: z.string().min(1).describe('Field attribute ID'),
+  content: z.string().describe('Field value content'),
+});
+export type SetFieldInput = z.infer<typeof setFieldSchema>;
+
+// tana_set_field_option
+export const setFieldOptionSchema = z.object({
+  nodeId: z.string().min(1).describe('Tana node ID to set field option on'),
+  attributeId: z.string().min(1).describe('Field attribute ID'),
+  optionId: z.string().min(1).describe('Option ID to set'),
+});
+export type SetFieldOptionInput = z.infer<typeof setFieldOptionSchema>;
+
+// tana_trash_node
+export const trashNodeSchema = z.object({
+  nodeId: z.string().min(1).describe('Tana node ID to move to trash'),
+});
+export type TrashNodeInput = z.infer<typeof trashNodeSchema>;
+
+// tana_done
+export const doneSchema = z.object({
+  nodeId: z.string().min(1).describe('Tana node ID to mark as done'),
+});
+export type DoneInput = z.infer<typeof doneSchema>;
+
+// tana_undone
+export const undoneSchema = z.object({
+  nodeId: z.string().min(1).describe('Tana node ID to mark as not done'),
+});
+export type UndoneInput = z.infer<typeof undoneSchema>;
+
 /**
  * Parse date range strings into UNIX timestamps (ms)
  */

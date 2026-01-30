@@ -5,6 +5,39 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Local API Integration (F-094)** - Tana Desktop's tana-local REST API as write backend
+  - New backend abstraction layer: `TanaBackend` interface with `InputApiBackend` and `LocalApiBackend` implementations
+  - Auto-detects available backend: Local API (if Tana Desktop running) → Input API fallback
+  - `supertag config --bearer-token <token>` to configure Local API authentication
+  - `supertag config --local-api-url <url>` to set custom endpoint (default: `http://localhost:8262`)
+  - `supertag config --use-input-api true` to prefer legacy Input API
+  - Environment variables: `TANA_LOCAL_API_TOKEN`, `TANA_LOCAL_API_URL`
+
+- **Node Mutation Commands** - New CLI commands for editing existing nodes (requires Local API)
+  - `supertag edit <nodeId>` - Update node name or description
+  - `supertag tag add <nodeId> <tagIds...>` - Add supertags to a node
+  - `supertag tag remove <nodeId> <tagIds...>` - Remove supertags from a node
+  - `supertag tag create <name>` - Create a new supertag definition
+  - `supertag set-field <nodeId> <attributeId> <value>` - Set field text content
+  - `supertag trash <nodeId>` - Move a node to trash
+  - `supertag done <nodeId>` / `supertag undone <nodeId>` - Check/uncheck nodes
+
+- **MCP Mutation Tools** - 9 new MCP tools for AI-driven node editing
+  - `tana_update_node` - Update node name/description
+  - `tana_tag_add` / `tana_tag_remove` - Add or remove supertags
+  - `tana_create_tag` - Create new supertag definitions
+  - `tana_set_field` / `tana_set_field_option` - Set field values
+  - `tana_trash_node` - Move nodes to trash
+  - `tana_done` / `tana_undone` - Check/uncheck nodes
+
+### Changed
+
+- **Backend Abstraction** - `supertag create` and `supertag batch create` now route through the backend abstraction, automatically using Local API when available
+
 ## [1.13.3] - 2026-01-29
 
 ### Fixed
