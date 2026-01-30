@@ -32,10 +32,10 @@ Get a lightweight overview of available tools, categorized by function.
 | `category` | string | No | Filter to specific category (query, explore, transcript, mutate, system) |
 
 **Categories:**
-- **query**: tana_search, tana_semantic_search, tana_tagged, tana_field_values, tana_batch_get, tana_query
+- **query**: tana_search, tana_semantic_search, tana_tagged, tana_field_values, tana_batch_get, tana_query, tana_timeline, tana_recent
 - **explore**: tana_node, tana_related, tana_stats, tana_supertags, tana_supertag_info
 - **transcript**: tana_transcript_list, tana_transcript_show, tana_transcript_search
-- **mutate**: tana_create, tana_batch_create
+- **mutate**: tana_create, tana_batch_create, tana_update_node, tana_tag_add, tana_tag_remove, tana_create_tag, tana_set_field, tana_set_field_option, tana_trash_node, tana_done, tana_undone
 - **system**: tana_sync, tana_cache_clear, tana_capabilities, tana_tool_schema
 
 **Example:**
@@ -243,17 +243,22 @@ Show database statistics
 ```
 
 ### tana_sync
-Trigger reindex or check sync status.
+Trigger reindex, delta-sync, or check sync status.
 
 **Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string | No | "index" to reindex, "status" to check (default: index) |
+| `action` | string | No | "index" to reindex, "delta" for incremental sync, "status" to check (default: index) |
 | `workspace` | string | No | Workspace alias |
+
+**Delta-sync** (`action="delta"`) fetches only nodes changed since the last sync via Tana Desktop's Local API. Much faster than full reindex. Requires Tana Desktop running with Local API enabled.
+
+The MCP server also runs delta-sync automatically in the background (default: every 5 minutes). Configure interval via `localApi.deltaSyncInterval` in config or `TANA_DELTA_SYNC_INTERVAL` env var (0 disables).
 
 **Example:**
 ```
 Reindex my Tana database
+Run incremental sync to get latest changes
 Check when Tana was last synced
 ```
 
@@ -301,6 +306,87 @@ Create 3 todo items: "Task A", "Task B", "Task C"
 Create meeting notes with children for agenda items
 Validate batch create with dry-run before creating
 ```
+
+### tana_update_node
+Update a node's name or description. Requires Local API (Tana Desktop running).
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID to update |
+| `name` | string | No | New node name |
+| `description` | string | No | New node description |
+
+### tana_tag_add
+Add supertags to a node. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+| `tagIds` | array | Yes | Supertag IDs to add |
+
+### tana_tag_remove
+Remove supertags from a node. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+| `tagIds` | array | Yes | Supertag IDs to remove |
+
+### tana_create_tag
+Create a new supertag definition. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Supertag name |
+| `description` | string | No | Optional description |
+
+### tana_set_field
+Set a text field value on a node. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+| `attributeId` | string | Yes | Field attribute ID |
+| `content` | string | Yes | Field value |
+
+### tana_set_field_option
+Set a field option (dropdown) value on a node. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+| `attributeId` | string | Yes | Field attribute ID |
+| `optionId` | string | Yes | Option ID to set |
+
+### tana_trash_node
+Move a node to trash. Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID to trash |
+
+### tana_done
+Mark a node as done (checked). Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
+
+### tana_undone
+Mark a node as not done (unchecked). Requires Local API.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Tana node ID |
 
 ### tana_query
 Unified query that combines tag filtering, field filtering, date ranges, and full-text search in a single expressive query. Replaces multi-step discovery→query→filter workflows.
@@ -440,6 +526,13 @@ What fields does the meeting supertag have?
 Show me all fields for #project including inherited fields
 ```
 
+**Field info includes:**
+- `name` - Field name
+- `labelId` - Field label node ID
+- `inferredDataType` - Data type (text, date, reference, options, etc.)
+- `targetSupertagName` - For reference fields, the target supertag (e.g., "project")
+- `optionValues` - For inline options fields, array of available values (e.g., ["Active", "Next Up", "Done"])
+
 **Mode: inheritance** - Get parent relationships:
 ```
 What does #manager inherit from?
@@ -450,6 +543,64 @@ Show me the full inheritance chain for #employee
 ```
 Tell me everything about the #todo supertag
 Show complete structure of #contact tag
+```
+
+### tana_timeline
+Time-bucketed activity view over a date range. Groups nodes by time period with configurable granularity.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from` | string | No | Start date (ISO or relative: 7d, 1m, today) |
+| `to` | string | No | End date (ISO or relative, default: today) |
+| `granularity` | string | No | Time bucket size: hour, day, week, month, quarter, year (default: day) |
+| `tag` | string | No | Filter by supertag |
+| `limit` | number | No | Max items per bucket (default: 10) |
+| `workspace` | string | No | Workspace alias |
+
+**Example:**
+```
+Show me my activity for the last 30 days grouped by week
+{
+  "from": "30d",
+  "granularity": "week"
+}
+
+Show meeting activity for 2025 by month
+{
+  "from": "2025-01-01",
+  "to": "2025-12-31",
+  "granularity": "month",
+  "tag": "meeting"
+}
+```
+
+### tana_recent
+Recently created or updated items within a time period.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `period` | string | No | Time period: Nh (hours), Nd (days), Nw (weeks), Nm (months) (default: 24h) |
+| `types` | array | No | Filter by supertag names |
+| `createdOnly` | boolean | No | Only show created items (not updated) |
+| `updatedOnly` | boolean | No | Only show updated items (not created) |
+| `limit` | number | No | Max results (default: 20) |
+| `workspace` | string | No | Workspace alias |
+
+**Example:**
+```
+What did I create in the last 7 days?
+{
+  "period": "7d",
+  "createdOnly": true
+}
+
+Show recent meetings and tasks from this week
+{
+  "period": "1w",
+  "types": ["meeting", "task"]
+}
 ```
 
 ## CLI Commands
@@ -487,6 +638,31 @@ supertag nodes refs <id>
 supertag nodes recent --limit 10
 ```
 
+### Timeline Commands
+
+```bash
+# Last 30 days, daily buckets (default)
+supertag timeline
+
+# Weekly view of last 3 months
+supertag timeline --from 3m --granularity week
+
+# Monthly view for a specific year
+supertag timeline --from 2025-01-01 --to 2025-12-31 --granularity month
+
+# Filter by supertag
+supertag timeline --tag meeting --granularity week
+
+# Recently created/updated items
+supertag recent                    # Last 24 hours
+supertag recent --period 7d        # Last 7 days
+supertag recent --period 1w --types meeting,task
+
+# Only created or only updated
+supertag recent --created          # Only newly created
+supertag recent --updated          # Only updated (not created)
+```
+
 ### Tag Commands
 
 ```bash
@@ -504,11 +680,14 @@ supertag tags inheritance manager          # Tree view
 supertag tags inheritance manager --flat   # Flattened list
 supertag tags inheritance manager --json   # JSON output
 
-# Show supertag fields
+# Show supertag fields (with types, option values, references)
 supertag tags fields meeting              # Own fields only
 supertag tags fields manager --all        # Include inherited fields
 supertag tags fields manager --inherited  # Inherited only
 supertag tags fields manager --json       # JSON output
+# Field output shows:
+#   Type: options (Active, Next Up, Done)     <- inline options with values
+#   Type: reference → project                  <- reference field with target
 
 # Visualize inheritance graph
 supertag tags visualize                   # Mermaid flowchart (default)
@@ -657,10 +836,13 @@ supertag search "meeting" -w work
 ### Sync Commands
 
 ```bash
-# Index export files
+# Full reindex from export files
 supertag sync index
 
-# Check status
+# Delta-sync: fetch only changes since last sync (requires Tana Desktop + Local API)
+supertag sync index --delta
+
+# Check status (includes delta-sync info)
 supertag sync status
 
 # Cleanup old exports
@@ -782,11 +964,19 @@ Config file: `~/.config/supertag/config.json`
   "embedding": {
     "provider": "ollama",
     "model": "bge-m3"
+  },
+  "localApi": {
+    "deltaSyncInterval": 5
+  },
+  "mcp": {
+    "toolMode": "full"
   }
 }
 ```
 
 **Output format options:** `table`, `json`, `csv`, `ids`, `minimal`, `jsonl`
+
+**MCP Slim Mode:** Set `mcp.toolMode` to `"slim"` to reduce from 31 to 16 tools. Keeps semantic search, all mutations, sync, cache clear, capabilities, and tool schema. Useful for AI agents that perform better with fewer tool options.
 
 ## Prerequisites
 
@@ -802,6 +992,10 @@ Config file: `~/.config/supertag/config.json`
 | `TANA_API_TOKEN` | Tana Input API token |
 | `TANA_WORKSPACE` | Default workspace alias |
 | `SUPERTAG_FORMAT` | Default output format (table, json, csv, ids, minimal, jsonl) |
+| `TANA_LOCAL_API_TOKEN` | Bearer token for Tana Desktop Local API |
+| `TANA_LOCAL_API_URL` | Local API endpoint URL (default: `http://localhost:8262`) |
+| `TANA_DELTA_SYNC_INTERVAL` | Delta-sync polling interval in minutes (default: 5, 0 disables) |
+| `TANA_MCP_TOOL_MODE` | MCP tool mode: `full` (31 tools) or `slim` (16 tools) |
 | `DEBUG` | Enable debug logging |
 
 ## Data Locations

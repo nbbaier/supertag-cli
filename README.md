@@ -6,6 +6,10 @@
 
 **Complete Tana integration**: Query, write, search, and automate your Tana workspace from the command line.
 
+### What's New in v2.0.0
+
+Tana has officially released their [Local API and MCP server](https://tana.inc), and Supertag CLI now fully integrates with it. This means supertag-cli is no longer limited to read-only exports and basic node creation — you can now **edit nodes, manage tags, set field values, check off tasks, and trash nodes** directly from the command line or through any MCP-compatible AI tool. The new delta-sync feature uses the Local API to fetch only changed nodes since your last sync, making incremental updates fast without needing a full re-export. All you need is Tana Desktop running with the Local API enabled. Supertag CLI auto-detects the Local API and falls back to the Input API when Tana Desktop isn't available, so your existing workflows keep working unchanged.
+
 ## Three-Tool Architecture
 
 | Tool | Size | Purpose |
@@ -18,6 +22,8 @@
 
 **New to Supertag?** Check out the [Visual Getting Started Guide](./docs/GETTING-STARTED.md) with step-by-step screenshots.
 
+**Learn more:** [Video Course](https://courses.invisible.ch) | [Discord Community](https://discord.gg/MbQpMWsB)
+
 ---
 
 ## Table of Contents
@@ -26,9 +32,11 @@
 - [Capabilities](#capabilities)
   - [READ - Query Workspace](#read---query-workspace)
   - [WRITE - Create Nodes](#write---create-nodes)
+  - [MUTATE - Edit Existing Nodes](#mutate---edit-existing-nodes)
   - [QUERY - Unified Query Language](#query---unified-query-language)
   - [BATCH - Multi-Node Operations](#batch---multi-node-operations)
   - [AGGREGATE - Group and Count](#aggregate---group-and-count)
+  - [TIMELINE - Time-Based Queries](#timeline---time-based-queries)
   - [RELATED - Graph Traversal](#related---graph-traversal)
   - [EXPORT - Automated Backup](#export---automated-backup)
   - [EMBED - Semantic Search](#embed---semantic-search)
@@ -53,7 +61,21 @@
 
 ## Quick Start
 
-### One-Line Install (Recommended)
+### Homebrew (Recommended for macOS)
+
+```bash
+brew tap jcfischer/supertag
+brew install supertag
+```
+
+Or in one command:
+```bash
+brew install jcfischer/supertag/supertag
+```
+
+This installs all binaries (`supertag`, `supertag-mcp`, `supertag-export`) and keeps them updated with `brew upgrade supertag`.
+
+### One-Line Install (Alternative)
 
 **macOS / Linux:**
 ```bash
@@ -124,7 +146,8 @@ supertag related <id>                        # Find related nodes
 supertag related <id> --depth 2              # Multi-hop traversal
 supertag tags top                            # Most used tags
 supertag tags inheritance manager            # Show tag hierarchy
-supertag tags fields meeting --all           # Show tag fields
+supertag tags fields meeting --all           # Show tag fields with types
+supertag tags show task                      # Show fields with option values
 supertag tags visualize                      # Inheritance graph (mermaid)
 supertag tags visualize --format dot         # Graphviz DOT format
 supertag stats                               # Statistics
@@ -142,6 +165,35 @@ supertag create task "My Task" --state "@Open"
 supertag create meeting "Standup" --owner "@John Doe"
 supertag create task "Project" --assignees "@Alice,@Bob"
 ```
+
+### MUTATE - Edit Existing Nodes
+
+Requires Tana Desktop running with Local API enabled. Configure with:
+```bash
+supertag config --bearer-token <token>   # From Tana Desktop > Settings > Local API
+```
+
+```bash
+# Update node name or description
+supertag edit <nodeId> --name "New name"
+supertag edit <nodeId> --description "Updated description"
+
+# Tag operations
+supertag tag add <nodeId> <tagId1> <tagId2>
+supertag tag remove <nodeId> <tagId>
+supertag tag create "sprint" --description "Sprint supertag"
+
+# Set field values
+supertag set-field <nodeId> <attributeId> "value"
+supertag set-field <nodeId> <attributeId> --option-id <optionId>
+
+# Check/uncheck and trash
+supertag done <nodeId>
+supertag undone <nodeId>
+supertag trash <nodeId> --confirm
+```
+
+**Note:** These commands require the Local API backend. If Tana Desktop isn't running, supertag falls back to the Input API (which only supports create operations).
 
 ### FORMAT - JSON to Tana Paste
 
@@ -286,6 +338,42 @@ Total: 100 nodes in 3 groups
 
 See [Aggregation Documentation](./docs/aggregation.md) for more examples.
 
+### TIMELINE - Time-Based Queries
+
+View activity over time periods with configurable granularity.
+
+```bash
+# Last 30 days, daily buckets (default)
+supertag timeline
+
+# Weekly view of last 3 months
+supertag timeline --from 3m --granularity week
+
+# Monthly view for a specific year
+supertag timeline --from 2025-01-01 --to 2025-12-31 --granularity month
+
+# Filter by supertag
+supertag timeline --tag meeting --granularity week
+
+# Recently created/updated items
+supertag recent                    # Last 24 hours
+supertag recent --period 7d        # Last 7 days
+supertag recent --period 1w --types meeting,task
+
+# Only created or only updated
+supertag recent --created          # Only newly created
+supertag recent --updated          # Only updated (not created)
+```
+
+**Granularity levels:** `hour`, `day`, `week`, `month`, `quarter`, `year`
+
+**Period formats:** `Nh` (hours), `Nd` (days), `Nw` (weeks), `Nm` (months), `Ny` (years)
+
+**Date formats:**
+- ISO dates: `2025-01-01`, `2025-06-15`
+- Relative: `7d` (7 days ago), `30d`, `1m`, `1w`, `1y`
+- Special: `today`, `yesterday`
+
 ### RELATED - Graph Traversal
 
 Find nodes related to a given node through references, children, and field links.
@@ -334,6 +422,26 @@ Total: 8
 ```
 
 See [Graph Traversal Documentation](./docs/graph-traversal.md) for more examples.
+
+### SYNC - Index and Delta-Sync
+
+```bash
+# Full reindex from export files
+supertag sync index
+
+# Delta-sync: fetch only changes since last sync (requires Tana Desktop + Local API)
+supertag sync index --delta
+
+# Check sync status (includes delta-sync info)
+supertag sync status
+
+# Cleanup old exports
+supertag sync cleanup --keep 5
+```
+
+**Delta-sync** uses Tana Desktop's Local API to fetch only nodes changed since the last sync, making it much faster than a full reindex. Requires Tana Desktop running with Local API enabled and a bearer token configured (`supertag config --bearer-token <token>`).
+
+The MCP server can run delta-sync automatically in the background at a configurable interval (default: every 5 minutes). Set `localApi.deltaSyncInterval` in config or use `TANA_DELTA_SYNC_INTERVAL` environment variable (0 disables polling).
 
 ### EXPORT - Automated Backup
 
@@ -614,6 +722,20 @@ Integrate with Claude Desktop, ChatGPT, Cursor, VS Code, and other MCP-compatibl
 }
 ```
 
+**Slim Mode:** Reduce the tool count from 31 to 16 essential tools for AI agents that work better with fewer options:
+
+```bash
+# Via environment variable
+TANA_MCP_TOOL_MODE=slim supertag-mcp
+
+# Or in config.json
+# { "mcp": { "toolMode": "slim" } }
+```
+
+Slim mode keeps: semantic search, all mutation tools, sync, cache clear, capabilities, and tool schema. Removes read-only query tools that overlap with semantic search.
+
+**Background Delta-Sync:** The MCP server automatically runs incremental syncs in the background (default: every 5 minutes) when Tana Desktop is reachable. Configure with `localApi.deltaSyncInterval` or `TANA_DELTA_SYNC_INTERVAL` (0 disables).
+
 See [MCP Documentation](./docs/mcp.md) for setup guides.
 
 ### WORKSPACES - Multi-Workspace
@@ -747,6 +869,15 @@ Set defaults in `~/.config/supertag/config.json`:
 ```bash
 export SUPERTAG_FORMAT=csv  # Default to CSV output
 ```
+
+**Additional Environment Variables:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TANA_DELTA_SYNC_INTERVAL` | Delta-sync polling interval in minutes (0 disables) | `5` |
+| `TANA_MCP_TOOL_MODE` | MCP tool mode: `full` (31 tools) or `slim` (16 tools) | `full` |
+| `TANA_LOCAL_API_TOKEN` | Bearer token for Tana Desktop Local API | |
+| `TANA_LOCAL_API_URL` | Local API endpoint URL | `http://localhost:8262` |
 
 ---
 

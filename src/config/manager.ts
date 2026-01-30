@@ -7,6 +7,8 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import type { TanaConfig, WorkspaceConfig, CleanupConfig, EmbeddingConfig } from '../types';
+import type { LocalApiConfig } from '../types/local-api';
+import { DEFAULT_LOCAL_API_ENDPOINT } from '../types/local-api';
 import { CONFIG_FILE, TANA_CONFIG_DIR, ensureDir } from './paths';
 import { hasGlobalLogger, getGlobalLogger, createLogger, type Logger } from '../utils/logger';
 
@@ -97,6 +99,36 @@ export class ConfigManager {
     }
     if (process.env.TANA_API_ENDPOINT) {
       config.apiEndpoint = process.env.TANA_API_ENDPOINT;
+    }
+
+    // Local API environment variable overrides (F-094)
+    if (process.env.TANA_LOCAL_API_TOKEN) {
+      if (!config.localApi) {
+        config.localApi = { enabled: true, endpoint: DEFAULT_LOCAL_API_ENDPOINT };
+      }
+      config.localApi.bearerToken = process.env.TANA_LOCAL_API_TOKEN;
+    }
+    if (process.env.TANA_LOCAL_API_URL) {
+      if (!config.localApi) {
+        config.localApi = { enabled: true, endpoint: DEFAULT_LOCAL_API_ENDPOINT };
+      }
+      config.localApi.endpoint = process.env.TANA_LOCAL_API_URL;
+    }
+    if (process.env.TANA_DELTA_SYNC_INTERVAL) {
+      if (!config.localApi) {
+        config.localApi = { enabled: true, endpoint: DEFAULT_LOCAL_API_ENDPOINT };
+      }
+      const interval = parseInt(process.env.TANA_DELTA_SYNC_INTERVAL, 10);
+      if (!isNaN(interval) && interval >= 0 && interval <= 60) {
+        config.localApi.deltaSyncInterval = interval;
+      }
+    }
+    if (process.env.TANA_MCP_TOOL_MODE) {
+      const mode = process.env.TANA_MCP_TOOL_MODE;
+      if (mode === 'full' || mode === 'slim') {
+        if (!config.mcp) config.mcp = {};
+        config.mcp.toolMode = mode;
+      }
     }
 
     return config;
@@ -364,6 +396,74 @@ export class ConfigManager {
     this.config.workspaces![workspace.alias].enabled = enabled;
     this.save({});
     return true;
+  }
+
+  /**
+   * Get local API configuration with defaults (F-094)
+   * Merges config file, env vars, and defaults
+   */
+  getLocalApiConfig(): LocalApiConfig {
+    const fileConfig = this.config.localApi;
+    return {
+      enabled: fileConfig?.enabled ?? true,
+      bearerToken: fileConfig?.bearerToken,
+      endpoint: fileConfig?.endpoint ?? DEFAULT_LOCAL_API_ENDPOINT,
+    };
+  }
+
+  /**
+   * Set local API bearer token (F-094)
+   */
+  setLocalApiBearerToken(token: string): void {
+    if (!this.config.localApi) {
+      this.config.localApi = { enabled: true, endpoint: DEFAULT_LOCAL_API_ENDPOINT };
+    }
+    this.config.localApi.bearerToken = token;
+    this.save({});
+  }
+
+  /**
+   * Set local API endpoint URL (F-094)
+   */
+  setLocalApiEndpoint(endpoint: string): void {
+    if (!this.config.localApi) {
+      this.config.localApi = { enabled: true, endpoint: DEFAULT_LOCAL_API_ENDPOINT };
+    }
+    this.config.localApi.endpoint = endpoint;
+    this.save({});
+  }
+
+  /**
+   * Set use Input API fallback mode (F-094)
+   */
+  setUseInputApiFallback(enabled: boolean): void {
+    this.config.useInputApiFallback = enabled;
+    this.save({});
+  }
+
+  /**
+   * Get whether Input API fallback is enabled (F-094)
+   */
+  getUseInputApiFallback(): boolean {
+    return this.config.useInputApiFallback ?? false;
+  }
+
+  /**
+   * Get delta-sync interval in minutes (F-095)
+   * @returns Interval in minutes (0 = disabled, default: 5)
+   */
+  getDeltaSyncInterval(): number {
+    return this.config.localApi?.deltaSyncInterval ?? 5;
+  }
+
+  /**
+   * Get MCP tool mode (F-095)
+   * @returns 'full' or 'slim' (default: 'full')
+   */
+  getMcpToolMode(): 'full' | 'slim' {
+    const mode = this.config.mcp?.toolMode;
+    if (mode === 'slim') return 'slim';
+    return 'full';
   }
 
   /**

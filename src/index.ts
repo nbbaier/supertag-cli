@@ -37,12 +37,19 @@ import { createQueryCommand } from './commands/query';
 import { createAggregateCommand } from './commands/aggregate';
 import { createRelatedCommand } from './commands/related';
 import { createAttachmentsCommand } from './commands/attachments';
+import { createTimelineCommand, createRecentCommand } from './commands/timeline';
 import { createSimpleLogger, ensureAllDirs, getAllPaths, getDatabasePath, needsMigration, DATABASE_PATH, TANA_DATA_DIR } from './config/paths';
 import { existsSync, copyFileSync } from 'fs';
 import { VERSION } from './version';
 import { createCodegenCommand } from './commands/codegen';
 import { createUpdateCommand, checkForUpdatePassive } from './commands/update';
 import { createErrorsCommand } from './commands/errors';
+// F-094: Local API mutation commands
+import { createEditCommand } from './commands/edit';
+import { createTagCommand } from './commands/tag';
+import { createSetFieldCommand } from './commands/set-field';
+import { createTrashCommand } from './commands/trash';
+import { createDoneCommand, createUndoneCommand } from './commands/done';
 import { configureGlobalLogger } from './utils/logger';
 import { resolveOutputMode } from './utils/output-formatter';
 import { setDebugMode, formatDebugError } from './utils/debug';
@@ -99,6 +106,9 @@ program
   .option('--token <token>', 'Set API token')
   .option('--target <node>', 'Set default target node (INBOX, SCHEMA, or node ID)')
   .option('--endpoint <url>', 'Set API endpoint URL')
+  .option('--bearer-token <token>', 'Set local API bearer token')
+  .option('--local-api-url <url>', 'Set local API endpoint URL')
+  .option('--use-input-api <bool>', 'Enable Input API fallback (true/false)')
   .action(async (options) => {
     await configCommand(options);
   });
@@ -171,6 +181,16 @@ program.addCommand(createCodegenCommand());    // supertag codegen generate -o <
 program.addCommand(createUpdateCommand());     // supertag update check|download|install
 program.addCommand(createErrorsCommand());     // supertag errors [--last N] [--clear] [--export] [--json]
 program.addCommand(createAttachmentsCommand()); // supertag attachments list|extract|get|stats
+program.addCommand(createTimelineCommand());   // supertag timeline --from 30d --granularity week
+program.addCommand(createRecentCommand());     // supertag recent --period 24h --types meeting,task
+
+// F-094: Local API mutation commands
+program.addCommand(createEditCommand());       // supertag edit <nodeId> --name --description
+program.addCommand(createTagCommand());        // supertag tag add|remove|create
+program.addCommand(createSetFieldCommand());   // supertag set-field <nodeId> <field> <value>
+program.addCommand(createTrashCommand());      // supertag trash <nodeId>
+program.addCommand(createDoneCommand());       // supertag done <nodeId>
+program.addCommand(createUndoneCommand());     // supertag undone <nodeId>
 
 /**
  * Help text with examples
@@ -218,6 +238,15 @@ program.on('--help', () => {
   console.log('    supertag transcript list       List meetings with transcripts');
   console.log('    supertag transcript show <id>  Show transcript content');
   console.log('    supertag transcript search <q> Search in transcript content');
+  console.log('');
+  console.log('  TIMELINE:');
+  console.log('    supertag timeline              Show activity over time periods');
+  console.log('    supertag timeline --from 7d    Last 7 days timeline');
+  console.log('    supertag timeline --tag task   Filter by supertag');
+  console.log('    supertag timeline --granularity week  Group by week');
+  console.log('    supertag recent                Last 24 hours activity');
+  console.log('    supertag recent --period 7d    Last 7 days');
+  console.log('    supertag recent --types meeting,task  Filter by types');
   console.log('');
   console.log('  EXPORT (Separate Tool):');
   console.log('    supertag-export login          First-time login setup');

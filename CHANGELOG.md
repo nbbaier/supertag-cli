@@ -5,6 +5,98 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-01-30
+
+### Added
+
+- **Delta-Sync via Local API (F-095)** - Incremental sync between full exports using Tana Desktop's local API
+  - `supertag sync index --delta` - Fetch only nodes changed since last sync instead of full reindex
+  - MCP `tana_sync` tool now accepts `action="delta"` for incremental sync from AI tools
+  - Background delta-sync poller in MCP server runs periodic incremental syncs (configurable interval)
+  - Health-aware polling: pauses when Tana Desktop is unreachable, resumes when back
+  - Delta-sync status in `supertag sync status` output (last sync time, nodes synced, embedding coverage)
+  - Configuration: `localApi.deltaSyncInterval` in config (minutes, default 5, 0 disables)
+  - Environment variables: `TANA_DELTA_SYNC_INTERVAL`, `TANA_MCP_TOOL_MODE`
+
+- **MCP Slim Mode (F-095)** - Reduced tool set for AI agents that benefit from fewer tools
+  - `mcp.toolMode: "slim"` config option reduces from 31 tools to 16 essential tools
+  - Slim mode keeps: semantic_search, all mutations, sync, cache_clear, capabilities, tool_schema
+  - Environment variable: `TANA_MCP_TOOL_MODE=slim`
+
+- **Local API Integration (F-094)** - Tana Desktop's tana-local REST API as write backend
+  - New backend abstraction layer: `TanaBackend` interface with `InputApiBackend` and `LocalApiBackend` implementations
+  - Auto-detects available backend: Local API (if Tana Desktop running) → Input API fallback
+  - `supertag config --bearer-token <token>` to configure Local API authentication
+  - `supertag config --local-api-url <url>` to set custom endpoint (default: `http://localhost:8262`)
+  - `supertag config --use-input-api true` to prefer legacy Input API
+  - Environment variables: `TANA_LOCAL_API_TOKEN`, `TANA_LOCAL_API_URL`
+
+- **Node Mutation Commands** - New CLI commands for editing existing nodes (requires Local API)
+  - `supertag edit <nodeId>` - Update node name or description
+  - `supertag tag add <nodeId> <tagIds...>` - Add supertags to a node
+  - `supertag tag remove <nodeId> <tagIds...>` - Remove supertags from a node
+  - `supertag tag create <name>` - Create a new supertag definition
+  - `supertag set-field <nodeId> <attributeId> <value>` - Set field text content
+  - `supertag trash <nodeId>` - Move a node to trash
+  - `supertag done <nodeId>` / `supertag undone <nodeId>` - Check/uncheck nodes
+
+- **MCP Mutation Tools** - 9 new MCP tools for AI-driven node editing
+  - `tana_update_node` - Update node name/description
+  - `tana_tag_add` / `tana_tag_remove` - Add or remove supertags
+  - `tana_create_tag` - Create new supertag definitions
+  - `tana_set_field` / `tana_set_field_option` - Set field values
+  - `tana_trash_node` - Move nodes to trash
+  - `tana_done` / `tana_undone` - Check/uncheck nodes
+
+### Changed
+
+- **Backend Abstraction** - `supertag create` and `supertag batch create` now route through the backend abstraction, automatically using Local API when available
+
+## [1.13.3] - 2026-01-29
+
+### Fixed
+
+- **Windows Playwright Login Bug** - `supertag-export login` now works on Windows 11
+  - Added `--channel chrome|msedge` flag to use system browser instead of bundled Chromium
+  - Added `--manual` flag for manual login mode that bypasses Playwright launch entirely
+  - Added `--timeout <seconds>` flag for configurable login timeout (default: 180s)
+  - Auto-detect Windows and add GPU-related args (`--disable-gpu`, `--disable-software-rasterizer`, `--disable-dev-shm-usage`)
+  - Fixes Playwright `launchPersistentContext` timeout where browser exits immediately with exitCode=0
+
+## [1.13.2] - 2026-01-27
+
+### Fixed
+
+- **Timeline Content Filtering** - Filter noise from timeline output at service layer
+  - Empty/whitespace-only nodes excluded from results
+  - Transcript timestamps (209K `1970-01-01T*` nodes) filtered out
+  - Counts now accurately reflect displayed items (was showing "10 items" but displaying fewer)
+
+## [1.13.1] - 2026-01-27
+
+### Added
+
+- **Timeline & Temporal Queries** - New commands for time-based activity views
+  - `supertag timeline` - Time-bucketed activity with configurable granularity (hour/day/week/month/quarter/year)
+  - `supertag recent` - Recently created/updated items within a time period
+  - Support relative dates: `7d`, `1w`, `1m`, `1y` and ISO dates
+  - MCP tools: `tana_timeline`, `tana_recent`
+
+- **Community Links** - Added video course and Discord links to README
+  - Video course: https://courses.invisible.ch
+  - Discord community: https://discord.gg/MbQpMWsB
+
+## [1.13.0] - 2026-01-26
+
+### Added
+
+- **Option Values Enumeration** - `tags show` and `tags fields` now display available option values for inline options fields
+  - Inline options show values: `Type: options (Active, Next Up, In Review, ...)`
+  - Reference fields show target: `Type: reference → project`
+  - New database column `option_values` in `supertag_fields` table stores JSON array of option names
+  - New `extractOptionValuesFromField()` function traverses field definition → "Values" tuple → option nodes
+  - MCP `tana_supertag_info` tool now includes `optionValues` array in field info
+
 ## [1.12.6] - 2026-01-21
 
 ### Fixed

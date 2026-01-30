@@ -10,9 +10,10 @@ import { $ } from "bun";
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
+import { getUniqueTestDir } from "./test-utils";
 
 describe("Aggregate Command", () => {
-  const testDir = "/tmp/supertag-aggregate-test";
+  const testDir = getUniqueTestDir("aggregate");
   const dbPath = join(testDir, "test.db");
 
   beforeAll(() => {

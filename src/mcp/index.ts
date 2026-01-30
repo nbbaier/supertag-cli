@@ -37,9 +37,18 @@ import { batchGet } from './tools/batch-get.js';
 import { batchCreate } from './tools/batch-create.js';
 import { query } from './tools/query.js';
 import { aggregate } from './tools/aggregate.js';
+import { timeline, recent } from './tools/timeline.js';
+import { handleUpdateNode } from './tools/update.js';
+import { handleTagAdd, handleTagRemove } from './tools/tag-operations.js';
+import { handleCreateTag } from './tools/tag-create.js';
+import { handleSetField, handleSetFieldOption } from './tools/set-field.js';
+import { handleTrashNode } from './tools/trash.js';
+import { handleDone, handleUndone } from './tools/done.js';
 import { VERSION } from '../version.js';
 import { createLogger } from '../utils/logger.js';
 import { handleMcpError } from './error-handler.js';
+import { isToolEnabled, getToolMode, getSlimModeToolCount } from './tool-mode.js';
+import { initDeltaSyncPoller, type DeltaSyncPoller } from './delta-sync-poller.js';
 
 const SERVICE_NAME = process.env.SERVICE_NAME || 'supertag-mcp';
 
@@ -65,13 +74,12 @@ const server = new Server(
   }
 );
 
-// List available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  logger.info('Listing available tools');
-
-  return {
-    tools: [
-      {
+/**
+ * All tool definitions. Defined outside handlers so both ListTools and
+ * CallTool can reference the same canonical list.
+ */
+const allTools = [
+  {
         name: 'tana_search',
         description:
           'Full-text search on Tana node names. Returns matching nodes with their IDs, names, relevance rank, and supertags. By default includes ancestor context: when a match is nested, shows the containing project/meeting/etc with supertag. Use includeAncestor=false to disable.',
@@ -140,7 +148,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'tana_sync',
         description:
-          'Trigger reindex of Tana exports or check sync status. Use action="index" to reindex, action="status" to check when last indexed.',
+          'Sync Tana data. action="index" for full reindex from exports, action="status" to check sync status, action="delta" for incremental sync via Local API (fast, fetches only changed nodes since last sync).',
         inputSchema: schemas.zodToJsonSchema(schemas.syncSchema),
       },
       {
@@ -221,14 +229,101 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           'Aggregate nodes with grouping and counting. Returns grouped counts, percentages, and nested results. Supports: find by tag, group by field or time period (day/week/month/quarter/year), show percentages, top N groups. Example: { find: "task", groupBy: ["Status"] }',
         inputSchema: schemas.zodToJsonSchema(schemas.aggregateSchema),
       },
-    ],
-  };
+      {
+        name: 'tana_timeline',
+        description:
+          'Time-bucketed activity view over a date range. Groups nodes by time period with configurable granularity: hour, day, week, month, quarter, year. Supports relative dates (7d, 1w, 1m) and ISO dates. Returns buckets with counts and sample items. Example: { from: "30d", granularity: "week" }',
+        inputSchema: schemas.zodToJsonSchema(schemas.timelineSchema),
+      },
+      {
+        name: 'tana_recent',
+        description:
+          'Recently created or updated items within a time period. Returns items ordered by most recent activity. Supports period formats: Nh (hours), Nd (days), Nw (weeks), Nm (months). Filter by types (supertags) or activity type (created vs updated). Example: { period: "7d", types: ["meeting", "task"] }',
+        inputSchema: schemas.zodToJsonSchema(schemas.recentSchema),
+      },
+      // Mutation tools (F-094: Local API)
+      {
+        name: 'tana_update_node',
+        description:
+          'Update a node name or description. Requires Local API (Tana Desktop running with bearer token configured).',
+        inputSchema: schemas.zodToJsonSchema(schemas.updateNodeSchema),
+      },
+      {
+        name: 'tana_tag_add',
+        description:
+          'Add one or more supertags to a node. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.tagAddSchema),
+      },
+      {
+        name: 'tana_tag_remove',
+        description:
+          'Remove one or more supertags from a node. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.tagRemoveSchema),
+      },
+      {
+        name: 'tana_create_tag',
+        description:
+          'Create a new supertag definition in the workspace. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.createTagSchema),
+      },
+      {
+        name: 'tana_set_field',
+        description:
+          'Set a text field value on a node. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.setFieldSchema),
+      },
+      {
+        name: 'tana_set_field_option',
+        description:
+          'Set a field option (dropdown/select value) on a node. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.setFieldOptionSchema),
+      },
+      {
+        name: 'tana_trash_node',
+        description:
+          'Move a node to trash. Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.trashNodeSchema),
+      },
+      {
+        name: 'tana_done',
+        description:
+          'Mark a node as done (checked). Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.doneSchema),
+      },
+      {
+        name: 'tana_undone',
+        description:
+          'Mark a node as not done (unchecked). Requires Local API.',
+        inputSchema: schemas.zodToJsonSchema(schemas.undoneSchema),
+      },
+];
+
+// List available tools (filtered by tool mode)
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  const mode = getToolMode();
+  const filteredTools = allTools.filter((t) => isToolEnabled(t.name, mode));
+  logger.info(`Listing tools: ${filteredTools.length} available (mode: ${mode})`);
+
+  return { tools: filteredTools };
 });
 
 // Execute tools
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  logger.info('Tool called', { tool: name });
+  const mode = getToolMode();
+  logger.info('Tool called', { tool: name, mode });
+
+  // Guard: reject disabled tools in slim mode
+  if (!isToolEnabled(name, mode)) {
+    logger.warn('Tool disabled in current mode', { tool: name, mode });
+    return {
+      isError: true,
+      content: [{
+        type: 'text' as const,
+        text: `Tool '${name}' is disabled in slim mode. Switch to full mode or use tana_semantic_search for queries.`,
+      }],
+    };
+  }
 
   try {
     let result: unknown;
@@ -339,6 +434,62 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await aggregate(validated);
         break;
       }
+      case 'tana_timeline': {
+        const validated = schemas.timelineSchema.parse(args);
+        result = await timeline(validated);
+        break;
+      }
+      case 'tana_recent': {
+        const validated = schemas.recentSchema.parse(args);
+        result = await recent(validated);
+        break;
+      }
+      // Mutation tools (F-094: Local API)
+      case 'tana_update_node': {
+        const validated = schemas.updateNodeSchema.parse(args);
+        result = await handleUpdateNode(validated);
+        break;
+      }
+      case 'tana_tag_add': {
+        const validated = schemas.tagAddSchema.parse(args);
+        result = await handleTagAdd(validated);
+        break;
+      }
+      case 'tana_tag_remove': {
+        const validated = schemas.tagRemoveSchema.parse(args);
+        result = await handleTagRemove(validated);
+        break;
+      }
+      case 'tana_create_tag': {
+        const validated = schemas.createTagSchema.parse(args);
+        result = await handleCreateTag(validated);
+        break;
+      }
+      case 'tana_set_field': {
+        const validated = schemas.setFieldSchema.parse(args);
+        result = await handleSetField(validated);
+        break;
+      }
+      case 'tana_set_field_option': {
+        const validated = schemas.setFieldOptionSchema.parse(args);
+        result = await handleSetFieldOption(validated);
+        break;
+      }
+      case 'tana_trash_node': {
+        const validated = schemas.trashNodeSchema.parse(args);
+        result = await handleTrashNode(validated);
+        break;
+      }
+      case 'tana_done': {
+        const validated = schemas.doneSchema.parse(args);
+        result = await handleDone(validated);
+        break;
+      }
+      case 'tana_undone': {
+        const validated = schemas.undoneSchema.parse(args);
+        result = await handleUndone(validated);
+        break;
+      }
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -356,21 +507,68 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+/**
+ * Module-level reference to the active delta-sync poller.
+ * Exported so the sync tool can call triggerNow() for action='delta'.
+ */
+export let activePoller: DeltaSyncPoller | null = null;
+
 async function main() {
+  const mode = getToolMode();
   logger.info('Starting Supertag MCP server', {
     version: VERSION,
     serviceName: SERVICE_NAME,
+    toolMode: mode,
+    toolCount: mode === 'slim' ? getSlimModeToolCount() : allTools.length,
   });
 
   try {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    logger.info('Supertag MCP server running');
+    logger.info('Supertag MCP server running', { mode });
+
+    // Initialize delta-sync poller if Local API is configured (F-095 T-4.2)
+    try {
+      const { ConfigManager } = await import('../config/manager.js');
+      const { resolveWorkspaceContext } = await import('../config/workspace-resolver.js');
+      const { LocalApiClient } = await import('../api/local-api-client.js');
+      const config = ConfigManager.getInstance();
+      const localApiConfig = config.getLocalApiConfig();
+      const syncInterval = config.getDeltaSyncInterval();
+
+      const poller = initDeltaSyncPoller({
+        localApiConfig,
+        syncInterval,
+        dbPath: resolveWorkspaceContext({ requireDatabase: false }).dbPath,
+        embeddingConfig: config.getEmbeddingConfig(),
+        logger,
+        localApiClientFactory: (cfg) => new LocalApiClient(cfg),
+      });
+
+      if (poller) {
+        activePoller = poller;
+      }
+    } catch (pollerError) {
+      // Non-fatal: MCP server continues without delta-sync
+      logger.warn('Delta-sync poller initialization skipped', {
+        error: String(pollerError),
+      });
+    }
   } catch (error) {
     logger.error('Failed to start MCP server', { error: String(error) });
     process.exit(1);
   }
 }
+
+// Cleanup on shutdown
+process.on('SIGINT', () => {
+  activePoller?.stop();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  activePoller?.stop();
+  process.exit(0);
+});
 
 main().catch((error) => {
   logger.error('Fatal error', { error: String(error) });

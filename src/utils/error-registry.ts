@@ -149,9 +149,29 @@ export const ERROR_REGISTRY: Record<ErrorCode, ErrorMeta> = {
     docPath: "/docs/authentication",
     retryable: false,
   },
+  AUTH_EXPIRED: {
+    category: "auth",
+    defaultSuggestion: "Your token has expired. Get a new token from Tana Desktop > Settings > Local API.",
+    docPath: "/docs/authentication",
+    retryable: false,
+  },
   PERMISSION_DENIED: {
     category: "auth",
     defaultSuggestion: "Check your permissions for this operation.",
+    retryable: false,
+  },
+
+  // Local API errors (F-094)
+  LOCAL_API_UNAVAILABLE: {
+    category: "network",
+    defaultSuggestion: "Ensure Tana Desktop is running with Local API enabled.",
+    docPath: "/docs/local-api",
+    retryable: true,
+  },
+  MUTATIONS_NOT_SUPPORTED: {
+    category: "config",
+    defaultSuggestion: "Configure the Local API to use mutation operations: supertag config --bearer-token <token>",
+    docPath: "/docs/local-api",
     retryable: false,
   },
 

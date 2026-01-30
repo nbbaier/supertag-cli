@@ -10,9 +10,10 @@ import { Database } from "bun:sqlite";
 import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { TanaIndexer } from "../../src/db/indexer";
+import { getUniqueTestDir } from "../test-utils";
 
 describe("TanaIndexer Supertag Metadata Integration", () => {
-  const testDir = join(process.cwd(), "tmp-test-indexer-metadata");
+  const testDir = getUniqueTestDir("indexer-metadata");
   const dbPath = join(testDir, "test.db");
   const exportPath = join(testDir, "export.json");
   let indexer: TanaIndexer;

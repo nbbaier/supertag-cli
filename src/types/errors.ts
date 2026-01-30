@@ -38,7 +38,11 @@ export const ERROR_CODES = [
   "NETWORK_ERROR",
   // Auth errors
   "AUTH_FAILED",
+  "AUTH_EXPIRED",
   "PERMISSION_DENIED",
+  // Local API errors (F-094)
+  "LOCAL_API_UNAVAILABLE",
+  "MUTATIONS_NOT_SUPPORTED",
   // Internal errors
   "INTERNAL_ERROR",
   "VALIDATION_ERRORS",

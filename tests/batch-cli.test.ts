@@ -13,8 +13,8 @@ import { createBatchCommand, executeBatchGet, executeBatchCreate } from '../src/
 import { Command } from 'commander';
 import { Database } from 'bun:sqlite';
 import { mkdirSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
 import { join } from 'path';
+import { getUniqueTestDir } from './test-utils';
 
 describe('createBatchCommand', () => {
   it('should create a command named "batch"', () => {
@@ -97,7 +97,7 @@ describe('executeBatchGet', () => {
   let dbPath: string;
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `batch-cli-test-${Date.now()}`);
+    testDir = getUniqueTestDir('batch-cli');
     mkdirSync(testDir, { recursive: true });
     dbPath = join(testDir, 'test.db');
 
@@ -342,7 +342,7 @@ describe('batch get E2E integration', () => {
   let dbPath: string;
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `batch-e2e-test-${Date.now()}`);
+    testDir = getUniqueTestDir('batch-e2e');
     mkdirSync(testDir, { recursive: true });
     dbPath = join(testDir, 'test.db');
 
@@ -443,7 +443,7 @@ describe('batch create E2E integration', () => {
 
   beforeEach(() => {
     // Create temp directory for test database with supertags
-    testDir = join(tmpdir(), `batch-create-e2e-test-${Date.now()}`);
+    testDir = getUniqueTestDir('batch-create-e2e');
     mkdirSync(testDir, { recursive: true });
     testDbPath = join(testDir, 'test.db');
 

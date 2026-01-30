@@ -107,6 +107,18 @@ export const TOOL_METADATA: ToolMetadata[] = [
     category: 'query',
     example: 'Count tasks by Status: { find: "task", groupBy: ["Status"] }',
   },
+  {
+    name: 'tana_timeline',
+    description: 'Time-bucketed activity over a date range',
+    category: 'query',
+    example: 'View last 30 days: { granularity: "week" }',
+  },
+  {
+    name: 'tana_recent',
+    description: 'Recently created or updated items',
+    category: 'query',
+    example: 'Last 24 hours: { period: "24h" }',
+  },
 
   // Explore tools
   {
@@ -179,6 +191,60 @@ export const TOOL_METADATA: ToolMetadata[] = [
     category: 'mutate',
     example: 'Trigger database reindex',
   },
+  {
+    name: 'tana_update_node',
+    description: 'Update node name or description',
+    category: 'mutate',
+    example: 'Rename a node or change its description',
+  },
+  {
+    name: 'tana_tag_add',
+    description: 'Add supertags to a node',
+    category: 'mutate',
+    example: 'Tag a node with #project',
+  },
+  {
+    name: 'tana_tag_remove',
+    description: 'Remove supertags from a node',
+    category: 'mutate',
+    example: 'Untag a node',
+  },
+  {
+    name: 'tana_create_tag',
+    description: 'Create a new supertag definition',
+    category: 'mutate',
+    example: 'Create a new #sprint supertag',
+  },
+  {
+    name: 'tana_set_field',
+    description: 'Set a field value on a node',
+    category: 'mutate',
+    example: 'Set Status field to "Done"',
+  },
+  {
+    name: 'tana_set_field_option',
+    description: 'Set a field option (dropdown) on a node',
+    category: 'mutate',
+    example: 'Set Priority to a specific option',
+  },
+  {
+    name: 'tana_trash_node',
+    description: 'Move a node to trash',
+    category: 'mutate',
+    example: 'Delete a node by moving to trash',
+  },
+  {
+    name: 'tana_done',
+    description: 'Mark a node as done (checked)',
+    category: 'mutate',
+    example: 'Complete a todo item',
+  },
+  {
+    name: 'tana_undone',
+    description: 'Mark a node as not done (unchecked)',
+    category: 'mutate',
+    example: 'Reopen a completed item',
+  },
 
   // System tools
   {
@@ -227,6 +293,17 @@ const TOOL_SCHEMAS: Record<string, ReturnType<typeof schemas.zodToJsonSchema>> =
   tana_tool_schema: schemas.zodToJsonSchema(schemas.toolSchemaSchema),
   tana_query: schemas.zodToJsonSchema(schemas.querySchema),
   tana_aggregate: schemas.zodToJsonSchema(schemas.aggregateSchema),
+  tana_timeline: schemas.zodToJsonSchema(schemas.timelineSchema),
+  tana_recent: schemas.zodToJsonSchema(schemas.recentSchema),
+  tana_update_node: schemas.zodToJsonSchema(schemas.updateNodeSchema),
+  tana_tag_add: schemas.zodToJsonSchema(schemas.tagAddSchema),
+  tana_tag_remove: schemas.zodToJsonSchema(schemas.tagRemoveSchema),
+  tana_create_tag: schemas.zodToJsonSchema(schemas.createTagSchema),
+  tana_set_field: schemas.zodToJsonSchema(schemas.setFieldSchema),
+  tana_set_field_option: schemas.zodToJsonSchema(schemas.setFieldOptionSchema),
+  tana_trash_node: schemas.zodToJsonSchema(schemas.trashNodeSchema),
+  tana_done: schemas.zodToJsonSchema(schemas.doneSchema),
+  tana_undone: schemas.zodToJsonSchema(schemas.undoneSchema),
 };
 
 // =============================================================================
