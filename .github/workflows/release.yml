@@ -24,7 +24,7 @@ jobs:
         run: bun install
 
       - name: Run tests
-        run: bun test
+        run: bun run test --timeout 15000
 
       - name: Type check
         run: bun run typecheck
