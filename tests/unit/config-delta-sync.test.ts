@@ -7,7 +7,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { ConfigManager } from '../../src/config/manager';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 import { CONFIG_FILE } from '../../src/config/paths';
 
 // Reset singleton between tests
@@ -16,14 +17,24 @@ function resetConfigManager(): void {
   ConfigManager.instance = undefined;
 }
 
+const DEFAULT_CONFIG = JSON.stringify({ workspaces: {} }, null, 2);
+
 describe('Config Delta-Sync Extensions (T-1.1)', () => {
   const originalEnv = { ...process.env };
   let savedConfig: string;
+  let configExisted: boolean;
 
   beforeEach(() => {
     resetConfigManager();
-    // Backup the real config file
-    savedConfig = readFileSync(CONFIG_FILE, 'utf-8');
+    // Backup the real config file (or create a temp one for CI)
+    configExisted = existsSync(CONFIG_FILE);
+    if (configExisted) {
+      savedConfig = readFileSync(CONFIG_FILE, 'utf-8');
+    } else {
+      savedConfig = DEFAULT_CONFIG;
+      mkdirSync(dirname(CONFIG_FILE), { recursive: true });
+      writeFileSync(CONFIG_FILE, savedConfig, 'utf-8');
+    }
   });
 
   afterEach(() => {
