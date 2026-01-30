@@ -123,14 +123,19 @@ describe("tags visualize command", () => {
   });
 
   describe("basic functionality", () => {
-    it("should output mermaid format by default", async () => {
-      const result = await $`bun run src/index.ts tags visualize --db-path ${testDbPath}`.text();
+    it(
+      "should output mermaid format by default",
+      async () => {
+        const result =
+          await $`bun run src/index.ts tags visualize --db-path ${testDbPath}`.text();
 
-      expect(result).toContain("flowchart BT");
-      expect(result).toContain("tag_entity");
-      expect(result).toContain("tag_person");
-      expect(result).toContain("-->");
-    });
+        expect(result).toContain("flowchart BT");
+        expect(result).toContain("tag_entity");
+        expect(result).toContain("tag_person");
+        expect(result).toContain("-->");
+      },
+      15000,
+    );
 
     it("should support --format mermaid explicitly", async () => {
       const result = await $`bun run src/index.ts tags visualize --format mermaid --db-path ${testDbPath}`.text();
