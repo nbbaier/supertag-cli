@@ -514,49 +514,52 @@ describe("F-094: Local API Integration", () => {
   // ---------------------------------------------------------------------------
   // CLI Command Registration
   // ---------------------------------------------------------------------------
+  // CLI subprocess tests need extended timeout for CI runners
+  const CLI_TIMEOUT = 15000;
+
   describe("CLI Commands", () => {
     it("should register edit command", async () => {
       const result = await $`bun run src/index.ts edit --help 2>&1`.text();
       expect(result).toContain("edit");
       expect(result).toContain("nodeId");
-    });
+    }, CLI_TIMEOUT);
 
     it("should register tag command with subcommands", async () => {
       const result = await $`bun run src/index.ts tag --help 2>&1`.text();
       expect(result).toContain("add");
       expect(result).toContain("remove");
       expect(result).toContain("create");
-    });
+    }, CLI_TIMEOUT);
 
     it("should register set-field command", async () => {
       const result = await $`bun run src/index.ts set-field --help 2>&1`.text();
       expect(result).toContain("set-field");
       expect(result).toContain("nodeId");
       expect(result).toContain("fieldName");
-    });
+    }, CLI_TIMEOUT);
 
     it("should register trash command", async () => {
       const result = await $`bun run src/index.ts trash --help 2>&1`.text();
       expect(result).toContain("trash");
       expect(result).toContain("nodeId");
-    });
+    }, CLI_TIMEOUT);
 
     it("should register done command", async () => {
       const result = await $`bun run src/index.ts done --help 2>&1`.text();
       expect(result).toContain("done");
       expect(result).toContain("nodeId");
-    });
+    }, CLI_TIMEOUT);
 
     it("should register undone command", async () => {
       const result = await $`bun run src/index.ts undone --help 2>&1`.text();
       expect(result).toContain("undone");
       expect(result).toContain("nodeId");
-    });
+    }, CLI_TIMEOUT);
 
     it("should show Local API settings in config --show", async () => {
       const result = await $`bun run src/index.ts config --show 2>&1`.text();
       expect(result).toContain("Local API");
-    });
+    }, CLI_TIMEOUT);
   });
 
   // ---------------------------------------------------------------------------
