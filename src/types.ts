@@ -171,8 +171,8 @@ export interface TanaConfig {
   useInputApiFallback?: boolean;
   /** MCP server configuration (F-095) */
   mcp?: {
-    /** Tool registration mode: 'full' (all tools) or 'slim' (semantic + mutations only) */
-    toolMode?: 'full' | 'slim';
+    /** Tool registration mode: 'full' (all tools), 'slim' (semantic + mutations), or 'lite' (complement tana-local) */
+    toolMode?: 'full' | 'slim' | 'lite';
   };
 }
 
@@ -438,6 +438,8 @@ export interface StandardOptions {
   show?: boolean;
   /** Child traversal depth (-d, --depth) */
   depth?: number;
+  /** Force SQLite backend regardless of Local API availability (--offline) */
+  offline?: boolean;
   // Output formatting options (T-2.1)
   /** Human-friendly output with emojis and tables */
   pretty?: boolean;

@@ -14,6 +14,9 @@
 .PARAMETER NoMcp
     Skip MCP auto-configuration
 
+.PARAMETER Proxy
+    HTTP proxy URL for corporate networks (e.g. http://proxy:8080)
+
 .EXAMPLE
     irm https://raw.githubusercontent.com/jcfischer/supertag-cli/main/install.ps1 | iex
 
@@ -22,17 +25,24 @@
 
 .EXAMPLE
     .\install.ps1 -NoMcp
+
+.EXAMPLE
+    .\install.ps1 -Proxy http://your-proxy:8080
 #>
 
 [CmdletBinding()]
 param(
     [string]$Version = "latest",
     [switch]$NoMcp,
-    [switch]$Help
+    [switch]$Help,
+    [string]$Proxy
 )
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+
+# PowerShell 5.1 defaults to TLS 1.0/1.1 — GitHub requires TLS 1.2+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # =============================================================================
 # Configuration
@@ -82,6 +92,45 @@ function Test-Command {
     return $?
 }
 
+function Get-ProxyParams {
+    $params = @{}
+    if ($Script:Proxy) {
+        $params["Proxy"] = $Script:Proxy
+        $params["ProxyUseDefaultCredentials"] = $true
+    }
+    return $params
+}
+
+function Invoke-Download {
+    param(
+        [string]$Uri,
+        [string]$OutFile,
+        [hashtable]$Headers = @{}
+    )
+    $proxyParams = Get-ProxyParams
+    try {
+        if ($OutFile) {
+            Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -Headers $Headers @proxyParams
+        } else {
+            Invoke-RestMethod -Uri $Uri -Headers $Headers @proxyParams
+        }
+    } catch [System.Net.WebException] {
+        $response = $_.Exception.Response
+        $status = if ($response) { [int]$response.StatusCode } else { 0 }
+        if ($status -eq 302 -or $status -eq 407 -or $_.Exception.Message -match "proxy|Umbrella|Zscaler|Forcepoint|gateway") {
+            Write-Error "HTTP request to $Uri was blocked (possibly by a corporate proxy/firewall)."
+            Write-Host ""
+            Write-Host "      Workarounds:" -ForegroundColor Yellow
+            Write-Host "        1. Try with explicit proxy:  .\install.ps1 -Proxy http://your-proxy:8080"
+            Write-Host "        2. Download manually from:   https://github.com/$Script:GitHubRepo/releases/latest"
+            Write-Host "        3. See: https://github.com/$Script:GitHubRepo/blob/main/docs/INSTALL-WINDOWS.md#corporate-proxy"
+            Write-Host ""
+            throw "Download blocked by proxy/firewall: $Uri"
+        }
+        throw
+    }
+}
+
 function Get-Confirmation {
     param(
         [string]$Prompt,
@@ -103,11 +152,28 @@ function Get-Confirmation {
 # =============================================================================
 
 function Get-Platform {
-    $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
-    switch ($arch) {
-        "X64" { return "windows-x64" }
-        "Arm64" { return "windows-arm64" }
-        default { throw "Unsupported architecture: $arch" }
+    # Try .NET RuntimeInformation first (PowerShell 7+ / .NET Core)
+    try {
+        $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+        switch ($arch) {
+            "X64" { return "windows-x64" }
+            "Arm64" { return "windows-arm64" }
+        }
+    } catch { }
+
+    # Fallback for Windows PowerShell 5.1 (.NET Framework)
+    $envArch = $env:PROCESSOR_ARCHITECTURE
+    switch ($envArch) {
+        "AMD64" { return "windows-x64" }
+        "ARM64" { return "windows-arm64" }
+        "x86" {
+            # 32-bit PowerShell on 64-bit OS reports x86, check real arch
+            if ($env:PROCESSOR_ARCHITEW6432 -eq "AMD64") {
+                return "windows-x64"
+            }
+            throw "Unsupported architecture: x86 (32-bit Windows is not supported)"
+        }
+        default { throw "Unsupported architecture: $envArch" }
     }
 }
 
@@ -144,11 +210,12 @@ function Resolve-Version {
 
     if ($Requested -eq "latest") {
         try {
-            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Script:GitHubRepo/releases/latest"
+            $headers = @{ "User-Agent" = "supertag-cli-installer" }
+            $release = Invoke-Download -Uri "https://api.github.com/repos/$Script:GitHubRepo/releases/latest" -Headers $headers
             $tag = $release.tag_name -replace '^v', ''
             return $tag
         } catch {
-            throw "Could not fetch latest version from GitHub. Check your network connection."
+            throw "Could not fetch latest version from GitHub: $($_.Exception.Message)"
         }
     }
 
@@ -242,10 +309,11 @@ function Install-Supertag {
 
     try {
         New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
-        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipFile -UseBasicParsing
+        $headers = @{ "User-Agent" = "supertag-cli-installer" }
+        Invoke-Download -Uri $downloadUrl -OutFile $zipFile -Headers $headers
     } catch {
         Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-        throw "Failed to download from $downloadUrl"
+        throw "Failed to download from $downloadUrl`: $($_.Exception.Message)"
     }
 
     Write-Info "Extracting to $Script:InstallDir..."
@@ -347,6 +415,21 @@ function Set-McpConfiguration {
     }
 }
 
+function ConvertTo-HashtableRecursive {
+    param([Parameter(ValueFromPipeline)]$InputObject)
+    if ($null -eq $InputObject) { return @{} }
+    if ($InputObject -is [System.Collections.IDictionary]) { return $InputObject }
+    $hash = @{}
+    foreach ($prop in $InputObject.PSObject.Properties) {
+        if ($prop.Value -is [PSCustomObject]) {
+            $hash[$prop.Name] = ConvertTo-HashtableRecursive $prop.Value
+        } else {
+            $hash[$prop.Name] = $prop.Value
+        }
+    }
+    return $hash
+}
+
 function Set-McpClientConfig {
     param(
         [string]$ConfigFile,
@@ -360,9 +443,10 @@ function Set-McpClientConfig {
             Copy-Item -Path $ConfigFile -Destination "$ConfigFile.backup.$timestamp"
         }
 
-        # Load or create config
+        # Load or create config (compatible with PowerShell 5.1+)
         if (Test-Path $ConfigFile) {
-            $config = Get-Content $ConfigFile -Raw | ConvertFrom-Json -AsHashtable
+            $json = Get-Content $ConfigFile -Raw | ConvertFrom-Json
+            $config = ConvertTo-HashtableRecursive $json
         } else {
             $config = @{}
         }
@@ -489,11 +573,13 @@ function Write-HelpMessage {
     Write-Host "Options:"
     Write-Host "  -Version VERSION  Install specific version (default: latest)"
     Write-Host "  -NoMcp            Skip MCP auto-configuration"
+    Write-Host "  -Proxy URL        Use HTTP proxy for downloads (e.g. http://proxy:8080)"
     Write-Host "  -Help             Show this help message"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  irm https://raw.githubusercontent.com/$Script:GitHubRepo/main/install.ps1 | iex"
     Write-Host "  .\install.ps1 -Version 0.16.0"
+    Write-Host "  .\install.ps1 -Proxy http://your-proxy:8080"
     Write-Host ""
 }
 
@@ -505,6 +591,11 @@ function Main {
     if ($Help) {
         Write-HelpMessage
         return
+    }
+
+    # Store proxy at script scope for helper functions
+    if ($Proxy) {
+        $Script:Proxy = $Proxy
     }
 
     Write-Banner

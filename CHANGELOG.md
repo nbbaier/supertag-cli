@@ -5,6 +5,95 @@ All notable changes to Supertag CLI are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.3] - 2026-02-06
+
+### Fixed
+
+- **Windows login timeout - bypass Playwright entirely** - All three login modes (`supertag-export login`, `--channel msedge`, `--manual`) failed on Windows because Playwright's internal `--remote-debugging-pipe` communication doesn't work in Bun-compiled binaries (file handle inheritance broken). Now bypasses Playwright completely on Windows: token extraction uses raw `fetch()` + native `WebSocket` for CDP commands, and workspace discovery uses the same raw CDP approach. Login and discover commands auto-select manual mode on Windows (no `--manual` flag needed). Also fixed IPv6 resolution issue by using `127.0.0.1` instead of `localhost` for all CDP connections.
+
+## [2.2.2] - 2026-02-06
+
+### Fixed
+
+- **Windows installer fails behind corporate proxy** - Added `-Proxy` parameter to `install.ps1` for explicit proxy configuration. All HTTP calls now route through a proxy-aware `Invoke-Download` helper that detects proxy/firewall blocks (Cisco Umbrella, Zscaler, etc.) and shows actionable workarounds. Added "Corporate Proxy / Firewall" troubleshooting section to Windows install docs with manual download, explicit proxy, and direct ZIP download options.
+
+## [2.2.1] - 2026-02-05
+
+### Fixed
+
+- **Windows Edge login reliability** - Prevent Edge from restarting during manual login (kills CDP debug port). Added `--disable-features=msEdgeAutoStartAndRestart` flag for Edge on Windows. Added port liveness check before CDP connection with automatic browser relaunch recovery. Fixed profile extraction fallback to use real Edge profile instead of empty Playwright profile.
+
+## [2.2.0] - 2026-02-05
+
+### Added
+
+- **Live Read Backend (F-097)** - Search and node-read operations now route through Tana's Local API when available, with automatic SQLite fallback
+  - `TanaReadBackend` interface with `LocalApiReadBackend` and `SqliteReadBackend` implementations
+  - Backend resolver: prefers Local API when healthy, falls back to SQLite silently
+  - `--offline` flag on all commands to force SQLite backend regardless of Local API availability
+  - FTS search (`supertag search`) uses live data when Tana Desktop is running
+  - Node show (`supertag nodes show`) reads live content from Tana Desktop
+  - MCP tools (`tana_search`, `tana_node`) use live backend when available
+  - Canonical types (`ReadSearchResult`, `ReadNodeContent`, `ReadTagInfo`) normalize both backends
+  - Session-cached health check — one probe per session, cached like write resolver
+  - Semantic search stays on SQLite (embeddings are local-only)
+
+### Improved
+
+- **Day page smart depth** - `nodes show` and `tana_node_read` MCP tool auto-expand calendar/day page nodes to depth 1 so section children (Todos, Notes, etc.) are visible by default. Non-calendar nodes still default to depth 0. Explicit `--depth` flag overrides auto-detection. Closes #37.
+
+## [2.1.3] - 2026-02-04
+
+### Fixed
+
+- **Windows workspace discovery fails** - `supertag-export discover` failed on Windows when Playwright's `launchPersistentContext` couldn't launch a browser. Added `--manual` flag that spawns the browser directly and connects via CDP, reusing the browser restart and real profile flow from manual login. Refactored shared workspace display logic. Closes #35.
+
+## [2.1.2] - 2026-02-04
+
+### Fixed
+
+- **Windows manual login browser process merging** - `supertag-export login --manual` failed to extract tokens when Chrome/Edge was already running because the spawned process merged into the existing one, ignoring `--remote-debugging-port`. Now detects running browsers, prompts user to restart with debugging enabled, and uses the real user profile so no re-login is needed.
+- **CDP debug port readiness** - Added port polling (up to 15s) after browser launch to catch cases where the debug port never opens, with clear diagnostic logging before attempting CDP connection.
+- **setTimeout leak in manual login** - The 180s timeout was never cleared when user pressed Enter, causing a confusing "Timeout reached" message after extraction had already completed.
+- **CDP connection timeout** - Increased from 10s to 30s to accommodate slower Windows machines.
+
+## [2.1.1] - 2026-02-04
+
+### Fixed
+
+- **Windows installer MCP configuration** - `install.ps1` failed at step [6/6] with "A parameter cannot be found that matches parameter name 'AsHashtable'" because `ConvertFrom-Json -AsHashtable` requires PowerShell 7+. Added recursive PSCustomObject-to-hashtable converter for PowerShell 5.1 compatibility.
+- **Windows manual login token extraction** - `supertag-export login --manual` failed with "Token extraction failed" because it launched Playwright's Chromium to read Chrome/Edge's IndexedDB profile — incompatible formats on Windows. Now uses Chrome DevTools Protocol (CDP) to extract tokens directly from the running browser session. User instructions updated to keep browser open while pressing Enter.
+
+## [2.1.0] - 2026-02-03
+
+### Added
+
+- **MCP Lite Mode (F-096)** - Complement tana-local MCP with analytics and search tools
+  - `mcp.toolMode: "lite"` config option or `--lite` CLI flag
+  - 16 tools: semantic search, aggregation, timeline, field queries, transcripts, graph traversal
+  - Excludes CRUD tools handled by tana-local (create, edit, tag, trash, done/undone)
+  - Excluded tools return helpful message pointing to the equivalent tana-local tool
+  - `TANA_MCP_TOOL_MODE=lite` environment variable support
+  - Three-mode comparison: `full` (32 tools), `slim` (14), `lite` (16)
+
+## [2.0.3] - 2026-02-01
+
+### Fixed
+
+- **Index fails on imported workspaces** - Workspaces imported from Roam Research (and potentially other tools) have nodes missing the `created` timestamp in their props. The Zod schema validation now treats `created` as optional, defaulting to `0` in the database. Fixes #34.
+
+## [2.0.2] - 2026-01-30
+
+### Fixed
+
+- **Windows installer GitHub API calls** - `install.ps1` failed to fetch latest version on PowerShell 5.1 because TLS 1.2 is not enabled by default (.NET Framework uses TLS 1.0/1.1) and GitHub API requires a `User-Agent` header. Added explicit TLS 1.2 enablement and `User-Agent` headers to all HTTP requests. Error messages now include the actual exception detail.
+
+## [2.0.1] - 2026-01-30
+
+### Fixed
+
+- **Windows installer architecture detection** - `install.ps1` failed on Windows PowerShell 5.1 with "Unsupported architecture:" error because `RuntimeInformation.ProcessArchitecture` requires .NET Core (PowerShell 7+). Added fallback to `$env:PROCESSOR_ARCHITECTURE` environment variable which correctly maps `AMD64` → `windows-x64` and `ARM64` → `windows-arm64`.
+
 ## [2.0.0] - 2026-01-30
 
 ### Added

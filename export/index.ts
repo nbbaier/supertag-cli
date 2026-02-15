@@ -16,7 +16,8 @@ import { Command } from "commander";
 import { chromium } from "playwright";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
+import { homedir } from "os";
 import { $ } from "bun";
 
 // Import shared config from parent tana package
@@ -31,9 +32,9 @@ import {
 import { VERSION } from "../src/version";
 
 // Import API modules
-import { getAuthToken, isTokenValid, getTokenExpiryMinutes, extractTokenFromBrowser, type AuthLogger } from "./lib/auth";
+import { getAuthToken, isTokenValid, getTokenExpiryMinutes, extractTokenFromBrowser, saveCachedToken, type AuthLogger } from "./lib/auth";
 import { getAccount, getSnapshotMeta, getSnapshotUrl, downloadSnapshot } from "./lib/api";
-import { discoverWorkspaces } from "./lib/discover";
+import { discoverWorkspaces, discoverWorkspacesViaCDP, discoverWorkspacesViaRawCDP } from "./lib/discover";
 
 const USER_DATA_DIR = BROWSER_DATA_DIR;
 const TANA_APP_URL = "https://app.tana.inc";
@@ -264,26 +265,255 @@ interface LoginOptions {
 }
 
 /**
+ * Detect which browser type a given executable path represents
+ */
+function detectBrowserType(browserPath: string): 'chrome' | 'edge' | 'other' {
+  const lower = browserPath.toLowerCase();
+  if (lower.includes('edge') || lower.includes('msedge')) return 'edge';
+  if (lower.includes('chrome') || lower.includes('chromium')) return 'chrome';
+  return 'other';
+}
+
+/**
+ * Check if a browser (Chrome or Edge) is already running
+ */
+async function isBrowserRunning(browser: 'chrome' | 'edge'): Promise<boolean> {
+  try {
+    if (process.platform === 'win32') {
+      const imageName = browser === 'edge' ? 'msedge.exe' : 'chrome.exe';
+      const result = execSync(`tasklist /FI "IMAGENAME eq ${imageName}" /NH`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+      return result.includes(imageName);
+    } else if (process.platform === 'darwin') {
+      const processName = browser === 'edge' ? 'Microsoft Edge' : 'Google Chrome';
+      try {
+        execSync(`pgrep -x "${processName}"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+        return true;
+      } catch {
+        return false; // pgrep exits non-zero when no match
+      }
+    } else {
+      // Linux
+      const processName = browser === 'edge' ? 'msedge' : 'chrome';
+      try {
+        execSync(`pgrep -x "${processName}"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Kill a running browser process
+ */
+async function killBrowser(browser: 'chrome' | 'edge'): Promise<void> {
+  try {
+    if (process.platform === 'win32') {
+      const imageName = browser === 'edge' ? 'msedge.exe' : 'chrome.exe';
+      execSync(`taskkill /IM ${imageName} /F`, { stdio: ['pipe', 'pipe', 'pipe'] });
+    } else {
+      const processName = process.platform === 'darwin'
+        ? (browser === 'edge' ? 'Microsoft Edge' : 'Google Chrome')
+        : (browser === 'edge' ? 'msedge' : 'chrome');
+      execSync(`pkill -x "${processName}"`, { stdio: ['pipe', 'pipe', 'pipe'] });
+    }
+  } catch {
+    // Process may have already exited
+  }
+
+  // Wait for processes to fully exit (up to 5s)
+  for (let i = 0; i < 10; i++) {
+    if (!(await isBrowserRunning(browser))) return;
+    await new Promise(r => setTimeout(r, 500));
+  }
+}
+
+/**
+ * Get the real user profile path for a browser
+ * Using the real profile means existing Tana sessions persist - no re-login needed
+ */
+function getRealProfilePath(browser: 'chrome' | 'edge'): string | null {
+  if (process.platform === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA;
+    if (!localAppData) return null;
+    const profilePath = browser === 'edge'
+      ? join(localAppData, 'Microsoft', 'Edge', 'User Data')
+      : join(localAppData, 'Google', 'Chrome', 'User Data');
+    return existsSync(profilePath) ? profilePath : null;
+  } else if (process.platform === 'darwin') {
+    const profilePath = browser === 'edge'
+      ? join(homedir(), 'Library', 'Application Support', 'Microsoft Edge')
+      : join(homedir(), 'Library', 'Application Support', 'Google', 'Chrome');
+    return existsSync(profilePath) ? profilePath : null;
+  } else {
+    // Linux
+    const profilePath = browser === 'edge'
+      ? join(homedir(), '.config', 'microsoft-edge')
+      : join(homedir(), '.config', 'google-chrome');
+    return existsSync(profilePath) ? profilePath : null;
+  }
+}
+
+/**
+ * Poll for the CDP debug port to become ready
+ * Returns true if port is reachable, false on timeout
+ * Uses 127.0.0.1 instead of localhost to avoid IPv6 resolution issues on Windows
+ */
+async function waitForPort(port: number, timeoutMs: number = 15000): Promise<boolean> {
+  const start = Date.now();
+  const interval = 500;
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/json/version`);
+      if (response.ok) return true;
+    } catch {
+      // Port not ready yet
+    }
+    await new Promise(r => setTimeout(r, interval));
+  }
+  return false;
+}
+
+/**
+ * Extract Firebase auth tokens from a running browser via raw CDP protocol.
+ * Bypasses Playwright entirely - uses fetch() for page discovery and native WebSocket
+ * for CDP commands. This is critical for Windows where Playwright's internal communication
+ * (both pipe-based and WebSocket-based) fails in Bun-compiled binaries.
+ */
+async function extractTokensViaRawCDP(port: number, timeoutMs: number = 30000): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  expirationTime: number;
+  apiKey?: string;
+} | null> {
+  try {
+    // 1. Discover browser pages via CDP HTTP endpoint
+    const pagesResponse = await fetch(`http://127.0.0.1:${port}/json`);
+    if (!pagesResponse.ok) {
+      logger.info("CDP endpoint returned non-OK status");
+      return null;
+    }
+    const pages = await pagesResponse.json() as Array<{ url: string; webSocketDebuggerUrl: string; title: string }>;
+
+    // 2. Find the Tana page
+    const tanaPage = pages.find(p => p.url?.includes('tana.inc'));
+    if (!tanaPage?.webSocketDebuggerUrl) {
+      logger.info(`No Tana page found in ${pages.length} browser tab(s)`);
+      if (pages.length > 0) {
+        logger.info(`Open tabs: ${pages.map(p => p.url || p.title || 'unknown').join(', ')}`);
+      }
+      return null;
+    }
+
+    // 3. Connect via WebSocket - use 127.0.0.1 to avoid IPv6 resolution issues on Windows
+    const wsUrl = tanaPage.webSocketDebuggerUrl.replace('localhost', '127.0.0.1');
+
+    return await new Promise<{
+      accessToken: string;
+      refreshToken: string;
+      expirationTime: number;
+      apiKey?: string;
+    } | null>((resolve) => {
+      const timer = setTimeout(() => {
+        try { ws.close(); } catch {}
+        logger.info("Raw CDP extraction timed out");
+        resolve(null);
+      }, timeoutMs);
+
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        // Send Runtime.evaluate to extract Firebase IndexedDB data
+        ws.send(JSON.stringify({
+          id: 1,
+          method: 'Runtime.evaluate',
+          params: {
+            expression: `
+              new Promise((resolve) => {
+                const req = indexedDB.open('firebaseLocalStorageDb');
+                req.onsuccess = () => {
+                  const db = req.result;
+                  try {
+                    const tx = db.transaction('firebaseLocalStorage', 'readonly');
+                    const store = tx.objectStore('firebaseLocalStorage');
+                    const getAll = store.getAll();
+                    getAll.onsuccess = () => resolve(JSON.stringify(getAll.result));
+                    getAll.onerror = () => resolve('[]');
+                  } catch(e) { resolve('[]'); }
+                };
+                req.onerror = () => resolve('[]');
+              })
+            `,
+            awaitPromise: true,
+            returnByValue: true,
+          },
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(typeof event.data === 'string' ? event.data : '');
+          if (msg.id === 1) {
+            clearTimeout(timer);
+            try { ws.close(); } catch {}
+
+            // CDP returns the resolved value in result.result.value
+            const rawValue = msg.result?.result?.value;
+            if (!rawValue) {
+              resolve(null);
+              return;
+            }
+
+            const data = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+
+            if (Array.isArray(data)) {
+              for (const item of data) {
+                if (item?.value?.stsTokenManager) {
+                  const { accessToken, refreshToken, expirationTime } = item.value.stsTokenManager;
+                  resolve({
+                    accessToken,
+                    refreshToken,
+                    expirationTime,
+                    apiKey: item.value.apiKey,
+                  });
+                  return;
+                }
+              }
+            }
+            resolve(null);
+          }
+        } catch {
+          clearTimeout(timer);
+          try { ws.close(); } catch {}
+          resolve(null);
+        }
+      };
+
+      ws.onerror = () => {
+        clearTimeout(timer);
+        resolve(null);
+      };
+    });
+  } catch (error) {
+    logger.info(`Raw CDP extraction error: ${error instanceof Error ? error.message : error}`);
+    return null;
+  }
+}
+
+/**
  * Manual login mode - spawns browser directly (bypasses Playwright launch issues)
  * Use this when launchPersistentContext fails on Windows
  */
 async function manualLogin(timeout: number = 180000): Promise<void> {
-  logger.info("Manual login mode - bypassing Playwright browser launch");
-  logger.info("");
-  logger.info("1. A browser window will open to Tana");
-  logger.info("2. Log in to Tana (via Google or email)");
-  logger.info("3. Wait until you see the Tana workspace");
-  logger.info("4. Close the browser window when done");
-  logger.info("");
-
-  // Ensure browser data directory exists
-  if (!existsSync(USER_DATA_DIR)) {
-    mkdirSync(USER_DATA_DIR, { recursive: true });
-  }
+  // Use a fixed debug port for CDP token extraction
+  const debugPort = 19222;
 
   // Find browser executable
   let browserPath: string;
-  let browserArgs: string[];
 
   if (process.platform === 'win32') {
     // Try Chrome first, then Edge
@@ -305,12 +535,6 @@ async function manualLogin(timeout: number = 180000): Promise<void> {
         throw new Error("No browser found. Install Chrome or Edge, or run 'supertag-export setup'");
       }
     }
-    browserArgs = [
-      `--user-data-dir=${USER_DATA_DIR}`,
-      "--no-first-run",
-      "--no-default-browser-check",
-      TANA_APP_URL,
-    ];
   } else if (process.platform === 'darwin') {
     browserPath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     if (!existsSync(browserPath)) {
@@ -320,12 +544,6 @@ async function manualLogin(timeout: number = 180000): Promise<void> {
         throw new Error("No browser found. Install Chrome or run 'supertag-export setup'");
       }
     }
-    browserArgs = [
-      `--user-data-dir=${USER_DATA_DIR}`,
-      "--no-first-run",
-      "--no-default-browser-check",
-      TANA_APP_URL,
-    ];
   } else {
     // Linux - use Playwright's bundled Chromium
     try {
@@ -333,13 +551,80 @@ async function manualLogin(timeout: number = 180000): Promise<void> {
     } catch {
       throw new Error("Browser not available. Run 'supertag-export setup' first");
     }
-    browserArgs = [
-      `--user-data-dir=${USER_DATA_DIR}`,
-      "--no-first-run",
-      "--no-default-browser-check",
-      TANA_APP_URL,
-    ];
   }
+
+  // Detect browser type and check if already running
+  const browserType = detectBrowserType(browserPath);
+  let useRealProfile = false;
+  let profileDir = USER_DATA_DIR;
+
+  if (browserType !== 'other') {
+    const running = await isBrowserRunning(browserType);
+
+    if (running) {
+      logger.info(`${browserType === 'edge' ? 'Edge' : 'Chrome'} is already running.`);
+      logger.info("Authentication requires restarting it with debugging enabled.");
+      logger.info("Your tabs will be restored when the browser reopens.");
+      logger.info("");
+      logger.info("Press Enter to restart the browser, or Ctrl+C to cancel...");
+
+      await new Promise<void>((resolve) => {
+        process.stdin.setRawMode?.(false);
+        process.stdin.resume();
+        process.stdin.once('data', () => resolve());
+      });
+
+      logger.info(`Closing ${browserType === 'edge' ? 'Edge' : 'Chrome'}...`);
+      await killBrowser(browserType);
+      logger.info("Browser closed.");
+    }
+
+    // Use real profile if available (user stays logged in to Tana)
+    const realProfile = getRealProfilePath(browserType);
+    if (realProfile) {
+      useRealProfile = true;
+      profileDir = realProfile;
+      logger.info("Using existing browser profile (no re-login needed).");
+    }
+  }
+
+  // Ensure profile directory exists (only needed for custom profile)
+  if (!useRealProfile && !existsSync(profileDir)) {
+    mkdirSync(profileDir, { recursive: true });
+  }
+
+  logger.info("");
+  logger.info("Manual login mode - bypassing Playwright browser launch");
+  logger.info("");
+  if (useRealProfile) {
+    logger.info("1. A browser window will open to Tana");
+    logger.info("2. You should already be logged in (existing session)");
+    logger.info("3. Wait until you see the Tana workspace");
+    logger.info("4. Press Enter here (keep the browser open!)");
+  } else {
+    logger.info("1. A browser window will open to Tana");
+    logger.info("2. Log in to Tana (via Google or email)");
+    logger.info("3. Wait until you see the Tana workspace");
+    logger.info("4. Press Enter here (keep the browser open!)");
+  }
+  logger.info("");
+
+  const browserArgs = [
+    `--user-data-dir=${profileDir}`,
+    `--remote-debugging-port=${debugPort}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+  ];
+
+  // Prevent Edge from restarting itself on Windows (kills the debug port)
+  if (process.platform === 'win32' && browserPath.toLowerCase().includes('msedge')) {
+    browserArgs.push(
+      "--disable-features=msEdgeAutoStartAndRestart,msEdgeSplashScreen",
+      "--disable-background-timer-throttling",
+    );
+  }
+
+  browserArgs.push(TANA_APP_URL);
 
   logger.info(`Launching browser: ${browserPath}`);
 
@@ -351,61 +636,227 @@ async function manualLogin(timeout: number = 180000): Promise<void> {
 
   browserProcess.unref();
 
+  // Wait for debug port to become ready
+  logger.info("Waiting for browser debug port...");
+  const portReady = await waitForPort(debugPort);
+  if (portReady) {
+    logger.info("Debug port ready.");
+  } else {
+    logger.warn("Debug port did not open within 15 seconds.");
+    logger.warn("CDP token extraction may fail. Profile extraction will be attempted as fallback.");
+  }
+
   logger.info("");
   logger.info("Browser launched. Complete login, then press Enter when done...");
 
-  // Wait for user to press Enter
+  // Wait for user to press Enter (with properly cleared timeout)
   await new Promise<void>((resolve) => {
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        logger.warn("Timeout reached, proceeding with token extraction...");
+        resolve();
+      }
+    }, timeout);
+
     process.stdin.setRawMode?.(false);
     process.stdin.resume();
     process.stdin.once('data', () => {
-      resolve();
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timer);
+        resolve();
+      }
     });
-
-    // Also set a timeout
-    setTimeout(() => {
-      logger.warn("Timeout reached, proceeding with token extraction...");
-      resolve();
-    }, timeout);
   });
 
-  // Now extract tokens using headless browser
+  // Extract tokens via CDP (connects to the running browser)
   logger.info("");
   logger.info("Extracting authentication tokens...");
 
-  try {
-    const auth = await extractTokenFromBrowser();
-    if (auth) {
-      // Also try to extract Firebase API key
-      const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
+  // Verify debug port is still alive (Edge on Windows may restart, losing the port)
+  let portAlive = await waitForPort(debugPort, 5000);
+  if (!portAlive) {
+    logger.warn("Debug port is no longer reachable (browser may have restarted).");
+
+    // Try to recover by killing and relaunching with debug port
+    if (browserType !== 'other') {
+      logger.info("Restarting browser with debug port...");
+      await killBrowser(browserType as 'chrome' | 'edge');
+      await new Promise(r => setTimeout(r, 1000));
+
+      const retryProcess = spawn(browserPath, browserArgs, {
+        detached: true,
+        stdio: 'ignore',
+      });
+      retryProcess.unref();
+
+      portAlive = await waitForPort(debugPort, 15000);
+      if (portAlive) {
+        logger.info("Debug port reconnected. Waiting for page to load...");
+        await new Promise(r => setTimeout(r, 5000));
+      } else {
+        logger.warn("Could not re-establish debug port.");
+      }
+    }
+  }
+
+  let extracted = false;
+
+  // Method 1: Raw CDP extraction (bypasses Playwright entirely)
+  // This is the primary method because Playwright's internal communication
+  // (both pipe-based and WebSocket-based) fails in Bun-compiled binaries on Windows.
+  if (portAlive) {
+    logger.info("Connecting to browser via CDP...");
+    const tokens = await extractTokensViaRawCDP(debugPort);
+    if (tokens) {
+      saveCachedToken({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expirationTime: tokens.expirationTime,
+      });
+      logger.info("✓ Auth tokens extracted and saved");
+
+      if (tokens.apiKey) {
+        getConfig().setFirebaseApiKey(tokens.apiKey);
+        logger.info("✓ Firebase API key saved");
+      }
+      extracted = true;
+    } else {
+      logger.info("Raw CDP extraction did not find tokens, trying Playwright CDP...");
+    }
+  }
+
+  // Method 2: Playwright CDP connection (fallback - works on macOS/Linux)
+  if (!extracted && portAlive && process.platform !== 'win32') {
+    try {
+      logger.info("Connecting via Playwright CDP...");
+      const browser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`, { timeout: 30000 });
+      const contexts = browser.contexts();
+      const pages = contexts[0]?.pages() || [];
+      const page = pages.find(p => p.url().includes('tana.inc')) || pages[0];
+
+      if (page) {
+        const firebaseData = await page.evaluate(async () => {
+          return new Promise((resolve) => {
+            const request = indexedDB.open('firebaseLocalStorageDb');
+            request.onsuccess = () => {
+              const db = request.result;
+              try {
+                const tx = db.transaction('firebaseLocalStorage', 'readonly');
+                const store = tx.objectStore('firebaseLocalStorage');
+                const getAllRequest = store.getAll();
+                getAllRequest.onsuccess = () => resolve(getAllRequest.result);
+                getAllRequest.onerror = () => resolve([]);
+              } catch { resolve([]); }
+            };
+            request.onerror = () => resolve([]);
+          });
+        });
+
+        if (Array.isArray(firebaseData)) {
+          for (const item of firebaseData as any[]) {
+            if (item?.value?.stsTokenManager) {
+              const { accessToken, refreshToken, expirationTime } = item.value.stsTokenManager;
+              saveCachedToken({ accessToken, refreshToken, expirationTime });
+              logger.info("✓ Auth tokens extracted and saved");
+
+              if (item.value.apiKey) {
+                getConfig().setFirebaseApiKey(item.value.apiKey);
+                logger.info("✓ Firebase API key saved");
+              }
+              extracted = true;
+              break;
+            }
+          }
+        }
+      }
+
+      browser.close().catch(() => {});
+    } catch (cdpError) {
+      logger.info("Playwright CDP also failed, trying profile extraction...");
+    }
+  }
+
+  // Method 3: Fallback to profile-based extraction (non-Windows only)
+  // On Windows, headless launchPersistentContext has the same pipe issue,
+  // so this fallback is skipped.
+  if (!extracted && process.platform !== 'win32') {
+    try {
+      const extractionProfileDir = useRealProfile ? profileDir : USER_DATA_DIR;
+
+      if (useRealProfile && browserType !== 'other') {
+        logger.info("Closing browser to access profile data...");
+        await killBrowser(browserType as 'chrome' | 'edge');
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      logger.info(`Extracting tokens from profile: ${extractionProfileDir}`);
+      const context = await chromium.launchPersistentContext(extractionProfileDir, {
         headless: true,
       });
+
       try {
         const page = context.pages()[0] || await context.newPage();
         await page.goto(TANA_APP_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.waitForTimeout(2000);
 
-        const apiKey = await extractFirebaseApiKey(page);
-        if (apiKey) {
-          const config = getConfig();
-          config.setFirebaseApiKey(apiKey);
-          logger.info("✓ Firebase API key extracted and saved");
+        const firebaseData = await page.evaluate(async () => {
+          return new Promise((resolve) => {
+            const request = indexedDB.open('firebaseLocalStorageDb');
+            request.onsuccess = () => {
+              const db = request.result;
+              try {
+                const tx = db.transaction('firebaseLocalStorage', 'readonly');
+                const store = tx.objectStore('firebaseLocalStorage');
+                const getAllRequest = store.getAll();
+                getAllRequest.onsuccess = () => resolve(getAllRequest.result);
+                getAllRequest.onerror = () => resolve([]);
+              } catch { resolve([]); }
+            };
+            request.onerror = () => resolve([]);
+          });
+        });
+
+        if (Array.isArray(firebaseData)) {
+          for (const item of firebaseData as any[]) {
+            if (item?.value?.stsTokenManager) {
+              const { accessToken, refreshToken, expirationTime } = item.value.stsTokenManager;
+              saveCachedToken({ accessToken, refreshToken, expirationTime });
+              logger.info("✓ Auth tokens extracted from browser profile");
+
+              if (item.value.apiKey) {
+                getConfig().setFirebaseApiKey(item.value.apiKey);
+                logger.info("✓ Firebase API key saved");
+              }
+              extracted = true;
+              break;
+            }
+          }
         }
       } finally {
         await context.close();
       }
-
-      logger.info("✓ Login session saved successfully!");
-      logger.info("  You can now run: supertag-export run");
-    } else {
-      logger.warn("Could not extract auth tokens. Please try again and make sure you're fully logged in.");
+    } catch (profileError) {
+      logger.info("Profile extraction also failed");
     }
-  } catch (error) {
-    logger.error("Token extraction failed", error as Error);
+  }
+
+  if (extracted) {
+    logger.info("");
+    logger.info("✓ Login session saved successfully!");
+    logger.info("  You can now run: supertag-export run");
+  } else {
+    logger.warn("Could not extract auth tokens.");
     logger.info("");
     logger.info("Troubleshooting:");
-    logger.info("  1. Make sure you logged in and saw the Tana workspace");
-    logger.info("  2. Try running 'supertag-export login --channel chrome' instead");
+    logger.info("  1. Make sure you logged in and saw the Tana workspace fully loaded");
+    logger.info("  2. Keep the browser open when you press Enter");
+    logger.info("  3. Close ALL other browser windows before retrying");
+    if (process.platform === 'win32') {
+      logger.info("  4. If Edge keeps failing, install Chrome and retry");
+    }
   }
 }
 
@@ -518,6 +969,219 @@ async function interactiveLogin(options: LoginOptions = {}): Promise<void> {
 }
 
 /**
+ * Manual workspace discovery - spawns browser directly and connects via CDP
+ * Used when Playwright's launchPersistentContext fails (Windows)
+ */
+async function manualDiscover(options: { timeout?: number } = {}): Promise<import("./lib/discover").DiscoveredWorkspace[]> {
+  const debugPort = 19222;
+  const timeout = options.timeout ?? 15000;
+
+  // Find browser executable (same logic as manualLogin)
+  let browserPath: string;
+
+  if (process.platform === 'win32') {
+    const chromePath = join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe');
+    const edgePath = join(process.env.PROGRAMFILES || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe');
+    const edgePathX86 = join(process.env['PROGRAMFILES(X86)'] || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe');
+
+    if (existsSync(chromePath)) {
+      browserPath = chromePath;
+    } else if (existsSync(edgePath)) {
+      browserPath = edgePath;
+    } else if (existsSync(edgePathX86)) {
+      browserPath = edgePathX86;
+    } else {
+      try {
+        browserPath = chromium.executablePath();
+      } catch {
+        throw new Error("No browser found. Install Chrome or Edge, or run 'supertag-export setup'");
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    browserPath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    if (!existsSync(browserPath)) {
+      try {
+        browserPath = chromium.executablePath();
+      } catch {
+        throw new Error("No browser found. Install Chrome or run 'supertag-export setup'");
+      }
+    }
+  } else {
+    try {
+      browserPath = chromium.executablePath();
+    } catch {
+      throw new Error("Browser not available. Run 'supertag-export setup' first");
+    }
+  }
+
+  // Detect browser type and check if already running
+  const browserType = detectBrowserType(browserPath);
+  let profileDir = USER_DATA_DIR;
+
+  if (browserType !== 'other') {
+    const running = await isBrowserRunning(browserType);
+
+    if (running) {
+      logger.info(`${browserType === 'edge' ? 'Edge' : 'Chrome'} is already running.`);
+      logger.info("Discovery requires restarting it with debugging enabled.");
+      logger.info("Your tabs will be restored when the browser reopens.");
+      logger.info("");
+      logger.info("Press Enter to restart the browser, or Ctrl+C to cancel...");
+
+      await new Promise<void>((resolve) => {
+        process.stdin.setRawMode?.(false);
+        process.stdin.resume();
+        process.stdin.once('data', () => resolve());
+      });
+
+      logger.info(`Closing ${browserType === 'edge' ? 'Edge' : 'Chrome'}...`);
+      await killBrowser(browserType);
+      logger.info("Browser closed.");
+    }
+
+    // Use real profile if available (user stays logged in to Tana)
+    const realProfile = getRealProfilePath(browserType);
+    if (realProfile) {
+      profileDir = realProfile;
+      logger.info("Using existing browser profile.");
+    }
+  }
+
+  // Ensure profile directory exists
+  if (!existsSync(profileDir)) {
+    mkdirSync(profileDir, { recursive: true });
+  }
+
+  const browserArgs = [
+    `--user-data-dir=${profileDir}`,
+    `--remote-debugging-port=${debugPort}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+  ];
+
+  // Prevent Edge from restarting itself on Windows (kills the debug port)
+  if (process.platform === 'win32' && browserPath.toLowerCase().includes('msedge')) {
+    browserArgs.push(
+      "--disable-features=msEdgeAutoStartAndRestart,msEdgeSplashScreen",
+      "--disable-background-timer-throttling",
+    );
+  }
+
+  browserArgs.push(TANA_APP_URL);
+
+  logger.info(`Launching browser: ${browserPath}`);
+
+  const browserProcess = spawn(browserPath, browserArgs, {
+    detached: true,
+    stdio: 'ignore',
+  });
+  browserProcess.unref();
+
+  // Wait for debug port to become ready
+  logger.info("Waiting for browser debug port...");
+  const portReady = await waitForPort(debugPort);
+  if (!portReady) {
+    throw new Error("Browser debug port did not open. Make sure the browser launched correctly.");
+  }
+
+  logger.info("Debug port ready. Waiting for Tana to load...");
+
+  try {
+    // On Windows, use raw CDP to bypass Playwright's broken pipe/WebSocket in compiled binaries
+    const discoverFn = process.platform === 'win32' ? discoverWorkspacesViaRawCDP : discoverWorkspacesViaCDP;
+    const workspaces = await discoverFn({
+      port: debugPort,
+      timeout: timeout,
+      verbose: true,
+    });
+
+    return workspaces;
+  } finally {
+    // Try to close the browser we spawned
+    if (browserType !== 'other') {
+      await killBrowser(browserType);
+    }
+  }
+}
+
+/**
+ * Display discovered workspaces and optionally configure them
+ */
+function displayAndConfigureWorkspaces(
+  workspaces: import("./lib/discover").DiscoveredWorkspace[],
+  options: { add?: boolean; update?: boolean },
+): void {
+  console.log(`\nDiscovered ${workspaces.length} workspace(s):\n`);
+
+  const config = getConfig();
+  const existingWorkspaces = config.getAllWorkspaces();
+
+  for (const ws of workspaces) {
+    // Check if this workspace is already configured
+    let existingAlias: string | undefined;
+    for (const [alias, existing] of Object.entries(existingWorkspaces)) {
+      if (existing.nodeid === ws.homeNodeId || existing.rootFileId === ws.rootFileId) {
+        existingAlias = alias;
+        break;
+      }
+    }
+
+    const status = existingAlias ? `(configured as "${existingAlias}")` : "(not configured)";
+    const rootMarker = ws.isRootFile ? " [root]" : "";
+    console.log(`  ${ws.name}${rootMarker}`);
+    console.log(`    nodeid: ${ws.homeNodeId}`);
+    console.log(`    rootFileId: ${ws.rootFileId}`);
+    console.log(`    nodes: ${ws.nodeCount.toLocaleString()}`);
+    console.log(`    status: ${status}`);
+    console.log("");
+
+    // Auto-add if requested
+    if (options.add && !existingAlias) {
+      const alias = ws.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      config.addWorkspace(alias, ws.rootFileId, {
+        name: ws.name,
+        nodeid: ws.homeNodeId,
+        enabled: true,
+      });
+      console.log(`    → Added as "${alias}"\n`);
+    }
+
+    // Auto-update if requested
+    if (options.update && existingAlias) {
+      const existing = existingWorkspaces[existingAlias];
+      if (!existing.rootFileId || existing.rootFileId !== ws.rootFileId) {
+        config.updateWorkspace(existingAlias, { rootFileId: ws.rootFileId });
+        console.log(`    → Updated rootFileId for "${existingAlias}"\n`);
+      }
+    }
+  }
+
+  // Auto-add first workspace as 'main' if no workspaces configured
+  const hasConfiguredWorkspaces = Object.keys(existingWorkspaces).length > 0;
+
+  if (!hasConfiguredWorkspaces && !options.add && !options.update && workspaces.length > 0) {
+    const firstWorkspace = workspaces[0]; // Root workspace (sorted first)
+    config.addWorkspace("main", firstWorkspace.rootFileId, {
+      name: firstWorkspace.name,
+      nodeid: firstWorkspace.homeNodeId,
+      enabled: true,
+    });
+    config.setDefaultWorkspace("main");
+    console.log(`\n✓ Automatically added "${firstWorkspace.name}" as workspace "main"\n`);
+    console.log("Next steps:");
+    console.log("  1. Run: supertag-export run");
+    console.log("  2. Then: supertag sync index\n");
+  } else if (!options.add && !options.update) {
+    console.log("To add a workspace:");
+    console.log("  supertag workspace add <rootFileId> --alias <name>\n");
+    console.log("Or use --add to automatically add all discovered workspaces:");
+    console.log("  supertag-export discover --add\n");
+    console.log("Or use --update to update existing workspaces with rootFileIds:");
+    console.log("  supertag-export discover --update");
+  }
+}
+
+/**
  * Show export status
  */
 async function showStatus(): Promise<void> {
@@ -598,7 +1262,14 @@ program
   .action(async (options: { channel?: string; manual?: boolean; timeout: string }) => {
     try {
       const timeout = parseInt(options.timeout) * 1000;
-      if (options.manual) {
+
+      // On Windows, always use manual mode (spawn browser + raw CDP extraction).
+      // Playwright's launchPersistentContext uses --remote-debugging-pipe internally,
+      // which fails in Bun-compiled binaries on Windows because file handle inheritance
+      // for stdio pipes doesn't work correctly in the compiled context.
+      const useManual = options.manual || process.platform === 'win32';
+
+      if (useManual) {
         await manualLogin(timeout);
       } else {
         await interactiveLogin({ channel: options.channel as 'chrome' | 'msedge' | undefined, timeout });
@@ -702,10 +1373,38 @@ program
   .option("-t, --timeout <seconds>", "How long to wait for workspace data (default: 15)", "15")
   .option("--add", "Automatically add discovered workspaces to config")
   .option("--update", "Update existing workspaces with discovered rootFileIds")
-  .action(async (options: { timeout: string; add?: boolean; update?: boolean }) => {
-    // Ensure browser is installed
+  .option("--manual", "Use manual browser launch (bypasses Playwright issues on Windows)")
+  .action(async (options: { timeout: string; add?: boolean; update?: boolean; manual?: boolean }) => {
+    // On Windows, always use manual mode (same reason as login - Playwright pipes broken in compiled binary)
+    const useManual = options.manual || process.platform === 'win32';
+
+    // Manual mode: spawn browser directly and connect via CDP
+    if (useManual) {
+      console.log("Discovering Tana workspaces (manual mode)...\n");
+
+      try {
+        const workspaces = await manualDiscover({
+          timeout: parseInt(options.timeout) * 1000,
+        });
+
+        if (workspaces.length === 0) {
+          console.log("\nNo workspaces discovered. Make sure you are logged in to Tana.");
+          console.log("Run: supertag-export login --manual");
+          return;
+        }
+
+        displayAndConfigureWorkspaces(workspaces, options);
+      } catch (error) {
+        console.error("Discovery failed:", error instanceof Error ? error.message : error);
+        process.exit(1);
+      }
+      return;
+    }
+
+    // Standard mode: use Playwright's launchPersistentContext
     if (!await ensureBrowser()) {
       console.error("Browser not available. Please install manually: bunx playwright install chromium");
+      console.error("Or try: supertag-export discover --manual");
       process.exit(1);
     }
 
@@ -723,77 +1422,10 @@ program
         return;
       }
 
-      console.log(`\nDiscovered ${workspaces.length} workspace(s):\n`);
-
-      const config = getConfig();
-      const existingWorkspaces = config.getAllWorkspaces();
-
-      for (const ws of workspaces) {
-        // Check if this workspace is already configured
-        let existingAlias: string | undefined;
-        for (const [alias, existing] of Object.entries(existingWorkspaces)) {
-          if (existing.nodeid === ws.homeNodeId || existing.rootFileId === ws.rootFileId) {
-            existingAlias = alias;
-            break;
-          }
-        }
-
-        const status = existingAlias ? `(configured as "${existingAlias}")` : "(not configured)";
-        const rootMarker = ws.isRootFile ? " [root]" : "";
-        console.log(`  ${ws.name}${rootMarker}`);
-        console.log(`    nodeid: ${ws.homeNodeId}`);
-        console.log(`    rootFileId: ${ws.rootFileId}`);
-        console.log(`    nodes: ${ws.nodeCount.toLocaleString()}`);
-        console.log(`    status: ${status}`);
-        console.log("");
-
-        // Auto-add if requested
-        if (options.add && !existingAlias) {
-          const alias = ws.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-          config.addWorkspace(alias, ws.rootFileId, {
-            name: ws.name,
-            nodeid: ws.homeNodeId,
-            enabled: true,
-          });
-          console.log(`    → Added as "${alias}"\n`);
-        }
-
-        // Auto-update if requested
-        if (options.update && existingAlias) {
-          const existing = existingWorkspaces[existingAlias];
-          if (!existing.rootFileId || existing.rootFileId !== ws.rootFileId) {
-            config.updateWorkspace(existingAlias, { rootFileId: ws.rootFileId });
-            console.log(`    → Updated rootFileId for "${existingAlias}"\n`);
-          }
-        }
-      }
-
-      // Auto-add first workspace as 'main' if no workspaces configured
-      const hasConfiguredWorkspaces = Object.keys(existingWorkspaces).length > 0;
-
-      if (!hasConfiguredWorkspaces && !options.add && !options.update && workspaces.length > 0) {
-        const firstWorkspace = workspaces[0]; // Root workspace (sorted first)
-        config.addWorkspace("main", firstWorkspace.rootFileId, {
-          name: firstWorkspace.name,
-          nodeid: firstWorkspace.homeNodeId,
-          enabled: true,
-        });
-        config.setDefaultWorkspace("main");
-        console.log(`\n✓ Automatically added "${firstWorkspace.name}" as workspace "main"\n`);
-        console.log("Next steps:");
-        console.log("  1. Run: supertag-export run");
-        console.log("  2. Then: supertag sync index\n");
-      } else if (!options.add && !options.update) {
-        // Show usage hints if workspaces already configured
-        console.log("To add a workspace:");
-        console.log("  supertag workspace add <rootFileId> --alias <name>\n");
-        console.log("Or use --add to automatically add all discovered workspaces:");
-        console.log("  supertag-export discover --add\n");
-        console.log("Or use --update to update existing workspaces with rootFileIds:");
-        console.log("  supertag-export discover --update");
-      }
+      displayAndConfigureWorkspaces(workspaces, options);
     } catch (error) {
       console.error("Discovery failed:", error instanceof Error ? error.message : error);
+      console.error("\nIf browser launch failed, try: supertag-export discover --manual");
       process.exit(1);
     }
   });
