@@ -17,9 +17,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, append
 import { join, basename } from 'path';
 import { homedir } from 'os';
 
-// Import logger using absolute path
-const loggerPath = join(homedir(), 'work/DA/KAI/lib/logger.ts');
-const { Logger } = await import(loggerPath);
+// Import logger from internal utils
+import { createLogger, type Logger } from '../utils/logger';
 
 // Import workspace resolution
 import { getConfig } from '../config/manager';
@@ -38,7 +37,7 @@ function getTanaWorkspaceUrl(nodeid: string): string {
 }
 
 // Logger
-const logger = new Logger('tana-daily');
+const logger: Logger = createLogger({ level: 'info', mode: 'pretty' }).child('tana-daily');
 
 interface ExportOptions {
   exportDir: string;
@@ -201,7 +200,7 @@ async function performExport(options: ExportOptions): Promise<string | null> {
 
           // Remove any other modal-like elements
           const modals = document.querySelectorAll('.rc-dialog-mask, .rc-dialog-wrap');
-          modals.forEach(modal => modal.remove());
+          modals.forEach(modal => { modal.remove(); });
         });
 
         if (verbose) logger.debug('Modal removed via JavaScript');

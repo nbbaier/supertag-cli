@@ -11,7 +11,7 @@ export async function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
 
-    process.stdin.on('data', (chunk) => {
+    process.stdin.on('data', (chunk: Buffer) => {
       chunks.push(chunk);
     });
 
